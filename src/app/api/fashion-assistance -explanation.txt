@@ -1,0 +1,12 @@
+We import the VertexAI class from the Google Cloud library.
+We initialize VertexAI with your Google Cloud Project ID and region. It's important to replace 'YOUR_GOOGLE_CLOUD_PROJECT_ID' and 'YOUR_GOOGLE_CLOUD_REGION' with your actual project details.
+The handler function is the main function that will handle all requests to this API endpoint. We check if the request method is POST (as we will be sending data from the frontend).
+Inside the try block, we extract the data (image and question) from the request body (req.body).
+The processImageAndQuestion function is where we will write the logic to communicate with Gemini Pro. Currently, it returns a placeholder.
+If everything works correctly, we send back a response with status 200 and the result from the model. If there's an error, we send a status 500 with an error message.
+If someone tries to access this endpoint with a method other than POST, we return a message indicating that the method is not allowed.
+Next Steps (in English):
+
+Create the fashion-assistant.js file inside the pages/api directory of your project.
+Install the @google-cloud/aiplatform library using npm or yarn.
+Replace the placeholder Project ID and region in the code with your Google Cloud account details.

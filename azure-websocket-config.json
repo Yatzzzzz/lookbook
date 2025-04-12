@@ -1,0 +1,70 @@
+{
+  "routes": [
+    {
+      "route": "/api/gemini-live",
+      "allowedRoles": ["authenticated", "anonymous"],
+      "methods": ["GET", "POST", "OPTIONS"],
+      "headers": {
+        "X-Custom-Header": "Azure Static Web Apps",
+        "Upgrade": "*",
+        "Connection": "Upgrade"
+      },
+      "rewrite": "/api/gemini-live"
+    },
+    {
+      "route": "/api/gemini-live-test",
+      "allowedRoles": ["authenticated", "anonymous"],
+      "methods": ["GET"],
+      "rewrite": "/api/gemini-live-test"
+    },
+    {
+      "route": "/gemini-live-test",
+      "allowedRoles": ["authenticated", "anonymous"],
+      "rewrite": "/gemini-live-test"
+    },
+    {
+      "route": "/*",
+      "allowedRoles": ["authenticated", "anonymous"],
+      "serve": "/index.html",
+      "statusCode": 200
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/images/*.{png,jpg,gif}", "/css/*", "/js/*", "/api/*"]
+  },
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/404.html",
+      "statusCode": 404
+    }
+  },
+  "globalHeaders": {
+    "content-security-policy": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://*.cloudfront.net; media-src 'self' data: blob:; connect-src 'self' wss: https://*.azure-api.net https://*.googleapis.com ws://localhost:* wss://localhost:*; upgrade-insecure-requests",
+    "cache-control": "must-revalidate, max-age=60",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, x-api-key, Upgrade, Connection"
+  },
+  "mimeTypes": {
+    ".json": "application/json",
+    ".webmanifest": "application/manifest+json",
+    ".webm": "audio/webm",
+    ".wav": "audio/wav"
+  },
+  "platform": {
+    "apiRuntime": "node:18"
+  },
+  "networking": {
+    "allowedIpRanges": ["any"]
+  },
+  "websockets": {
+    "enabled": true,
+    "allowedOrigins": ["*"],
+    "maxConnections": 100,
+    "idleTimeout": 300
+  },
+  "logging": {
+    "level": "verbose"
+  }
+} 

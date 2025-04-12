@@ -1,0 +1,13 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  webpack: (config: any, { isServer, webpack }: any) => {
+    config.experiments = { ...config.experiments, topLevelAwait: true };
+    return config;
+  },
+  experimental: {
+    turbo: false,
+  },
+  // Other Next.js configurations can go here
+};
+
+export default nextConfig;

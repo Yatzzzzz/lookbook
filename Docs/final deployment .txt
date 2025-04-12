@@ -1,0 +1,1172 @@
+🤖 # Fresh Start: Lookbook Project Setup Guide
+
+Yes, let's start with a fresh project while keeping your existing Supabase setup. The "Failed to fetch" error suggests connectivity problems that can be easier to resolve with a clean project.
+
+Here's a complete step-by-step guide:
+
+## Step 1: Create a New Next.js Project
+
+```powershell
+# Create a new Next.js project
+npx create-next-app@latest lookbook-fresh
+cd lookbook-fresh
+
+# Install required dependencies
+npm install @supabase/auth-helpers-nextjs @supabase/supabase-js
+```
+
+## Step 2: Set Up Environment Variables
+
+Create a `.env.local` file in your project root:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+Replace `your_supabase_url` and `your_supabase_anon_key` with the values from your Supabase project settings.
+
+## Step 3: Verify Supabase Settings
+
+1. Login to your Supabase dashboard
+2. Go to Authentication → Providers
+3. Make sure Email provider is enabled (as shown in your screenshot)
+4. Disable "Confirm email" for easier testing (you can re-enable later)
+5. Keep minimum password length at 6 characters
+6. Save changes
+
+## Step 4: Create Tables in Supabase (if not already created)
+
+In Supabase SQL Editor, run:
+
+```sql
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Create users table
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
+  username TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+
+-- Create looks table
+CREATE TABLE IF NOT EXISTS looks (
+  look_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  image_url TEXT NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+```
+
+## Step 5: Configure Storage Bucket
+
+1. Go to Storage in Supabase
+2. Create a new bucket named `looks`
+3. Set it as public
+4. Add these policies:
+   - For SELECT (read): `true` (allows anyone to read)
+   - For INSERT (create): `auth.role() = 'authenticated'` (only authenticated users can upload)
+
+## Step 6: Create Auth Context
+
+Create file `src/contexts/AuthContext.tsx`:
+
+```tsx
+'use client';
+
+import { createContext, useContext, useEffect, useState } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { User } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
+
+type AuthContextType = {
+  user: User | null;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signUp: (email: string, password: string, username: string) => Promise<{ success: boolean; error?: string }>;
+  signOut: () => Promise<void>;
+  loading: boolean;
+};
+
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  signIn: async () => ({ success: false }),
+  signUp: async () => ({ success: false }),
+  signOut: async () => {},
+  loading: true,
+});
+
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    const getSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+      } catch (error) {
+        console.error('Error getting session:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  const signUp = async (email: string, password: string, username: string) => {
+    try {
+      // Step 1: Create auth user
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      // Step 2: Create user profile
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert([{ 
+            id: data.user.id,
+            username,
+            email
+          }]);
+
+        if (profileError) throw profileError;
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+      return { success: true };
+    } catch (error: any) {
+      console.error('Login error:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push('/');
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{
+      user,
+      signIn,
+      signUp,
+      signOut,
+      loading,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);
+```
+
+## Step 7: Add Auth Provider to Layout
+
+Update `src/app/layout.tsx`:
+
+```tsx
+import { AuthProvider } from '@/contexts/AuthContext';
+import './globals.css';
+import type { Metadata } from 'next';
+import NavBar from '@/components/NavBar';
+
+export const metadata: Metadata = {
+  title: 'Lookbook',
+  description: 'Share your fashion looks',
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <AuthProvider>
+          <NavBar />
+          <main className="max-w-7xl mx-auto p-4">{children}</main>
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+## Step 8: Create Navbar Component
+
+Create file `src/components/NavBar.tsx`:
+
+```tsx
+'use client';
+
+import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+import { usePathname } from 'next/navigation';
+
+export default function NavBar() {
+  const { user, signOut, loading } = useAuth();
+  const pathname = usePathname();
+
+  return (
+    <nav className="bg-white shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex">
+            <Link href="/" className="flex items-center">
+              <span className="font-bold text-xl text-blue-600">Lookbook</span>
+            </Link>
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+              <Link 
+                href="/gallery" 
+                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                  pathname === '/gallery' 
+                    ? 'border-blue-500 text-gray-900' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Gallery
+              </Link>
+              {user && (
+                <Link 
+                  href="/upload" 
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    pathname === '/upload' 
+                      ? 'border-blue-500 text-gray-900' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Upload
+                </Link>
+              )}
+            </div>
+          </div>
+          <div className="hidden sm:ml-6 sm:flex sm:items-center">
+            {loading ? (
+              <span className="text-gray-500">Loading...</span>
+            ) : user ? (
+              <div className="ml-3 relative flex items-center space-x-4">
+                <span className="text-sm text-gray-700">{user.email}</span>
+                <button
+                  onClick={() => signOut()}
+                  className="text-gray-700 hover:text-gray-900"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <div className="space-x-4">
+                <Link 
+                  href="/login" 
+                  className="text-gray-700 hover:text-gray-900"
+                >
+                  Login
+                </Link>
+                <Link 
+                  href="/signup" 
+                  className="bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+                >
+                  Sign Up
+                </Link>
+              </div>
+            )}
+          </div>
+          
+          {/* Mobile menu button */}
+          <div className="flex items-center sm:hidden">
+            <button className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
+              <span className="sr-only">Open main menu</span>
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+}
+```
+
+## Step 9: Create Signup Page
+
+Create file `src/app/signup/page.tsx`:
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+
+export default function Signup() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { signUp } = useAuth();
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      if (password.length < 6) {
+        throw new Error('Password must be at least 6 characters');
+      }
+
+      const result = await signUp(email, password, username);
+      
+      if (result.success) {
+        alert('Account created successfully! You can now log in.');
+        router.push('/login');
+      } else {
+        throw new Error(result.error || 'Failed to create account');
+      }
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
+      <h1 className="text-2xl font-bold mb-6 text-center">Create Account</h1>
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+      
+      <form onSubmit={handleSignup}>
+        <div className="mb-4">
+          <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+        </div>
+        
+        <div className="mb-4">
+          <label htmlFor="username" className="block text-gray-700 font-medium mb-2">
+            Username
+          </label>
+          <input
+            id="username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+        </div>
+        
+        <div className="mb-6">
+          <label htmlFor="password" className="block text-gray-700 font-medium mb-2">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+          <p className="mt-1 text-sm text-gray-500">Must be at least 6 characters</p>
+        </div>
+        
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+        >
+          {loading ? 'Creating Account...' : 'Sign Up'}
+        </button>
+      </form>
+      
+      <p className="mt-4 text-center text-gray-600">
+        Already have an account?{' '}
+        <Link href="/login" className="text-blue-600 hover:text-blue-800">
+          Log in
+        </Link>
+      </p>
+    </div>
+  );
+}
+```
+
+## Step 10: Create Login Page
+
+Create file `src/app/login/page.tsx`:
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+
+export default function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { signIn } = useAuth();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const result = await signIn(email, password);
+      
+      if (result.success) {
+        router.push('/gallery');
+      } else {
+        throw new Error(result.error || 'Failed to login');
+      }
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
+      <h1 className="text-2xl font-bold mb-6 text-center">Log In</h1>
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+      
+      <form onSubmit={handleLogin}>
+        <div className="mb-4">
+          <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+        </div>
+        
+        <div className="mb-6">
+          <label htmlFor="password" className="block text-gray-700 font-medium mb-2">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+        </div>
+        
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+        >
+          {loading ? 'Logging in...' : 'Log In'}
+        </button>
+      </form>
+      
+      <p className="mt-4 text-center text-gray-600">
+        Don't have an account?{' '}
+        <Link href="/signup" className="text-blue-600 hover:text-blue-800">
+          Sign up
+        </Link>
+      </p>
+    </div>
+  );
+}
+```
+
+## Step 11: Create Upload Page
+
+Create file `src/app/upload/page.tsx`:
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useAuth } from '@/contexts/AuthContext';
+
+export default function Upload() {
+  const [file, setFile] = useState<File | null>(null);
+  const [description, setDescription] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [preview, setPreview] = useState<string | null>(null);
+  const router = useRouter();
+  const { user } = useAuth();
+  const supabase = createClientComponentClient();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0] || null;
+    setFile(selectedFile);
+    
+    if (selectedFile) {
+      const objectUrl = URL.createObjectURL(selectedFile);
+      setPreview(objectUrl);
+      return () => URL.revokeObjectURL(objectUrl);
+    } else {
+      setPreview(null);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!file) {
+      setError('Please select an image to upload');
+      return;
+    }
+    
+    if (!user) {
+      setError('You must be logged in to upload a look');
+      return;
+    }
+    
+    setUploading(true);
+    setError('');
+    
+    try {
+      // Upload image to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('looks')
+        .upload(fileName, file);
+      
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+      
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('looks')
+        .getPublicUrl(fileName);
+      
+      const imageUrl = publicUrlData.publicUrl;
+      
+      // Insert record in the looks table
+      const { error: lookError } = await supabase
+        .from('looks')
+        .insert([
+          {
+            user_id: user.id,
+            image_url: imageUrl,
+            description: description.trim() || null
+          }
+        ]);
+      
+      if (lookError) {
+        throw new Error(lookError.message);
+      }
+      
+      // Success - redirect to gallery
+      alert('Image uploaded successfully!');
+      router.push('/gallery');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      setError(error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
+      <h1 className="text-2xl font-bold mb-6 text-center">Upload Look</h1>
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit}>
+        <div className="mb-4">
+          <label className="block text-gray-700 font-medium mb-2">
+            Choose Image
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="block w-full text-gray-700 border border-gray-300 rounded-md p-2"
+            required
+          />
+        </div>
+        
+        {preview && (
+          <div className="mb-4">
+            <img
+              src={preview}
+              alt="Preview"
+              className="max-h-64 rounded-md mx-auto"
+            />
+          </div>
+        )}
+        
+        <div className="mb-4">
+          <label className="block text-gray-700 font-medium mb-2">
+            Description (optional)
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            rows={3}
+          />
+        </div>
+        
+        <button
+          type="submit"
+          disabled={uploading || !file}
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+        >
+          {uploading ? 'Uploading...' : 'Upload Look'}
+        </button>
+      </form>
+    </div>
+  );
+}
+```
+
+## Step 12: Create Gallery Page
+
+Create file `src/app/gallery/page.tsx`:
+
+```tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+
+type Look = {
+  look_id: string;
+  user_id: string;
+  image_url: string;
+  description: string | null;
+  created_at: string;
+  user: {
+    username: string;
+  } | null;
+};
+
+export default function Gallery() {
+  const [looks, setLooks] = useState<Look[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const { user } = useAuth();
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    const fetchLooks = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('looks')
+          .select(`
+            look_id,
+            user_id,
+            image_url,
+            description,
+            created_at,
+            user:users(username)
+          `)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        setLooks(data || []);
+      } catch (error: any) {
+        console.error('Error fetching looks:', error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLooks();
+  }, [supabase]);
+
+  if (loading) {
+    return <div className="text-center mt-8">Loading gallery...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto mt-8 p-6 bg-red-100 border border-red-400 text-red-700 rounded">
+        Error loading gallery: {error}
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto mt-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Fashion Gallery</h1>
+        {user && (
+          <Link
+            href="/upload"
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          >
+            Upload New Look
+          </Link>
+        )}
+      </div>
+      
+      {looks.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <p className="text-gray-500 mb-4">No fashion looks found</p>
+          {user && (
+            <Link
+              href="/upload"
+              className="text-blue-600 hover:text-blue-800"
+            >
+              Upload the first look!
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {looks.map((look) => (
+            <div key={look.look_id} className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="h-64 overflow-hidden">
+                <img
+                  src={look.image_url}
+                  alt={look.description || 'Fashion look'}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="p-4">
+                {look.description && (
+                  <p className="text-gray-700 mb-2">{look.description}</p>
+                )}
+                <p className="text-sm text-gray-500">
+                  By {look.user?.username || 'Unknown user'}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Step 13: Create Home Page with Redirect
+
+Create file `src/app/page.tsx`:
+
+```tsx
+import { redirect } from 'next/navigation';
+
+export default function Home() {
+  redirect('/gallery');
+}
+```
+
+## Step 14: Create Connection Test Page
+
+Create file `src/app/test-connection/page.tsx`:
+
+```tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+
+export default function TestConnection() {
+  const [status, setStatus] = useState('Testing connection...');
+  const [error, setError] = useState('');
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        // Test ping to Supabase
+        const startTime = Date.now();
+        const { data, error } = await supabase.from('users').select('count()', { count: 'exact', head: true });
+        const endTime = Date.now();
+        
+        if (error) throw error;
+        
+        setStatus(`✅ Connected to Supabase successfully! (${endTime - startTime}ms)`);
+      } catch (error: any) {
+        console.error('Connection test error:', error);
+        setStatus('❌ Connection failed');
+        setError(error.message);
+      }
+    };
+
+    testConnection();
+  }, [supabase]);
+
+  return (
+    <div className="max-w-md mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
+      <h1 className="text-2xl font-bold mb-6 text-center">Connection Test</h1>
+      
+      <div className={`p-4 rounded-md ${status.includes('✅') ? 'bg-green-100' : 'bg-yellow-100'}`}>
+        {status}
+      </div>
+      
+      {error && (
+        <div className="mt-4 p-4 bg-red-100 rounded-md">
+          <p className="font-bold">Error:</p>
+          <p>{error}</p>
+        </div>
+      )}
+      
+      <div className="mt-6">
+        <p className="font-bold">Troubleshooting:</p>
+        <ul className="list-disc ml-5 mt-2">
+          <li>Check your .env.local file has the correct Supabase URL and anon key</li>
+          <li>Ensure your network allows connections to Supabase</li>
+          <li>Verify your Supabase project is active</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+```
+
+## Step 15: Add Middleware for Protected Routes
+
+Create file `middleware.ts` in the project root:
+
+```tsx
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next();
+  const supabase = createMiddlewareClient({ req, res });
+  const { data: { session } } = await supabase.auth
+
+
+🤖 # Completing the Fresh Start Guide
+
+Let me continue with Step 15 and finish the implementation guide:
+
+## Step 15: Add Middleware for Protected Routes
+
+Create file `middleware.ts` in the project root:
+
+```tsx
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next();
+  const supabase = createMiddlewareClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  // Protect the upload page - only authenticated users can access it
+  if (req.nextUrl.pathname === '/upload' && !session) {
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
+  
+  return res;
+}
+
+export const config = {
+  matcher: ['/upload']
+};
+```
+
+## Step 16: Create Test User API Route (Optional)
+
+This step can help diagnose connection issues. Create file `src/app/api/test-user/route.ts`:
+
+```tsx
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+
+export async function POST(request: Request) {
+  try {
+    const supabase = createRouteHandlerClient({ cookies });
+    const { email, password, username } = await request.json();
+    
+    // 1. Create auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+    
+    if (authError) throw authError;
+    
+    // 2. Insert user record
+    if (authData.user) {
+      const { error: profileError } = await supabase
+        .from('users')
+        .insert([{
+          id: authData.user.id,
+          username,
+          email
+        }]);
+        
+      if (profileError) throw profileError;
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: 'User created!',
+        userId: authData.user.id
+      });
+    }
+    
+    return NextResponse.json({ success: false, error: 'Failed to create user' }, { status: 400 });
+  } catch (error: any) {
+    console.error('API error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+```
+
+## Step 17: Create a Test User Creation Page (Optional)
+
+Create file `src/app/test-signup-api/page.tsx`:
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+
+export default function TestSignupApi() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [result, setResult] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setResult('');
+    setError('');
+
+    try {
+      const response = await fetch('/api/test-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password, username }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create user');
+      }
+
+      setResult(`Success! User created with ID: ${data.userId}`);
+    } catch (error: any) {
+      setError(`Error: ${error.message}`);
+      console.error('Test signup error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
+      <h1 className="text-2xl font-bold mb-6 text-center">API Test Signup</h1>
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+      
+      {result && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          {result}
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit}>
+        <div className="mb-4">
+          <label className="block text-gray-700 font-medium mb-2">
+            Email
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            required
+          />
+        </div>
+        
+        <div className="mb-4">
+          <label className="block text-gray-700 font-medium mb-2">
+            Username
+          </label>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            required
+          />
+        </div>
+        
+        <div className="mb-6">
+          <label className="block text-gray-700 font-medium mb-2">
+            Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            required
+            minLength={6}
+          />
+        </div>
+        
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? 'Processing...' : 'Test API Signup'}
+        </button>
+      </form>
+    </div>
+  );
+}
+```
+
+## Step 18: Run the Application
+
+Start the development server:
+
+```powershell
+npm run dev
+```
+
+## Testing Steps
+
+1. First, visit `/test-connection` to verify your connection to Supabase
+2. Try creating an account through the `/signup` page
+3. If that fails, try the API method at `/test-signup-api`
+4. Once logged in, try uploading an image
+5. Visit the gallery to see all uploaded images
+
+## Deployment to Azure
+
+1. Push your code to a Git repository
+2. Set up a new deployment in Azure Static Web Apps
+3. Configure the environment variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+## Troubleshooting Common Issues
+
+### 1. "Failed to fetch" Errors
+- Check network connectivity
+- Verify that Supabase URL and anon key are correct
+- Try clearing browser cache and cookies
+
+### 2. Authentication Issues
+- Ensure Email provider is enabled in Supabase
+- Check if the password meets the minimum length requirement
+- Temporarily disable email confirmation for testing
+
+### 3. Storage Issues
+- Verify the 'looks' bucket exists and has the right permissions
+- Make sure the authenticated policy allows uploads
+- Check for storage quota limitations
+
+### 4. Database Issues
+- Verify tables are created correctly
+- Check RLS policies (Row Level Security)
+- Look for any missing columns or constraints
+
+## Final Notes
+
+This implementation focuses on simplicity and reliability, with just the core features:
+1. User authentication
+2. Image upload
+3. Gallery display
+
+The structure is minimal to avoid the complications you experienced before, while still providing the essential functionality you requested. If you encounter any issues, the test pages (/test-connection and /test-signup-api) should help diagnose and resolve them.

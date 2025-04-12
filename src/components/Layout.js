@@ -1,0 +1,17 @@
+import Link from 'next/link';
+
+export default function Layout({ children }) {
+  return (
+    <div style={{ padding: '1rem' }}>
+      <header style={{ marginBottom: '1rem' }}>
+        <nav>
+          <Link href="/"><a style={{ marginRight: '1rem' }}>Home</a></Link>
+          <Link href="/liveScan"><a style={{ marginRight: '1rem' }}>Live Scan</a></Link>
+          <Link href="/evaluateLook"><a style={{ marginRight: '1rem' }}>Evaluate Look</a></Link>
+          <Link href="/chat"><a>Chat</a></Link>
+        </nav>
+      </header>
+      <main>{children}</main>
+    </div>
+  );
+}

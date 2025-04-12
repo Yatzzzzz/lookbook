@@ -1,0 +1,14 @@
+/**
+ * Converts a file blob to base64 format for API consumption
+ * Handles both image and audio files
+ */
+export async function processFile(blob: Blob): Promise<string | null> {
+  try {
+    const buffer = await blob.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+    return base64;
+  } catch (error) {
+    console.error('Error processing file:', error);
+    return null;
+  }
+} 

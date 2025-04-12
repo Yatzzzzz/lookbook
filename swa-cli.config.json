@@ -1,0 +1,15 @@
+{
+  "$schema": "https://aka.ms/azure/static-web-apps-cli/schema",
+  "configurations": {
+    "lookbook-app": {
+      "appLocation": ".",
+      "outputLocation": ".next",
+      "appBuildCommand": "npm run build",
+      "apiDevserverUrl": "/api",
+      "appDevserverUrl": "http://localhost:3000",
+      "apiLocation": "api",
+      "run": "npm run dev",
+      "appName": "lookbook-fashion"
+    }
+  }
+} 

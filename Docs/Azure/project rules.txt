@@ -1,0 +1,9 @@
+we are using windows with power shell - adjust command accordingly
+do not use mock data, fake data  - only real data and real services and function 
+do not install any css package
+all api keys or passwords are in .env.local
+do not delete anything without approval
+always use the same port (3000) - by using npx kill-port 300 ; npm run Develop
+when you soggest to make a change in a file - add the full path so i will know what file are you talking about
+if you want me to run a script - add the word "script"  
+we are in the final stage of MVP - before you change files  - please share the path of the file and what you intend to do - before you do it

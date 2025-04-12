@@ -1,0 +1,12 @@
+Import Statements: We import useRef, useEffect, and useState from React.
+videoRef: We create a reference to the <video> element using useRef. This allows us to directly interact with the video element in the DOM.
+cameraStream State: We use useState to hold the media stream from the camera. This is useful for cleaning up the stream later.
+useEffect Hook: This hook runs after the component renders.
+enableCamera Function: This asynchronous function tries to access the user's camera using navigator.mediaDevices.getUserMedia({ video: true }). This will prompt the user to grant permission to use their camera.
+Setting srcObject: If the camera access is successful and we have a reference to the <video> element (videoRef.current), we set its srcObject to the obtained stream. This will start displaying the camera feed in the video element.
+Error Handling: If there's an error accessing the camera (e.g., the user denies permission), we log an error to the console. You might want to add user-friendly error handling in a real application.
+Cleanup Function: The return part of the useEffect hook is a cleanup function that runs when the component unmounts or before the effect runs again. Here, we stop all the tracks in the cameraStream to properly release the camera. This is important for performance and privacy.
+JSX:
+We have a simple <h1> for the title.
+The <video> element has the ref attribute set to videoRef. autoPlay ensures the video starts playing automatically once the stream is available, and playsInline is often needed for mobile browsers. We've also added basic styling to set the width and height of the video.
+The comment indicates where we will add more UI elements (like the question input and response area) later.

@@ -1,0 +1,280 @@
+           'use client';
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+
+                      <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="absolute top-3 right-3 z-10">
+                  <button className="p-1 bg-white bg-opacity-70 rounded-full shadow-md hover:bg-opacity-100 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+
+import React, { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import Link from 'next/link';
+
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+interface Look {
+  look_id: string;
+  user_id: string;
+  username?: string;
+  title: string;
+  description: string;
+  image_url: string;
+  audience: 'public' | 'friends' | 'private';
+  created_at: string;
+  rating?: string;
+}
+
+export default function GalleryPage() {
+  const [looks, setLooks] = useState<Look[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'gallery' | 'battle' | 'yayornay' | 'crowd'>('gallery');
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  
+  useEffect(() => {
+    async function fetchLooks() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // First approach: Try to get images with user data
+        const { data: lookData, error: dbError } = await supabase
+          .from('looks')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (dbError) {
+          console.error('Database error:', dbError);
+          throw new Error('Failed to fetch looks from database');
+        }
+        
+        if (lookData && lookData.length > 0) {
+          // We got database records, now fetch user info for each
+          const lookIds = lookData.map(look => look.look_id);
+          
+          // Get all image files from storage as a fallback
+          const { data: files } = await supabase.storage
+            .from('looks')
+            .list();
+            
+          const processedLooks: Look[] = [];
+          
+          // Process database records
+          for (const look of lookData) {
+            try {
+              // Try to get user info
+              const { data: userData } = await supabase
+                .from('users')
+                .select('username')
+                .eq('id', look.user_id)
+                .single();
+                
+              processedLooks.push({
+                ...look,
+                username: userData?.username || 'Anonymous'
+              });
+            } catch (e) {
+              // If user fetch fails, still add the look without username
+              processedLooks.push({
+                ...look,
+                username: 'Anonymous'
+              });
+            }
+          }
+          
+          // Add any storage files that might not be in the database
+          if (files && files.length > 0) {
+            const storageOnlyFiles = files.filter(file => 
+              // Only include files not already in the database
+              !lookIds.includes(file.id) && 
+              // Only include image files
+              file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+            );
+            
+            for (const file of storageOnlyFiles) {
+              const publicUrl = supabase.storage
+                .from('looks')
+                .getPublicUrl(file.name).data.publicUrl;
+                
+              processedLooks.push({
+                look_id: file.id,
+                user_id: 'unknown',
+                image_url: publicUrl,
+                title: file.name.replace(/\.\w+$/, '').replace(/_/g, ' '),
+                username: 'Anonymous',
+                created_at: file.created_at
+              });
+            }
+          }
+          
+          setLooks(processedLooks);
+        } else {
+          // No database records, fall back to just listing storage files
+          const { data: files, error: storageError } = await supabase.storage
+            .from('looks')
+            .list();
+            
+          if (storageError) throw storageError;
+          
+          if (files && files.length > 0) {
+            const imageFiles = files.filter(file => 
+              file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+            );
+            
+            const processedLooks = imageFiles.map(file => ({
+              look_id: file.id,
+              user_id: 'unknown',
+              image_url: supabase.storage.from('looks').getPublicUrl(file.name).data.publicUrl,
+              title: file.name.replace(/\.\w+$/, '').replace(/_/g, ' '),
+              username: 'Anonymous',
+              created_at: file.created_at
+            }));
+            
+            setLooks(processedLooks);
+          } else {
+            // No images found in either database or storage
+            setLooks([]);
+          }
+        }
+      } catch (err: any) {
+        console.error('Error fetching images:', err);
+        setError(err.message || 'Failed to load images');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchLooks();
+  }, []);
+
+  // Function to handle rating slider visibility
+  const handleHover = (index: number | null) => {
+    setHoverIndex(index);
+  };
+
+  // Add custom CSS for masonry layout
+  useEffect(() => {
+    // This creates a style element with the masonry layout CSS
+    const style = document.createElement('style');
+    style.textContent = `
+      @media (min-width: 640px) {
+        .masonry-grid {
+          column-count: 2;
+          column-gap: 1rem;
+        }
+      }
+      
+      @media (min-width: 768px) {
+        .masonry-grid {
+          column-count: 3;
+          column-gap: 1rem;
+        }
+      }
+      
+      @media (min-width: 1024px) {
+        .masonry-grid {
+          column-count: 4;
+          column-gap: 1rem;
+        }
+      }
+      
+      .masonry-item {
+        break-inside: avoid;
+        margin-bottom: 1rem;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  return (
+    <div className="masonry-grid">
+      {looks.map((look, index) => (
+        <div 
+          key={look.look_id || index} 
+          className="masonry-item bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-lg"
+          onMouseEnter={() => handleHover(index)}
+          onMouseLeave={() => handleHover(null)}
+          onTouchStart={() => handleHover(index === hoverIndex ? null : index)}
+        >
+          <div className="relative overflow-hidden">
+            {/* Share and Save buttons - Moved to TOP */}
+            <div className="absolute top-3 left-3 z-10">
+              <button className="p-1 bg-white bg-opacity-70 rounded-full shadow-md hover:bg-opacity-100 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="absolute top-3 right-3 z-10">
+              <button className="p-1 bg-white bg-opacity-70 rounded-full shadow-md hover:bg-opacity-100 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+                </svg>
+              </button>
+            </div>
+            
+            <img 
+              src={look.image_url} 
+              alt={look.title || `Fashion look ${index + 1}`} 
+              className="w-full h-auto object-contain" 
+            />
+            
+            {/* Rating slider shown on hover */}
+            {hoverIndex === index && (
+              <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 p-2 z-10">
+                <div className="h-8 rounded-full bg-gray-200 relative cursor-pointer">
+                  <div className="absolute top-0 left-0 bottom-0 rounded-full bg-gradient-to-r from-yellow-400 to-red-500 w-1/5"></div>
+                  <div className="relative h-full flex justify-between items-center px-3 text-xs font-bold">
+                    <span className="z-10 text-gray-700">Ok</span>
+                    <span className="z-10 text-gray-700">Nice</span>
+                    <span className="z-10 text-gray-700">Good</span>
+                    <span className="z-10 text-gray-700">Great</span>
+                    <span className="z-10 text-gray-700">Amazing</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="p-4">
+            <div className="flex items-center mb-2">
+              <div className="w-8 h-8 rounded-full bg-gray-300 mr-2 flex items-center justify-center">
+                {look.username?.charAt(0).toUpperCase() || "A"}
+              </div>
+              <span className="font-medium text-sm">{look.username || "Anonymous"}</span>
+            </div>
+            
+            <h2 className="text-lg font-semibold mb-2 truncate">
+              {look.title || `Look ${index + 1}`}
+            </h2>
+            
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500">
+                {new Date(look.created_at).toLocaleDateString()}
+              </span>
+              <Link 
+                href={`/gallery/look/${look.look_id || encodeURIComponent(look.image_url.split('/').pop() || '')}`}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              >
+                View Details
+              </Link>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+

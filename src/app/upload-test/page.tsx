@@ -1,0 +1,163 @@
+'use client';
+
+import React, { useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+export default function UploadTest() {
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+
+  const addLog = (message: string) => {
+    setLogs(prev => [...prev, `${new Date().toISOString().substr(11, 8)} - ${message}`]);
+  };
+
+  const handleUpload = async () => {
+    if (!file) {
+      setError('Please select a file first');
+      return;
+    }
+
+    try {
+      setError(null);
+      setUploading(true);
+      addLog(`Starting upload for file: ${file.name}`);
+
+      // Simple timestamp-based filename
+      const timestamp = Date.now();
+      const fileExt = file.name.split('.').pop();
+      const fileName = `test-${timestamp}.${fileExt}`;
+
+      addLog(`Generated filename: ${fileName}`);
+      
+      // Attempt to list buckets first
+      addLog('Listing storage buckets...');
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      
+      if (bucketsError) {
+        addLog(`Error listing buckets: ${bucketsError.message}`);
+        throw bucketsError;
+      }
+      
+      const bucketNames = buckets.map(b => b.name);
+      addLog(`Found buckets: ${bucketNames.join(', ') || 'none'}`);
+      
+      // Try to upload to the 'looks' bucket
+      addLog('Uploading file to "looks" bucket...');
+      const { error: uploadError } = await supabase.storage
+        .from('looks')
+        .upload(fileName, file);
+      
+      if (uploadError) {
+        addLog(`Upload error: ${uploadError.message}`);
+        throw uploadError;
+      }
+      
+      addLog('Upload successful! Getting public URL...');
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('looks')
+        .getPublicUrl(fileName);
+      
+      addLog(`File available at: ${publicUrl}`);
+      setUploadedUrl(publicUrl);
+      
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('Upload error:', err);
+        setError(err.message || 'An error occurred during upload');
+      } else {
+        console.error('An unexpected error occurred:', err);
+        setError('An unexpected error occurred during upload');
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="container mx-auto p-6 max-w-2xl">
+      <h1 className="text-2xl font-bold mb-6">Supabase Storage Test</h1>
+      
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Select File to Upload
+          </label>
+          <input
+            type="file"
+            onChange={(e) => e.target.files && setFile(e.target.files[0])}
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          />
+        </div>
+        
+        <button
+          onClick={handleUpload}
+          disabled={!file || uploading}
+          className={`w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${(!file || uploading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {uploading ? 'Uploading...' : 'Upload to Supabase'}
+        </button>
+      </div>
+      
+      {error && (
+        <div className="mt-4 p-4 bg-red-100 text-red-700 rounded-md">
+          <p className="font-medium">Error</p>
+          <p>{error}</p>
+        </div>
+      )}
+      
+      {uploadedUrl && (
+        <div className="mt-4 p-4 bg-green-100 text-green-700 rounded-md">
+          <p className="font-medium">Upload Successful!</p>
+          <p className="mb-2">File uploaded and available at:</p>
+          <a 
+            href={uploadedUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline break-all"
+          >
+            {uploadedUrl}
+          </a>
+          {uploadedUrl.endsWith('.jpg') || uploadedUrl.endsWith('.png') || uploadedUrl.endsWith('.gif') ? (
+            <div className="mt-3">
+              <img 
+                src={uploadedUrl} 
+                alt="Uploaded file" 
+                className="max-h-48 rounded-md mx-auto" 
+              />
+            </div>
+          ) : null}
+        </div>
+      )}
+      
+      {logs.length > 0 && (
+        <div className="mt-4">
+          <h2 className="text-lg font-medium mb-2">Upload Logs</h2>
+          <div className="bg-black text-green-400 p-3 rounded-md h-64 overflow-y-auto">
+            {logs.map((log, index) => (
+              <div key={index} className="font-mono text-sm mb-1">{log}</div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      <div className="mt-6 p-4 bg-blue-50 text-blue-800 rounded-md">
+        <h2 className="text-lg font-medium mb-2">Troubleshooting Tips</h2>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Make sure your `.env.local` file has the correct Supabase URL and anon key</li>
+          <li>Check that the &apos;looks&apos; bucket exists in your Supabase project</li>
+          <li>Verify that the bucket policies allow uploads</li>
+          <li>If you still have issues, try creating a new bucket through the Supabase dashboard</li>
+        </ul>
+      </div>
+    </div>
+  );
+} 

@@ -1,0 +1,28 @@
+import Link from 'next/link';
+import React from 'react';
+
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
+  // ... your existing code
+  
+  return (
+    <div>
+      <header>
+        {/* Your existing header */}
+        <nav>
+          {/* Your existing navigation */}
+          <Link href="/ai" className="nav-link">
+            AI Assistant
+          </Link>
+        </nav>
+      </header>
+      
+      <main>{children}</main>
+      
+      <footer>{/* Your footer */}</footer>
+    </div>
+  );
+} 
