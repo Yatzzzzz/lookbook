@@ -73,9 +73,12 @@ This file tracks the progress of deploying the Next.js application to Azure Web 
    - Added dynamic flag to /lookbook and /lookbook/my-looks pages
    - Updated to use centralized Supabase client
    - Added lookbook routes to page-config.ts dynamic pages list
+7. Fixed upload and look pages:
+   - Added dynamic flag to /upload and /look pages
+   - Added these routes to page-config.ts dynamic pages list
 
 ### Deployment Status
-- Latest commit: Fix lookbook pages for static generation
+- Latest commit: Fix upload and look pages for static generation
 - Status: Waiting for GitHub Actions to complete
 
 ### Adding the Publish Profile to GitHub Secrets

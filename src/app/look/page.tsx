@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useState, useRef, FormEvent, ChangeEvent } from 'react';
+import React, { useState, useRef, FormEvent, ChangeEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
 
 // Interfaces for Vision API results
 interface DetectedClothingItem {
@@ -13,6 +16,9 @@ interface DetectedClothingItem {
 
 interface VisionAnalysisResult {
     isSafe: boolean;
+    labels: string[];
+    colors: string[];
+    error?: string;
     detectedClothing: DetectedClothingItem[];
     dominantColors: Array<{ hex: string; score: number | null | undefined; pixelFraction: number | null | undefined }>;
 }

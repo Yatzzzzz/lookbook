@@ -9,6 +9,8 @@ export const DYNAMIC_PAGES = [
   '/test-user-session',
   '/lookbook',
   '/lookbook/my-looks',
+  '/upload',
+  '/look',
   '/api/test-supabase',
   '/api/test-user',
   '/api/test-user-session',

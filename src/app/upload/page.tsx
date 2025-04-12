@@ -1,5 +1,8 @@
 // Integrated upload page with AI tagging and/or KlingAI logic
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 export default function UploadPage() {
   return (
     <div className="container mx-auto p-4">
