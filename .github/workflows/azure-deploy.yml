@@ -147,7 +147,19 @@ jobs:
           EOL
 
       - name: Create Zip Artifact
-        run: zip -r release.zip . -x "node_modules/*" ".git/*" ".next/cache/*"
+        run: |
+          # Create a directory structure for the deployment
+          mkdir -p deployment
+          # Copy the relevant files (.next, public, node_modules, package.json, server.js, etc.)
+          cp -r .next deployment/
+          cp -r public deployment/ || true
+          cp -r node_modules deployment/
+          cp package.json package-lock.json server.js web.config .npmrc deployment/ || true
+          cp .env.local azure-startup.sh deployment/ || true
+          # Make the startup script executable
+          chmod +x deployment/azure-startup.sh
+          # Create the zip from the deployment directory
+          cd deployment && zip -r ../release.zip . && cd ..
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
