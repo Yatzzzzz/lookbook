@@ -28,6 +28,8 @@ jobs:
         run: |
           npm ci --legacy-peer-deps
           npm run build
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Zip artifact for deployment
         run: zip -r release.zip . -x "node_modules/*" ".git/*"
