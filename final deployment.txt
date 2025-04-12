@@ -1,0 +1,107 @@
+# Azure Web App Deployment Plan for Lookbook Social Network
+
+## Overview
+This file tracks the progress of deploying the Next.js application to Azure Web App Service.
+
+## Prerequisites
+- Azure account with active subscription
+- GitHub repository with the application code
+- Local installation of Azure CLI
+
+## Step 1: Prepare Next.js for Azure Web App (COMPLETED)
+- Verify next.config.js is properly configured ✅
+- Ensure server.js is ready for production deployment ✅
+- Confirm web.config is properly set up ✅
+- Notes: The application is already configured for Azure Web App deployment with appropriate server.js and web.config files.
+
+## Step 2: Provision Azure Resources (COMPLETED)
+- Create Resource Group ✅
+- Create App Service Plan ✅
+- Create Azure Web App ✅
+- Notes: Resources created with the following names:
+  - Resource Group: lookbook-rg
+  - App Service Plan: lookbook-appservice-plan (B1 tier)
+  - Web App: lookbook-nextjs-app (NODE:20-lts)
+
+## Step 3: Configure Azure Web App (COMPLETED)
+- Set up environment variables ✅
+- Configure runtime stack and version ✅
+- Set up web sockets and other settings ✅
+- Notes: 
+  - Environment variables for Supabase, Gemini, and WebSockets configured
+  - Node.js 20 LTS runtime configured
+  - Always-on and WebSockets enabled
+  - Set startup file to server.js
+
+## Step 4: Set Up GitHub Actions for Deployment (COMPLETED)
+- Create GitHub Actions workflow file ✅
+- Set up deployment configuration ✅
+- Notes:
+  - Created `.github/workflows/azure-deploy.yml` workflow file
+  - Configured to deploy on pushes to main branch and manual triggers
+  - Set up to use Node.js 20.x for building
+  - Fixed deployment issue by adding zip packaging step and explicit type
+
+## Step 5: Deploy Application (PENDING)
+- Add AZURE_WEBAPP_PUBLISH_PROFILE to GitHub secrets
+- Trigger deployment through GitHub Actions
+- Verify successful deployment
+
+### Adding the Publish Profile to GitHub Secrets
+1. Go to your GitHub repository
+2. Navigate to Settings > Secrets and variables > Actions
+3. Click on "New repository secret"
+4. Name: AZURE_WEBAPP_PUBLISH_PROFILE
+5. Value: [Paste the entire XML publish profile obtained from Azure]
+6. Click "Add secret"
+
+### Triggering Deployment
+After adding the publish profile secret, you can trigger the deployment by either:
+1. Pushing new changes to the main branch
+2. Manually triggering the workflow from the "Actions" tab in your GitHub repository
+
+## Step 6: Post-Deployment Verification (PENDING)
+- Test application functionality
+- Monitor application performance
+- Set up logging and diagnostics
+
+### Verifying Deployment
+1. Once deployment completes successfully, visit the web app URL: 
+   [https://lookbook-nextjs-app.azurewebsites.net](https://lookbook-nextjs-app.azurewebsites.net)
+2. Verify key functionality:
+   - User authentication with Supabase
+   - Gemini AI integration
+   - WebSocket connections
+   - Image uploads and processing
+3. Monitor application logs in the Azure Portal:
+   - Go to the Azure Portal > lookbook-nextjs-app > Monitoring > Log Stream
+   - Check for any errors or warnings
+
+## Deployment Troubleshooting
+If you encounter deployment issues, check the following:
+
+1. **Deployment fails with .NET error**: The original deployment was failing because it was trying to use .NET (dotnet.exe) instead of Node.js. 
+   - Fix: Updated GitHub Actions workflow file to explicitly package the application as a zip file and specify the deployment type.
+   - Added zip creation step: `zip -r release.zip . -x "node_modules/*" ".git/*"`
+   - Set package type to "zip" in the deploy step
+
+2. **Startup file issues**: Make sure the startup file is properly set to server.js.
+   - Fix: Set the startup file explicitly using: `az webapp config set --name lookbook-nextjs-app --resource-group lookbook-rg --startup-file "server.js"`
+
+3. **WebSocket connectivity issues**: Ensure WebSockets are enabled in the Azure Web App configuration.
+   - Fix: Enabled WebSockets using: `az webapp config set --name lookbook-nextjs-app --resource-group lookbook-rg --web-sockets-enabled true`
+
+## Current Status: READY FOR DEPLOYMENT (FIXED ISSUES)
+Last updated: April 25, 2024
+
+## Useful Commands for Monitoring and Maintenance
+```bash
+# View web app logs
+az webapp log tail --name lookbook-nextjs-app --resource-group lookbook-rg
+
+# Restart web app if needed
+az webapp restart --name lookbook-nextjs-app --resource-group lookbook-rg
+
+# Scale up/down if needed
+az appservice plan update --name lookbook-appservice-plan --resource-group lookbook-rg --sku S1
+```
