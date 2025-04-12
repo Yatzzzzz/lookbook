@@ -42,7 +42,12 @@ This file tracks the progress of deploying the Next.js application to Azure Web 
   - Set up to use Node.js 20.x for building
   - Fixed deployment issue by adding zip packaging step and explicit type
 
-## Step 5: Deploy Application (PENDING)
+## Step 5: Fix Dependency Issues (COMPLETED)
+- Updated ESLint to version 8.x to be compatible with eslint-plugin-react-hooks ✅
+- Modified GitHub workflow to use `--legacy-peer-deps` to avoid dependency conflicts ✅
+- Updated server.js to properly bind to all interfaces in production environment ✅
+
+## Step 6: Deploy Application (IN PROGRESS)
 - Add AZURE_WEBAPP_PUBLISH_PROFILE to GitHub secrets
 - Trigger deployment through GitHub Actions
 - Verify successful deployment
@@ -60,7 +65,13 @@ After adding the publish profile secret, you can trigger the deployment by eithe
 1. Pushing new changes to the main branch
 2. Manually triggering the workflow from the "Actions" tab in your GitHub repository
 
-## Step 6: Post-Deployment Verification (PENDING)
+### Local Deployment (Alternative)
+You can also deploy directly from your local machine using PowerShell:
+1. Navigate to the project root directory
+2. Run the deployment script: `.\scripts\deploy-to-azure.ps1`
+3. Follow the prompts to login to Azure and deploy
+
+## Step 7: Post-Deployment Verification
 - Test application functionality
 - Monitor application performance
 - Set up logging and diagnostics
@@ -76,22 +87,26 @@ After adding the publish profile secret, you can trigger the deployment by eithe
 3. Monitor application logs in the Azure Portal:
    - Go to the Azure Portal > lookbook-nextjs-app > Monitoring > Log Stream
    - Check for any errors or warnings
+4. Run the deployment test script: `npm run test:deployment`
 
 ## Deployment Troubleshooting
 If you encounter deployment issues, check the following:
 
-1. **Deployment fails with .NET error**: The original deployment was failing because it was trying to use .NET (dotnet.exe) instead of Node.js. 
+1. **ESLint dependency conflicts**: The original deployment was failing because of conflicts between ESLint 9.x and eslint-plugin-react-hooks 4.x.
+   - Fix: Updated ESLint to version 8.57.0 in package.json and used --legacy-peer-deps during installation
+
+2. **Deployment fails with .NET error**: The deployment was failing because it was trying to use .NET (dotnet.exe) instead of Node.js. 
    - Fix: Updated GitHub Actions workflow file to explicitly package the application as a zip file and specify the deployment type.
    - Added zip creation step: `zip -r release.zip . -x "node_modules/*" ".git/*"`
    - Set package type to "zip" in the deploy step
 
-2. **Startup file issues**: Make sure the startup file is properly set to server.js.
+3. **Startup file issues**: Make sure the startup file is properly set to server.js.
    - Fix: Set the startup file explicitly using: `az webapp config set --name lookbook-nextjs-app --resource-group lookbook-rg --startup-file "server.js"`
 
-3. **WebSocket connectivity issues**: Ensure WebSockets are enabled in the Azure Web App configuration.
+4. **WebSocket connectivity issues**: Ensure WebSockets are enabled in the Azure Web App configuration.
    - Fix: Enabled WebSockets using: `az webapp config set --name lookbook-nextjs-app --resource-group lookbook-rg --web-sockets-enabled true`
 
-## Current Status: READY FOR DEPLOYMENT (FIXED ISSUES)
+## Current Status: READY FOR DEPLOYMENT (FIXED ALL ISSUES)
 Last updated: April 25, 2024
 
 ## Useful Commands for Monitoring and Maintenance
@@ -104,4 +119,16 @@ az webapp restart --name lookbook-nextjs-app --resource-group lookbook-rg
 
 # Scale up/down if needed
 az appservice plan update --name lookbook-appservice-plan --resource-group lookbook-rg --sku S1
+```
+
+## PowerShell Commands (Windows)
+```powershell
+# View web app logs
+az webapp log tail --name lookbook-nextjs-app --resource-group lookbook-rg
+
+# Restart web app if needed
+az webapp restart --name lookbook-nextjs-app --resource-group lookbook-rg
+
+# Deploy directly from local machine
+.\scripts\deploy-to-azure.ps1
 ```

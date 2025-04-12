@@ -1,52 +1,42 @@
-# Script to deploy Next.js app to Azure Web App
-# Requirements: 
-# - Azure CLI installed and logged in
-# - Node.js and npm installed
+# Deploy to Azure PowerShell script
+# This script helps with building and deploying the app to Azure
 
-# Parameters
-param(
-    [string]$WebAppName = "lookbook-dev-app",
-    [string]$ResourceGroup = "LookbookDev"
-)
+# Configuration
+$ResourceGroup = "lookbook-rg"
+$WebAppName = "lookbook-nextjs-app"
 
-# Function to check if a command exists
-function Test-CommandExists {
-    param ($command)
-    $exists = $null -ne (Get-Command $command -ErrorAction SilentlyContinue)
-    return $exists
+Write-Host "Starting deployment process for $WebAppName..." -ForegroundColor Green
+
+# Step 1: Build the application
+Write-Host "Step 1: Building the application..." -ForegroundColor Cyan
+
+# Create .env.local file with necessary environment variables
+if (-not (Test-Path .env.local)) {
+    Write-Host "Creating .env.local file..."
+    @"
+CI=true
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+NEXT_PUBLIC_SUPABASE_URL=https://wwjuohjstrcyvshfuadr.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+GOOGLE_APPLICATION_CREDENTIALS=./dummy-credentials.json
+NEXT_PUBLIC_WEBSOCKET_URL=wss://lookbook-nextjs-app.azurewebsites.net/api/gemini-live
+"@ | Out-File -FilePath .env.local -Encoding utf8
+    Write-Host "Created .env.local file. Please edit it to add your actual API keys." -ForegroundColor Yellow
 }
 
-# Check if required tools are installed
-if (-not (Test-CommandExists "az")) {
-    Write-Host "Azure CLI is not installed. Please install it from https://docs.microsoft.com/en-us/cli/azure/install-azure-cli" -ForegroundColor Red
-    exit 1
+# Create dummy credentials file for building
+if (-not (Test-Path dummy-credentials.json)) {
+    Write-Host "Creating dummy-credentials.json..."
+    "{}" | Out-File -FilePath dummy-credentials.json -Encoding utf8
 }
 
-if (-not (Test-CommandExists "npm")) {
-    Write-Host "npm is not installed. Please install Node.js from https://nodejs.org/" -ForegroundColor Red
-    exit 1
-}
+# Install dependencies
+Write-Host "Installing dependencies..."
+npm ci --legacy-peer-deps
 
-# Check Azure CLI login status
-$loginStatus = az account show --query name -o tsv 2>$null
-if (-not $loginStatus) {
-    Write-Host "You are not logged in to Azure CLI. Please run 'az login' first." -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "Logged in to Azure as: $loginStatus" -ForegroundColor Green
-
-# Verify the web app exists
-$webAppExists = az webapp show --name $WebAppName --resource-group $ResourceGroup --query name -o tsv 2>$null
-if (-not $webAppExists) {
-    Write-Host "Web App '$WebAppName' not found in resource group '$ResourceGroup'" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "Found Web App: $WebAppName" -ForegroundColor Green
-
-# Build the Next.js app
-Write-Host "Building Next.js application..." -ForegroundColor Yellow
+# Build the application
+Write-Host "Building the application..."
+$env:CI = "true"
 npm run build
 
 if ($LASTEXITCODE -ne 0) {
@@ -54,69 +44,62 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Write-Host "Build successful" -ForegroundColor Green
+# Step 2: Package the application
+Write-Host "Step 2: Packaging the application..." -ForegroundColor Cyan
 
-# Create a deployment package
-Write-Host "Creating deployment package..." -ForegroundColor Yellow
+# Create a zip file for deployment
+Write-Host "Creating deployment package..."
+Compress-Archive -Path * -DestinationPath release.zip -Force -Exclude @("node_modules/*", ".git/*", "release.zip")
 
-# Create a temp directory for the deployment package
-$tempDir = [System.IO.Path]::GetTempPath() + [System.Guid]::NewGuid().ToString()
-New-Item -ItemType Directory -Path $tempDir | Out-Null
+# Step 3: Deploy to Azure
+Write-Host "Step 3: Deploying to Azure..." -ForegroundColor Cyan
 
-# Copy necessary files to temp directory
-Copy-Item -Path ".next" -Destination "$tempDir/.next" -Recurse
-Copy-Item -Path "public" -Destination "$tempDir/public" -Recurse
-Copy-Item -Path "package.json" -Destination "$tempDir/package.json"
-# Don't copy package-lock.json to allow fresh install on the server
-Copy-Item -Path "server.js" -Destination "$tempDir/server.js"
-Copy-Item -Path "web.config" -Destination "$tempDir/web.config"
-Copy-Item -Path "middleware.ts" -Destination "$tempDir/middleware.ts" -ErrorAction SilentlyContinue
-Copy-Item -Path "next.config.js" -Destination "$tempDir/next.config.js"
-
-# Add deployment script
-$deploymentScript = @"
-@echo off
-echo Installing dependencies...
-call npm install --production
-echo Starting the application...
-"@
-Set-Content -Path "$tempDir/deploy.cmd" -Value $deploymentScript
-
-# Create startup script
-$startupScript = @"
-# This is the startup script for Azure Web App
-export NODE_ENV=production
-npm start
-"@
-Set-Content -Path "$tempDir/startup.sh" -Value $startupScript
-
-# Create a ZIP file
-$zipFile = "$tempDir.zip"
-Compress-Archive -Path "$tempDir\*" -DestinationPath $zipFile
-
-Write-Host "Deployment package created at: $zipFile" -ForegroundColor Green
-
-# Set SCM_DO_BUILD_DURING_DEPLOYMENT to ensure npm install runs on deployment
-az webapp config appsettings set --name $WebAppName --resource-group $ResourceGroup --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true
-
-# Deploy to Azure Web App
-Write-Host "Deploying to Azure Web App: $WebAppName..." -ForegroundColor Yellow
-az webapp deploy --resource-group $ResourceGroup --name $WebAppName --src-path $zipFile --type zip
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Deployment failed. Please check the errors and try again." -ForegroundColor Red
+# Check if Azure CLI is installed
+try {
+    $azVersion = az --version
+    Write-Host "Azure CLI is installed. Version: $azVersion" -ForegroundColor Green
+}
+catch {
+    Write-Host "Azure CLI is not installed. Please install it from https://docs.microsoft.com/en-us/cli/azure/install-azure-cli" -ForegroundColor Red
     exit 1
 }
 
-# Clean up temporary files
-Remove-Item -Path $tempDir -Recurse -Force
-Remove-Item -Path $zipFile -Force
+# Login to Azure
+Write-Host "Logging in to Azure..."
+az login
 
-Write-Host "Deployment completed successfully!" -ForegroundColor Green
-Write-Host "Your application is now available at: https://$WebAppName.azurewebsites.net" -ForegroundColor Cyan
+# Check if login was successful
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Failed to login to Azure. Please try again." -ForegroundColor Red
+    exit 1
+}
 
-# Ensure WebSockets are enabled
-Write-Host "Enabling WebSockets for real-time features..." -ForegroundColor Yellow
-az webapp config set --name $WebAppName --resource-group $ResourceGroup --web-sockets-enabled true
+# Deploy the application
+Write-Host "Deploying application to $WebAppName..."
+az webapp deployment source config-zip --resource-group $ResourceGroup --name $WebAppName --src release.zip
 
-Write-Host "Deployment process complete!" -ForegroundColor Green 
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Deployment failed. Please check the error messages and try again." -ForegroundColor Red
+    exit 1
+}
+
+# Step 4: Verify deployment
+Write-Host "Step 4: Verifying deployment..." -ForegroundColor Cyan
+
+# Get the URL of the web app
+$url = "https://$WebAppName.azurewebsites.net"
+Write-Host "Application deployed to: $url" -ForegroundColor Green
+
+# Test the deployment
+Write-Host "Testing deployment..."
+try {
+    $response = Invoke-WebRequest -Uri $url -UseBasicParsing
+    Write-Host "Deployment verification successful! Status code: $($response.StatusCode)" -ForegroundColor Green
+}
+catch {
+    Write-Host "Failed to verify deployment. Status code: $($_.Exception.Response.StatusCode.value__)" -ForegroundColor Yellow
+    Write-Host "The application might still be starting up. Please check the URL manually in a few minutes." -ForegroundColor Yellow
+}
+
+Write-Host "Deployment process completed!" -ForegroundColor Green
+Write-Host "You can access your application at: $url" -ForegroundColor Cyan 

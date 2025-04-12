@@ -3,11 +3,13 @@ const { parse } = require('url');
 const next = require('next');
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = 'localhost';
 const port = process.env.PORT || 3000;
 
-// Initialize Next.js
-const app = next({ dev, hostname, port });
+// In development, we use localhost. In production, we bind to all interfaces
+const hostname = dev ? 'localhost' : undefined;
+
+// Initialize Next.js - in production, hostname should be undefined to listen on all interfaces
+const app = next({ dev, hostname });
 const handle = app.getRequestHandler();
 
 // Prepare the app
@@ -28,6 +30,6 @@ app.prepare().then(() => {
     }
   }).listen(port, (err) => {
     if (err) throw err;
-    console.log(`> Ready on http://${hostname}:${port}`);
+    console.log(`> Ready on port ${port}`);
   });
 }); 
