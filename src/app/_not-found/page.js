@@ -1,9 +1,14 @@
+import { supabase } from '@/lib/supabase';
+
 export const dynamic = 'force-dynamic';
 
 // Remove generateStaticParams for compatibility
 
 // Basic error page
 export default function NotFound() {
+  // Import supabase at the top level to ensure proper dummy client initialization
+  // The import is needed so that the module is executed at build time
+
   return (
     <div className="container mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[60vh]">
       <h1 className="text-4xl font-bold mb-4">404 - Page Not Found</h1>

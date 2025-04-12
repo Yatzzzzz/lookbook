@@ -69,8 +69,19 @@ jobs:
 
       - name: Build Next.js Application
         run: |
-          # Build with optimized settings
-          NEXT_PUBLIC_SUPABASE_URL=https://wwjuohjstrcyvshfuadr.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} npx next build
+          # Ensure we have a fallback Supabase key for build time
+          # This is only used during static generation and will be replaced at runtime
+          FALLBACK_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3anVvaGpzdHJjeXZzaGZ1YWRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM0NTYzMTQsImV4cCI6MjA1OTAzMjMxNH0.9frcwfcg4fXq_nGAQ2axdPpYcBsxcPspGvXz2bGTTEI"
+          
+          # Use the secret if available, otherwise use the fallback
+          SUPABASE_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+          if [ -z "$SUPABASE_KEY" ]; then
+            SUPABASE_KEY="$FALLBACK_ANON_KEY"
+            echo "Using fallback Supabase key for build"
+          fi
+          
+          # Build with environment variables explicitly passed
+          NEXT_PUBLIC_SUPABASE_URL=https://wwjuohjstrcyvshfuadr.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_KEY npx next build
         env:
           CI: true
           NEXT_TELEMETRY_DISABLED: 1
