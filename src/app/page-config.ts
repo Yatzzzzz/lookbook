@@ -11,6 +11,7 @@ export const DYNAMIC_PAGES = [
   '/lookbook/my-looks',
   '/upload',
   '/look',
+  '/ai',
   '/api/test-supabase',
   '/api/test-user',
   '/api/test-user-session',

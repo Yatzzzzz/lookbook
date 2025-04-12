@@ -76,9 +76,12 @@ This file tracks the progress of deploying the Next.js application to Azure Web 
 7. Fixed upload and look pages:
    - Added dynamic flag to /upload and /look pages
    - Added these routes to page-config.ts dynamic pages list
+8. Fixed AI page:
+   - Added dynamic flag to /ai page
+   - Added AI route to page-config.ts dynamic pages list
 
 ### Deployment Status
-- Latest commit: Fix upload and look pages for static generation
+- Latest commit: Fix AI page for static generation
 - Status: Waiting for GitHub Actions to complete
 
 ### Adding the Publish Profile to GitHub Secrets
