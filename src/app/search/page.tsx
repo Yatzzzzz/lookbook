@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import BottomNav from '@/components/BottomNav';
 
+// Force dynamic rendering to prevent static prerendering issues with Supabase
+export const dynamic = 'force-dynamic';
+
 export default function Search() {
   const [activeTab, setActiveTab] = useState('most-searched');
 
