@@ -26,6 +26,8 @@ jobs:
 
       - name: npm install and build
         run: |
+          # Create .env.local with all required variables
+          echo "CI=true" >> .env.local
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env.local
           echo "NEXT_PUBLIC_SUPABASE_URL=https://wwjuohjstrcyvshfuadr.supabase.co" >> .env.local
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env.local
@@ -33,9 +35,14 @@ jobs:
           echo "NEXT_PUBLIC_WEBSOCKET_URL=wss://lookbook-nextjs-app.azurewebsites.net/api/gemini-live" >> .env.local
           # Create a dummy credentials file to satisfy the build
           echo "{}" > ./dummy-credentials.json
-          npm ci --legacy-peer-deps
-          npm run build
+          # Install dependencies, replacing deprecated packages
+          npm ci
+          npm uninstall @supabase/auth-helpers-nextjs @supabase/auth-helpers-shared
+          npm install @supabase/ssr
+          # Build with CI=true to skip prerendering pages that need env vars
+          CI=true npm run build
         env:
+          CI: true
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           NEXT_PUBLIC_SUPABASE_URL: "https://wwjuohjstrcyvshfuadr.supabase.co"
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -51,5 +58,4 @@ jobs:
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: release.zip
-          type: zip 
+          package: release.zip 

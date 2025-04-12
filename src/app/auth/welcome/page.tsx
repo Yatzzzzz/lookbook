@@ -1,15 +1,19 @@
 'use client'
 
-export const dynamic = 'force-dynamic';
-
 import { useEffect, useState } from 'react'
-import { createClientComponentClient, User } from '@supabase/auth-helpers-nextjs'
+import { createBrowserClient } from '@supabase/ssr'
+import { User } from '@supabase/supabase-js'
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic';
 
 export default function Welcome() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClientComponentClient()
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wwjuohjstrcyvshfuadr.supabase.co',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  )
 
   useEffect(() => {
     const getUser = async () => {

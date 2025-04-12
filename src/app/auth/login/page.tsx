@@ -1,11 +1,11 @@
 'use client'
 
-export const dynamic = 'force-dynamic';
-
 import { useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic';
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -13,7 +13,10 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wwjuohjstrcyvshfuadr.supabase.co',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  )
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()

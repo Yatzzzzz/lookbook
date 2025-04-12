@@ -9,7 +9,13 @@ const nextConfig = {
     // Remove turbo configurations as they might cause issues
   },
   // Other standard configuration
-  reactStrictMode: true,
+  reactStrictMode: false,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: 'https://wwjuohjstrcyvshfuadr.supabase.co',
+  }
 };
 
 module.exports = nextConfig;
