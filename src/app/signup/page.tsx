@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react'; 
+import { useState } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createBrowserClient } from '@supabase/ssr';
 
 // Add export const dynamic to prevent prerendering during build
 export const dynamic = 'force-dynamic';
@@ -11,14 +11,12 @@ export const dynamic = 'force-dynamic';
 export default function Signup() {  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wwjuohjstrcyvshfuadr.supabase.co',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  );
+  const supabase = createClientComponentClient();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();

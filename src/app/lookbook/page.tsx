@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,10 +18,7 @@ export const dynamic = 'force-dynamic';
 export default function LookbookPage() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wwjuohjstrcyvshfuadr.supabase.co',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  );
+  const supabase = createClientComponentClient();
   const [activeTab, setActiveTab] = useState('profile');
   const [userLooks, setUserLooks] = useState<Look[]>([]);
   const [savedLooks, setSavedLooks] = useState<Look[]>([]);
