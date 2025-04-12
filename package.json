@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "NODE_ENV=production node server.js",
     "lint": "next lint",
-    "test:websocket": "node scripts/test-websocket.js",
-    "test:deployment": "node scripts/test-deployment.js"
+    "test:websocket": "node scripts/test-websocket.js"
   },
   "dependencies": {
     "@azure/openai": "^2.0.0",
