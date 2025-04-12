@@ -21,6 +21,9 @@ interface Look {
   rating?: string;
 }
 
+// Add export const dynamic to prevent prerendering during build
+export const dynamic = 'force-dynamic';
+
 export default function GalleryPage() {
   const [looks, setLooks] = useState<Look[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,6 +1,8 @@
 import React from 'react';
 import ChatInterface from '@/components/ChatInterface';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'Gemini Chat | Fashion Social Network',
   description: 'Multimodal chat with Google Gemini AI for fashion advice and recommendations',

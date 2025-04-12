@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
 export default function TestConnection() {
   const [status, setStatus] = useState('Checking connection...');
   const [error, setError] = useState<string | null>(null);
