@@ -2,6 +2,14 @@
 
 import { useState } from 'react';
 
+// Skip static generation for this page
+export const dynamic = 'force-dynamic';
+
+// Also ensure this page is not generated at build time
+export const generateStaticParams = () => {
+  return [];
+};
+
 export default function TestSignupApi() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
