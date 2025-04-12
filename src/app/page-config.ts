@@ -6,8 +6,11 @@ export const DYNAMIC_PAGES = [
   '/test-signup-api',
   '/test-connection',
   '/upload-test',
+  '/test-user-session',
   '/api/test-supabase',
-  '/api/test-user'
+  '/api/test-user',
+  '/api/test-user-session',
+  '/api/user-record'
 ];
 
 // Helper function to check if a page should be dynamic

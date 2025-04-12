@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 
+// Skip static generation
+export const dynamic = 'force-dynamic';
+
 // Define interface for session data
 interface SessionData {
   authenticated: boolean;

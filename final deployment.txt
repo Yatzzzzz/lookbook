@@ -66,9 +66,12 @@ This file tracks the progress of deploying the Next.js application to Azure Web 
 4. Fixed Next.js 15.2.4 incompatibility issues:
    - Changed serverComponentsExternalPackages to serverExternalPackages 
    - Removed generateStaticParams from client components (can't be used with 'use client')
+5. Added missing dynamic flag to test-user-session page:
+   - Updated page-config.ts to include more dynamic routes
+   - Added force-dynamic to test pages using Supabase
 
 ### Deployment Status
-- Latest commit: Fix Next.js configuration errors
+- Latest commit: Fix test-user-session page for static generation
 - Status: Waiting for GitHub Actions to complete
 
 ### Adding the Publish Profile to GitHub Secrets
