@@ -1,9 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-// Skip static generation for this page
-export const generateStaticParams = () => {
-  return [];
-};
+// Remove generateStaticParams for compatibility
 
 // Basic error page
 export default function NotFound() {

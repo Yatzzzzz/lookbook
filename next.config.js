@@ -4,11 +4,12 @@ const nextConfig = {
     config.experiments = { ...config.experiments, topLevelAwait: true };
     return config;
   },
-  // Simplify experimental features
+  // Update experimental features
   experimental: {
-    // Adjust server components options
-    serverComponentsExternalPackages: ['@supabase/supabase-js'],
+    // Fix: Change to serverExternalPackages
   },
+  // Add correct external packages config
+  serverExternalPackages: ['@supabase/supabase-js'],
   // Other standard configuration
   reactStrictMode: false,
   eslint: {

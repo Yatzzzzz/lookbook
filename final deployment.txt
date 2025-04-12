@@ -49,10 +49,27 @@ This file tracks the progress of deploying the Next.js application to Azure Web 
 - Updated server.js to properly bind to all interfaces in production environment ✅
 - Cleaned all dependency cache files before installation ✅
 
-## Step 6: Deploy Application (READY TO GO)
+## Step 6: Deploy Application (IN PROGRESS)
 - Add AZURE_WEBAPP_PUBLISH_PROFILE to GitHub secrets ✅
-- Trigger deployment through GitHub Actions
+- Trigger deployment through GitHub Actions ✅
+- Fix static generation errors during build ✅
 - Verify successful deployment
+
+### Static Generation Fixes Applied
+1. Created a dummy Supabase client for static build time
+2. Updated _not-found and test-signup-api pages to use dynamic rendering
+3. Fixed Next.js configuration to handle SSG more gracefully:
+   - Added output: 'standalone' configuration
+   - Configured pages to skip static generation
+   - Added proper server.js and web.config files
+   - Added proper error handling for environment variables
+4. Fixed Next.js 15.2.4 incompatibility issues:
+   - Changed serverComponentsExternalPackages to serverExternalPackages 
+   - Removed generateStaticParams from client components (can't be used with 'use client')
+
+### Deployment Status
+- Latest commit: Fix Next.js configuration errors
+- Status: Waiting for GitHub Actions to complete
 
 ### Adding the Publish Profile to GitHub Secrets
 1. Go to your GitHub repository
