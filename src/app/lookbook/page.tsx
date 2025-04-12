@@ -6,14 +6,15 @@ import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
+
 type Look = {
   look_id: string;
   image_url: string;
   description: string | null;
   created_at: string;
 };
-
-export const dynamic = 'force-dynamic';
 
 export default function LookbookPage() {
   const router = useRouter();

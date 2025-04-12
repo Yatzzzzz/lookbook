@@ -69,9 +69,13 @@ This file tracks the progress of deploying the Next.js application to Azure Web 
 5. Added missing dynamic flag to test-user-session page:
    - Updated page-config.ts to include more dynamic routes
    - Added force-dynamic to test pages using Supabase
+6. Fixed lookbook pages with Supabase integration:
+   - Added dynamic flag to /lookbook and /lookbook/my-looks pages
+   - Updated to use centralized Supabase client
+   - Added lookbook routes to page-config.ts dynamic pages list
 
 ### Deployment Status
-- Latest commit: Fix test-user-session page for static generation
+- Latest commit: Fix lookbook pages for static generation
 - Status: Waiting for GitHub Actions to complete
 
 ### Adding the Publish Profile to GitHub Secrets

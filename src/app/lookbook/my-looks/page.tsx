@@ -3,11 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase'; // Import from our centralized client
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
 
 interface Look {
   look_id: string;
