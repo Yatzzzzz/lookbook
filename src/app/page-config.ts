@@ -7,6 +7,7 @@ export const DYNAMIC_PAGES = [
   '/test-connection',
   '/upload-test',
   '/test-user-session',
+  '/test-home',
   '/lookbook',
   '/lookbook/my-looks',
   '/upload',

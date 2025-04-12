@@ -82,9 +82,13 @@ This file tracks the progress of deploying the Next.js application to Azure Web 
 9. Fixed auth pages:
    - Added auth routes to page-config.ts dynamic pages list
    - Verified that auth pages already have dynamic flags set
+10. Fixed test-home and re-fixed _not-found pages:
+   - Added dynamic flag to /test-home page
+   - Added test-home route to page-config.ts dynamic pages list
+   - Ensured _not-found page has the correct dynamic flag
 
 ### Deployment Status
-- Latest commit: Fix auth pages for static generation
+- Latest commit: Fix test-home and _not-found pages for static generation
 - Status: Waiting for GitHub Actions to complete
 
 ### Adding the Publish Profile to GitHub Secrets
