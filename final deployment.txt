@@ -79,9 +79,12 @@ This file tracks the progress of deploying the Next.js application to Azure Web 
 8. Fixed AI page:
    - Added dynamic flag to /ai page
    - Added AI route to page-config.ts dynamic pages list
+9. Fixed auth pages:
+   - Added auth routes to page-config.ts dynamic pages list
+   - Verified that auth pages already have dynamic flags set
 
 ### Deployment Status
-- Latest commit: Fix AI page for static generation
+- Latest commit: Fix auth pages for static generation
 - Status: Waiting for GitHub Actions to complete
 
 ### Adding the Publish Profile to GitHub Secrets
