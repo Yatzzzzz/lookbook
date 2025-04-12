@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
+    
     const { email, password, username } = await request.json();
     
     // 1. Create auth user
