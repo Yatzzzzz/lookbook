@@ -7,14 +7,33 @@ import Link from 'next/link'
 
 export const dynamic = 'force-dynamic';
 
+// Modified Supabase client creation with error handling
+const getSupabaseClient = () => {
+  try {
+    return createClientComponentClient();
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+    // Return a dummy client during static build
+    if (typeof window === 'undefined') {
+      return {
+        auth: {
+          signUp: () => ({ data: null, error: null })
+        }
+      };
+    }
+    throw error; // Re-throw if we're in the browser
+  }
+};
+
 export default function SignUp() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const supabase = getSupabaseClient()
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()

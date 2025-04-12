@@ -1,12 +1,30 @@
 'use client';
 
 import { useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 // Add export const dynamic to prevent prerendering during build
 export const dynamic = 'force-dynamic';
+
+// Modified Supabase client creation with error handling
+const getSupabaseClient = () => {
+  try {
+    return createClientComponentClient();
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+    // Return a dummy client during static build
+    if (typeof window === 'undefined') {
+      return {
+        auth: {
+          signUp: () => ({ data: null, error: null })
+        }
+      };
+    }
+    throw error; // Re-throw if we're in the browser
+  }
+};
 
 export default function Signup() {  
   const [email, setEmail] = useState('');
@@ -16,7 +34,7 @@ export default function Signup() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const supabase = getSupabaseClient();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();

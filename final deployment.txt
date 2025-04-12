@@ -86,9 +86,13 @@ This file tracks the progress of deploying the Next.js application to Azure Web 
    - Added dynamic flag to /test-home page
    - Added test-home route to page-config.ts dynamic pages list
    - Ensured _not-found page has the correct dynamic flag
+11. Enhanced auth pages with better error handling:
+   - Modified Supabase client creation to handle missing env vars
+   - Added error-resilient wrappers for Supabase client on all auth pages
+   - Implemented custom getSupabaseClient() function with fallbacks for /auth/login, /auth/signup, /login, and /signup pages
 
 ### Deployment Status
-- Latest commit: Fix test-home and _not-found pages for static generation
+- Latest commit: Fix auth pages with resilient Supabase client creation
 - Status: Waiting for GitHub Actions to complete
 
 ### Adding the Publish Profile to GitHub Secrets
