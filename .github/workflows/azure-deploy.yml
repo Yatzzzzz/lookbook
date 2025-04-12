@@ -26,10 +26,21 @@ jobs:
 
       - name: npm install and build
         run: |
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env.local
+          echo "NEXT_PUBLIC_SUPABASE_URL=https://wwjuohjstrcyvshfuadr.supabase.co" >> .env.local
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env.local
+          echo "GOOGLE_APPLICATION_CREDENTIALS=./dummy-credentials.json" >> .env.local
+          echo "NEXT_PUBLIC_WEBSOCKET_URL=wss://lookbook-nextjs-app.azurewebsites.net/api/gemini-live" >> .env.local
+          # Create a dummy credentials file to satisfy the build
+          echo "{}" > ./dummy-credentials.json
           npm ci --legacy-peer-deps
           npm run build
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: "https://wwjuohjstrcyvshfuadr.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          GOOGLE_APPLICATION_CREDENTIALS: "./dummy-credentials.json"
+          NEXT_PUBLIC_WEBSOCKET_URL: "wss://lookbook-nextjs-app.azurewebsites.net/api/gemini-live"
 
       - name: Zip artifact for deployment
         run: zip -r release.zip . -x "node_modules/*" ".git/*"
