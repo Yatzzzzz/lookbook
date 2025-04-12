@@ -61,4 +61,5 @@ jobs:
           app-name: 'lookbook-nextjs-app'
           slot-name: 'Production'
           package: .
+          type: zip
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_C8EEBDE413EC48689868EA0AFB23AA6F }}

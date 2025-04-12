@@ -1,0 +1,6 @@
+2024-04-25T14:30:12.1461158Z ##[error]Error: No project found at C:\Users\VSSADMINISTRATOR\actions-runner\_work\lookbook\lookbook. Ensure the project path is correct.
+2024-04-25T14:30:12.1479532Z ##[error]Error: The process 'C:\Program Files\dotnet\dotnet.exe' failed with exit code 1
+2024-04-25T14:30:12.1480118Z Info: Azure App Service Deploy task failed. For more detailed information, please refer to the build logs.
+2024-04-25T14:30:12.1480583Z Info: To view your published application, navigate to https://lookbook-nextjs-app.azurewebsites.net
+2024-04-25T14:30:12.1480953Z Info: Successfully created the App Service deployment record at https://lookbook-nextjs-app.scm.azurewebsites.net/api/deployments/39da7a6d-f7ab-41d9-ab66-e26c4c14b8a4
+2024-04-25T14:30:12.1481368Z ##[error]Error: Failed to deploy web package to App Service.

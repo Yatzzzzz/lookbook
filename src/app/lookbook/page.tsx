@@ -13,6 +13,8 @@ type Look = {
   created_at: string;
 };
 
+export const dynamic = 'force-dynamic';
+
 export default function LookbookPage() {
   const router = useRouter();
   const { user, signOut } = useAuth();

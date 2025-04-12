@@ -1,0 +1,10 @@
+# Allow all web crawlers
+User-agent: *
+Allow: /
+
+# Disallow certain directories
+Disallow: /api/
+Disallow: /_next/
+
+# Sitemap
+Sitemap: https://lookbook-nextjs-app.azurewebsites.net/sitemap.xml 

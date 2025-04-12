@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
+// Add export const dynamic to prevent prerendering during build
+export const dynamic = 'force-dynamic';
+
 export default function Signup() {  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
