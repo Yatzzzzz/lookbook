@@ -30,7 +30,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
           <NavBar />
-          <main className="max-w-7xl mx-auto p-4 pb-20">{children}</main>
+          <main className="max-w-7xl mx-auto p-4 pb-28">{children}</main>
           <BottomNav />
         </AuthProvider>
       </body>
