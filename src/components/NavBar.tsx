@@ -17,12 +17,7 @@ export default function Navbar() {
               </Link>
             </div>
             <div className="ml-10 flex items-baseline space-x-4">
-              <Link href="/" className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium">
-                Home
-              </Link>
-              <Link href="/instruments" className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium">
-                Instruments Test
-              </Link>
+              {/* Home and Instruments Test links removed */}
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">

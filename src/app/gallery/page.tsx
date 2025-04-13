@@ -28,7 +28,6 @@ export default function GalleryPage() {
   const [looks, setLooks] = useState<Look[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"gallery" | "battle" | "yayornay" | "crowd">("gallery");
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [activeRating, setActiveRating] = useState<{[key: string]: number}>({});
   const sliderRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
@@ -176,7 +175,7 @@ export default function GalleryPage() {
                   initialRatings[look.look_id] = ratingValue;
                 }
               }
-            } catch (_) {
+            } catch {
               // If user fetch fails, still add the look without username
               processedLooks.push({
                 ...look,
@@ -302,255 +301,145 @@ export default function GalleryPage() {
     }
   };
 
-  // Content for different tabs
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'gallery':
-        return (
-          <div className="masonry-container">
-            {looks.map((look, index) => (
-              <div 
-                key={look.look_id || index} 
-                className="masonry-item"
-                onMouseEnter={() => handleHover(index)}
-                onMouseLeave={() => handleHover(null)}
-                onTouchStart={() => handleHover(index === hoverIndex ? null : index)}
-              >
-                <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-lg">
-                  <div className="relative overflow-hidden">
-                    {/* Share and Save buttons - at TOP */}
-                    <div className="absolute top-3 left-3 z-10">
-                      <button className="p-1 bg-white bg-opacity-70 rounded-full shadow-md hover:bg-opacity-100 transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                        </svg>
-                      </button>
-                    </div>
-        
-                    <div className="absolute top-3 right-3 z-10">
-                      <button className="p-1 bg-white bg-opacity-70 rounded-full shadow-md hover:bg-opacity-100 transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
-                        </svg>
-                      </button>
-                    </div>
-        
-                    <img
-                      src={look.image_url}
-                      alt={look.title || `Fashion look ${index + 1}`} 
-                      className="w-full h-auto object-contain" 
-                    />
-                    
-                    {/* Interactive Rating Slider - correct implementation for mobile */}
-                    {hoverIndex === index && (
-                      <div className="absolute bottom-0 left-0 right-0 p-2 z-10">
-                        <div 
-                          ref={(el: HTMLDivElement | null) => {
-                            sliderRefs.current[look.look_id] = el;
-                            return undefined;
-                          }}
-                          className="rating-slider"
-                          onMouseMove={(e) => handleSliderMove(e, look.look_id)}
-                          onClick={() => handleSliderClick(look.look_id)}
-                          onTouchMove={(e) => {
-                            // Handle touch events for mobile
-                            const touch = e.touches[0];
-                            if (touch) {
-                              handleSliderMove({
-                                clientX: touch.clientX,
-                                clientY: touch.clientY
-                              } as React.MouseEvent, look.look_id);
-                            }
-                          }}
-                        >
-                          {/* The filled background that moves with rating */}
-                          <div 
-                            className="rating-background"
-                            style={{ 
-                              width: `${((activeRating[look.look_id] || 0) / 5) * 100}%`
-                            }}
-                          />
-                          
-                          {/* Only show "Ok" on left and "Amazing" on right */}
-                          <div className="rating-labels">
-                            <span className="rating-label">Ok</span>
-                            <span className="rating-label">Amazing</span>
-                          </div>
-                          
-                          {/* Current rating displayed in the middle */}
-                          <div className="rating-value-box">
-                            {activeRating[look.look_id] || 0}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="p-4">
-                    <div className="flex items-center mb-2">
-                      <div className="w-8 h-8 rounded-full bg-gray-300 mr-2 flex items-center justify-center">
-                        {look.username?.charAt(0).toUpperCase() || "A"}
-                      </div>
-                      <span className="font-medium text-sm">{look.username || "Anonymous"}</span>
-                    </div>
-                    
-                    <h2 className="text-lg font-semibold mb-2 truncate">
-                      {look.title || `Look ${index + 1}`}
-                    </h2>
-                    
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">
-                        {new Date(look.created_at).toLocaleDateString()}
-                      </span>
-                      <Link 
-                        href={`/gallery/look/${look.look_id || encodeURIComponent(look.image_url.split('/').pop() || '')}`}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                      >
-                        View Details
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-        
-      case 'battle':
-        return (
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
-            <h2 className="text-2xl font-bold mb-4">Battle Mode</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Compare outfits side by side and vote for your favorite option!
-            </p>
-            <div className="py-8 px-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <p className="text-lg">Coming soon!</p>
-              <p className="text-gray-500 dark:text-gray-400 mt-2">
-                Battle mode is currently under development.
-              </p>
-                    </div>
-                  </div>
-        );
-        
-      case 'yayornay':
-        return (
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
-            <h2 className="text-2xl font-bold mb-4">Yay or Nay</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Vote on outfits for specific occasions with a simple Yay or Nay!
-            </p>
-            <div className="py-8 px-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <p className="text-lg">Coming soon!</p>
-              <p className="text-gray-500 dark:text-gray-400 mt-2">
-                Yay or Nay mode is currently under development.
-                    </p>
-                  </div>
-                  </div>
-        );
-        
-      case 'crowd':
-        return (
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
-            <h2 className="text-2xl font-bold mb-4">Crowd Opinions</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Get fashion advice and suggestions from the community!
-            </p>
-            <div className="py-8 px-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <p className="text-lg">Coming soon!</p>
-              <p className="text-gray-500 dark:text-gray-400 mt-2">
-                Crowd Opinions feature is currently under development.
-              </p>
-                  </div>
-                </div>
-        );
-        
-      default:
-        return null;
-    }
-  };
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Fashion Gallery</h1>
-        <Link 
-          href="/look" 
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        >
-          Upload New Look
-        </Link>
       </div>
       
-      {/* Navigation Tabs */}
+      {/* Navigation Tabs - reduced to only Gallery */}
       <div className="mb-8 border-b border-gray-200">
         <nav className="flex space-x-8">
-          <button
-            onClick={() => setActiveTab("gallery")}
-            className={`py-4 px-1 font-medium text-sm border-b-2 ${
-              activeTab === "gallery" 
-                ? "border-blue-500 text-blue-600" 
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
+          <div className="py-4 px-1 font-medium text-sm border-b-2 border-blue-500 text-blue-600">
             Gallery
-          </button>
-          <button
-            onClick={() => setActiveTab("battle")}
-            className={`py-4 px-1 font-medium text-sm border-b-2 ${
-              activeTab === "battle" 
-                ? "border-blue-500 text-blue-600" 
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            Battle
-          </button>
-          <button
-            onClick={() => setActiveTab("yayornay")}
-            className={`py-4 px-1 font-medium text-sm border-b-2 ${
-              activeTab === "yayornay" 
-                ? "border-blue-500 text-blue-600" 
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            Yay or Nay
-          </button>
-          <button
-            onClick={() => setActiveTab("crowd")}
-            className={`py-4 px-1 font-medium text-sm border-b-2 ${
-              activeTab === "crowd" 
-                ? "border-blue-500 text-blue-600" 
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            Crowd Opinions
-          </button>
+          </div>
         </nav>
-              </div>
+      </div>
       
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
           <p className="font-bold">Error loading gallery</p>
           <p>{error}</p>
-            </div>
-          )}
+        </div>
+      )}
       
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <p className="text-gray-500 text-xl">Loading images...</p>
         </div>
-      ) : looks.length === 0 && activeTab === "gallery" ? (
+      ) : looks.length === 0 ? (
         <div className="text-center py-12 bg-gray-100 dark:bg-gray-800 rounded-lg">
           <h2 className="text-2xl font-semibold mb-2">No images found</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">Be the first to share your fashion style!</p>
-          <Link 
-            href="/look" 
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-          >
-            Upload Look
-          </Link>
-      </div>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">Check back later for fashion styles!</p>
+        </div>
       ) : (
-        renderTabContent()
+        <div className="masonry-container">
+          {looks.map((look, index) => (
+            <div 
+              key={look.look_id || index} 
+              className="masonry-item"
+              onMouseEnter={() => handleHover(index)}
+              onMouseLeave={() => handleHover(null)}
+              onTouchStart={() => handleHover(index === hoverIndex ? null : index)}
+            >
+              <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-lg">
+                <div className="relative overflow-hidden">
+                  {/* Share and Save buttons - at TOP */}
+                  <div className="absolute top-3 left-3 z-10">
+                    <button className="p-1 bg-white bg-opacity-70 rounded-full shadow-md hover:bg-opacity-100 transition-all">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                      </svg>
+                    </button>
+                  </div>
+        
+                  <div className="absolute top-3 right-3 z-10">
+                    <button className="p-1 bg-white bg-opacity-70 rounded-full shadow-md hover:bg-opacity-100 transition-all">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+                      </svg>
+                    </button>
+                  </div>
+        
+                  <img
+                    src={look.image_url}
+                    alt={look.title || `Fashion look ${index + 1}`} 
+                    className="w-full h-auto object-contain" 
+                  />
+                  
+                  {/* Interactive Rating Slider - correct implementation for mobile */}
+                  {hoverIndex === index && (
+                    <div className="absolute bottom-0 left-0 right-0 p-2 z-10">
+                      <div 
+                        ref={(el: HTMLDivElement | null) => {
+                          sliderRefs.current[look.look_id] = el;
+                          return undefined;
+                        }}
+                        className="rating-slider"
+                        onMouseMove={(e) => handleSliderMove(e, look.look_id)}
+                        onClick={() => handleSliderClick(look.look_id)}
+                        onTouchMove={(e) => {
+                          // Handle touch events for mobile
+                          const touch = e.touches[0];
+                          if (touch) {
+                            handleSliderMove({
+                              clientX: touch.clientX,
+                              clientY: touch.clientY
+                            } as React.MouseEvent, look.look_id);
+                          }
+                        }}
+                      >
+                        {/* The filled background that moves with rating */}
+                        <div 
+                          className="rating-background"
+                          style={{ 
+                            width: `${((activeRating[look.look_id] || 0) / 5) * 100}%`
+                          }}
+                        />
+                        
+                        {/* Only show "Ok" on left and "Amazing" on right */}
+                        <div className="rating-labels">
+                          <span className="rating-label">Ok</span>
+                          <span className="rating-label">Amazing</span>
+                        </div>
+                        
+                        {/* Current rating displayed in the middle */}
+                        <div className="rating-value-box">
+                          {activeRating[look.look_id] || 0}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="p-4">
+                  <div className="flex items-center mb-2">
+                    <div className="w-8 h-8 rounded-full bg-gray-300 mr-2 flex items-center justify-center">
+                      {look.username?.charAt(0).toUpperCase() || "A"}
+                    </div>
+                    <span className="font-medium text-sm">{look.username || "Anonymous"}</span>
+                  </div>
+                  
+                  <h2 className="text-lg font-semibold mb-2 truncate">
+                    {look.title || `Look ${index + 1}`}
+                  </h2>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">
+                      {new Date(look.created_at).toLocaleDateString()}
+                    </span>
+                    <Link 
+                      href={`/gallery/look/${look.look_id || encodeURIComponent(look.image_url.split('/').pop() || '')}`}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      View Details
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

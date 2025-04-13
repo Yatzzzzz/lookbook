@@ -15,23 +15,9 @@ export default function GalleryLayout({
               Lookbook
             </Link>
             
-            {/* Navigation Links */}
+            {/* Navigation Links - Removed as requested */}
             <div className="flex space-x-6">
-              {/* Your existing nav links */}
-              <Link href="/feed" className="hover:text-blue-600 transition-colors">
-                Feed
-              </Link>
-              <Link href="/upload" className="hover:text-blue-600 transition-colors">
-                Upload
-              </Link>
-              <Link href="/profile" className="hover:text-blue-600 transition-colors">
-                Profile
-              </Link>
-              
-              {/* AI Features */}
-              <Link href="/ai" className="hover:text-blue-600 transition-colors">
-                AI Features
-              </Link>
+              {/* Navigation links have been removed */}
             </div>
           </div>
         </nav>
