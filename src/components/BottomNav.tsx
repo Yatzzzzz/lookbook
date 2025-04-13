@@ -12,14 +12,14 @@ export default function BottomNav() {
     setActiveTab(pathname);
   }, [pathname]);
 
-  // Navigation items specified from left to right: Gallery, Search, Look, Trends, Lookbook, AI
+  // Navigation items with correct paths
   const navItems = [
     { name: 'Gallery', path: '/gallery', icon: '🖼️' },
-    { name: 'Search', path: '/gallery', icon: '🔍' },
-    { name: 'Look', path: '/gallery', icon: '📸' },
-    { name: 'Trends', path: '/gallery', icon: '📈' },
-    { name: 'Lookbook', path: '/gallery', icon: '👤' },
-    { name: 'AI', path: '/gallery', icon: '🤖' },
+    { name: 'Search', path: '/search', icon: '🔍' },
+    { name: 'Look', path: '/look', icon: '📸' },
+    { name: 'Trends', path: '/trends', icon: '📈' },
+    { name: 'Lookbook', path: '/lookbook', icon: '👤' },
+    { name: 'AI', path: '/gemini', icon: '🤖' },
   ];
 
   return (
@@ -31,7 +31,7 @@ export default function BottomNav() {
               key={item.name}
               href={item.path}
               className={`flex flex-col items-center justify-center px-1 ${
-                activeTab === item.path && item.name === 'Gallery'
+                activeTab.startsWith(item.path)
                   ? 'text-blue-600'
                   : 'text-gray-500 hover:text-blue-500'
               }`}
