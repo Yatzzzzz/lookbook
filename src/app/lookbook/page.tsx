@@ -35,7 +35,7 @@ export default function LookbookPage() {
     { id: 'saved', name: 'Saved', icon: '❤️' },
     { id: 'my-lookbook', name: 'My Lookbook', icon: '👗' },
     { id: 'virtual-looks', name: 'Virtual Looks', icon: '🔮' },
-    { id: 'wardrobe', name: 'My Wardrobe', icon: '👚' },
+    { id: 'wardrobe', name: 'My Wardrobe', icon: '👚', externalRoute: '/wardrobe' },
   ];
 
   useEffect(() => {
@@ -127,7 +127,13 @@ export default function LookbookPage() {
                 ? 'text-blue-600'
                 : 'text-gray-500'
             }`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              if (tab.externalRoute) {
+                router.push(tab.externalRoute);
+              } else {
+                setActiveTab(tab.id);
+              }
+            }}
           >
             <span className="text-xl mb-1">{tab.icon}</span>
             <span className="text-xs">{tab.name}</span>
@@ -373,30 +379,10 @@ export default function LookbookPage() {
         {/* My Wardrobe Tab */}
         {activeTab === 'wardrobe' && (
           <div>
-            <h2 className="text-xl font-semibold mb-4">My Wardrobe</h2>
+            <h2 className="text-xl font-semibold mb-4">Redirecting to Wardrobe...</h2>
             <p className="text-sm text-gray-600 mb-4">
-              A digital inventory of your clothing items
+              Please wait while we redirect you to your wardrobe.
             </p>
-            
-            <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-medium">Categories</h3>
-                <button className="text-blue-600 text-sm">Add Item</button>
-              </div>
-              <div className="grid grid-cols-4 gap-3">
-                {['Tops', 'Bottoms', 'Dresses', 'Shoes', 'Accessories', 'Outerwear', 'Bags', 'Other'].map((category) => (
-                  <div key={category} className="bg-gray-100 rounded-lg p-2 text-center">
-                    <div className="text-xs">{category}</div>
-                    <div className="text-sm font-medium">0</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="text-center py-6 bg-gray-50 rounded-lg">
-              <p className="text-gray-500 mb-2">Your wardrobe is empty</p>
-              <button className="text-blue-600">Add Items</button>
-            </div>
           </div>
         )}
       </div>

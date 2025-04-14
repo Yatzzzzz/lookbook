@@ -1,0 +1,28 @@
+C:\demo\Archive\fashion-demo-v2\project
+
+what to look for :
+klingAI virtual try on implementation.
+
+keywords to search for: 
+*klingAI
+*virtual tryon
+*tryon-feature
+
+text files to review : 
+*implementation-progress
+*KLING AI_API SPECIFICATIONS 
+*klingai API
+*virtual-tryon-feature
+
+
+pages to look in : 
+*C:\demo\Archive\fashion-demo-v2\project\app\tryon
+*C:\demo\Archive\fashion-demo-v2\project\app\virtual-tryon
+*C:\demo\Archive\fashion-demo-v2\project\app\lib
+*C:\demo\Archive\fashion-demo-v2\project\app\components
+
+goal :
+*identify all the neccecery pages required to operate a successful virtual try on.
+*import functionality to the current project by : 
+**importing pages
+**recreating functionality  

@@ -1,0 +1,167 @@
+'use client';
+
+import * as Dialog from '@radix-ui/react-dialog';
+import * as Label from '@radix-ui/react-label';
+import { X } from 'lucide-react';
+import { useState } from 'react';
+
+interface CreateLookModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (look: {
+    title: string;
+    description: string;
+    imageUrl: string;
+    items: string[];
+  }) => void;
+  wardrobeItems: Array<{
+    id: string;
+    name: string;
+    category: string;
+  }>;
+}
+
+export function CreateLookModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  wardrobeItems,
+}: CreateLookModalProps) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({ title, description, imageUrl, items: selectedItems });
+    onClose();
+  };
+
+  const toggleItem = (itemId: string) => {
+    setSelectedItems((prev) =>
+      prev.includes(itemId)
+        ? prev.filter((id) => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  return (
+    <Dialog.Root open={isOpen} onOpenChange={onClose}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-xl z-50 p-6">
+          <div className="flex justify-between items-center mb-4">
+            <Dialog.Title className="text-xl font-semibold text-gray-900 dark:text-white">
+              Create New Look
+            </Dialog.Title>
+            <Dialog.Close asChild>
+              <button
+                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            </Dialog.Close>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label.Root
+                htmlFor="title"
+                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Look Title
+              </Label.Root>
+              <input
+                id="title"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label.Root
+                htmlFor="description"
+                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Description
+              </Label.Root>
+              <textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                rows={3}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label.Root
+                htmlFor="imageUrl"
+                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Look Image URL
+              </Label.Root>
+              <input
+                id="imageUrl"
+                type="url"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label.Root className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Select Items
+              </Label.Root>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {wardrobeItems.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => toggleItem(item.id)}
+                    className={`p-2 rounded-md border transition-colors ${
+                      selectedItems.includes(item.id)
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {item.name}
+                    </span>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                      {item.category}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors"
+              >
+                Create Look
+              </button>
+            </div>
+          </form>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+} 

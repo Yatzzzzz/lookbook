@@ -1,19 +1,25 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { User } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
+import { getSupabaseClient } from '@/lib/supabaseClient';
 
 type AuthContextType = {
   user: User | null;
   loading: boolean;
+  error: string | null;
   signOut: () => Promise<void>;
+  signIn: (session: Session) => void;
+  refreshSession: () => Promise<Session | null>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  error: null,
   signOut: async () => {},
+  signIn: () => {},
+  refreshSession: async () => null,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -21,30 +27,79 @@ export const useAuth = () => useContext(AuthContext);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClientComponentClient();
+  const [error, setError] = useState<string | null>(null);
+  const supabase = getSupabaseClient();
 
+  // Function to refresh the session with better error handling
+  const refreshSession = async (): Promise<Session | null> => {
+    try {
+      setError(null);
+      const { data, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        console.error('Error refreshing session:', error);
+        setError(error.message);
+        return null;
+      }
+      
+      if (data.session) {
+        setUser(data.session.user);
+        return data.session;
+      }
+      
+      return null;
+    } catch (err) {
+      console.error('Unexpected error during session refresh:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error refreshing session';
+      setError(errorMessage);
+      return null;
+    }
+  };
+
+  // Initialize auth state on first load with better error handling
   useEffect(() => {
-    const getUser = async () => {
+    const initializeAuth = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        setLoading(true);
+        setError(null);
         
-        if (error) {
-          console.error('Error getting session:', error);
+        // First, check if we have a session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Error getting session:', sessionError);
+          setError(sessionError.message);
+          setLoading(false);
           return;
         }
         
-        setUser(session?.user || null);
-      } catch (error) {
-        console.error('Unexpected error:', error);
+        if (session) {
+          setUser(session.user);
+          setLoading(false);
+          return;
+        }
+        
+        // If no session, try to refresh it
+        const refreshedSession = await refreshSession();
+        if (!refreshedSession) {
+          // No session and couldn't refresh - user is not logged in
+          setUser(null);
+        }
+      } catch (err) {
+        console.error('Unexpected error initializing auth:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Unknown authentication error';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
     };
 
-    getUser();
+    initializeAuth();
 
+    // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
         setUser(session?.user || null);
         setLoading(false);
       }
@@ -53,19 +108,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase.auth]);
+  }, []);
 
+  // Sign out with error handling
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      setError(null);
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+        setError(error.message);
+        return;
+      }
+      
       setUser(null);
-    } catch (error) {
-      console.error('Error signing out:', error);
+    } catch (err) {
+      console.error('Unexpected error signing out:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error signing out';
+      setError(errorMessage);
     }
   };
 
+  // Update user state when signing in
+  const signIn = (session: Session) => {
+    setUser(session.user);
+    setError(null);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      error, 
+      signOut, 
+      signIn, 
+      refreshSession 
+    }}>
       {children}
     </AuthContext.Provider>
   );

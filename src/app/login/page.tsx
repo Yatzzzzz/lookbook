@@ -1,30 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useAuth } from '@/contexts/AuthContext';
+import { getSupabaseClient } from '@/lib/supabaseClient';
 
 // Add export const dynamic to prevent prerendering during build
 export const dynamic = 'force-dynamic';
-
-// Modified Supabase client creation with error handling
-const getSupabaseClient = () => {
-  try {
-    return createClientComponentClient();
-  } catch (error) {
-    console.error('Error creating Supabase client:', error);
-    // Return a dummy client during static build
-    if (typeof window === 'undefined') {
-      return {
-        auth: {
-          signInWithPassword: () => ({ data: null, error: null })
-        }
-      };
-    }
-    throw error; // Re-throw if we're in the browser
-  }
-};
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -32,7 +15,25 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirectTo') || '/gallery';
   const supabase = getSupabaseClient();
+  const { signIn, user, error: authError } = useAuth();
+  
+  // If already logged in, redirect to the gallery
+  useEffect(() => {
+    if (user) {
+      console.log('User already logged in, redirecting to', redirectTo);
+      router.push(redirectTo);
+    }
+  }, [user, router, redirectTo]);
+
+  // Display auth context errors if they exist
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+    }
+  }, [authError]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,18 +44,29 @@ export default function Login() {
     }
     
     setLoading(true);
-    setError('');
+    setError(null);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) throw error;
       
-      router.push('/gallery');
-      router.refresh();
+      if (data && data.session) {
+        // Update auth context
+        signIn(data.session);
+        
+        // Add a small delay before redirecting to ensure auth context updates
+        setTimeout(() => {
+          console.log(`Redirecting to: ${redirectTo}`);
+          router.push(redirectTo);
+          router.refresh();
+        }, 500);
+      } else {
+        throw new Error('No session returned from login');
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         console.error('Login error:', err);
