@@ -1,0 +1,12 @@
+2025-04-13T16:09:31.458Z - Server starting...
+2025-04-13T16:09:31.461Z - Node version: v22.14.0
+2025-04-13T16:09:31.461Z - Environment: production
+2025-04-13T16:09:31.461Z - Current directory: C:\demo\manus\11.04.25-before deployment\lookbook-fresh
+2025-04-13T16:09:31.462Z - Files in directory: .deployment, .env, .env.local, .eslintrc.json, .git, .github, .gitignore, .next, .npmrc, AZURE-DEPLOYMENT.md, azure-fix.zip, azure-startup.sh, azure-websocket-config.json, chat-progress.txt, complete-rls-setup.sql, deploy-fix.zip, Docs, eslint.config.mjs, fashion-assistant-progress.txt, final deployment.txt, github workflow file.txt, instruments-setup.sql, logs, lookbook-app.zip, looks-rls-setup.sql, middleware.ts, next-env.d.ts, next.config copy.baK, next.config.js, next.config.ts.bak, node_modules, noon, package-lock.json, package.json, postcss.config.mjs, public, README.md, scripts, server.js, src, staticwebapp.config.json, storage-setup.sql, styles, supabase-setup.sql, SUPABASE_SETUP.md, swa-cli.config.json, tailwind.config.js, temp-fix, tsconfig.json, types, users-rls-setup.sql, util, utils, web.config
+2025-04-13T16:09:31.463Z - Using port: 8080
+2025-04-13T16:09:31.463Z - Dev mode: false
+2025-04-13T16:09:31.463Z - Using hostname: 0.0.0.0
+2025-04-13T16:09:31.464Z - Initializing Next.js...
+2025-04-13T16:09:31.950Z - Next.js prepared successfully
+2025-04-13T16:09:31.959Z - > Ready on http://0.0.0.0:8080
+2025-04-13T16:09:31.960Z - Server successfully started

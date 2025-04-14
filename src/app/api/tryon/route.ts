@@ -1,20 +1,252 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { generateKlingAIToken } from '../../lib/klingai-auth';
 
-export async function POST(req: NextRequest) {
+// Check if the environment variables are properly set
+if (!process.env.KLINGAI_ACCESS_KEY || !process.env.KLINGAI_SECRET_KEY) {
+  console.warn('⚠️ KLINGAI_ACCESS_KEY or KLINGAI_SECRET_KEY is not set in the environment variables. Virtual try-on may not work correctly.');
+} else {
+  console.log('✅ KLINGAI_ACCESS_KEY and KLINGAI_SECRET_KEY found. Virtual try-on should work.');
+}
+
+// KlingAI API endpoints - per official documentation
+const API_ENDPOINTS = {
+  // Virtual try-on endpoints, per model version
+  'v1': '/v1/images/kolors-virtual-try-on',
+  'v1.5': '/v1/images/kolors-virtual-try-on'
+};
+
+// Base API URL
+const API_BASE_URL = 'https://api.klingai.com';
+
+// Maximum image size in bytes (10MB as per KlingAI specifications)
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+
+// Helper function to estimate base64 image size
+function estimateBase64Size(base64String: string): number {
+  // Remove the data:image/jpeg;base64, part if present
+  const base64Data = base64String.includes(',') ? base64String.split(',')[1] : base64String;
+  // Base64 represents 6 bits with 8 bits (4 base64 chars = 3 bytes)
+  return Math.ceil(base64Data.length * 0.75);
+}
+
+export async function POST(request: NextRequest) {
   try {
-    // Mock implementation - replace with actual KlingAI integration
-    const { lookId } = await req.json();
-    
-    // Return a mock response
-    return NextResponse.json({
-      success: true,
-      message: `Virtual try-on initiated for look ID: ${lookId}`,
-      tryOnUrl: `/tryon/result/${lookId}`
-    });
+    // Parse the incoming request body
+    const requestBody = await request.json();
+    let {
+      imageBase64,
+      outfitUrl,
+      outfitBase64,
+      type = 'full',
+      modelVersion = 'v1.5'
+    } = requestBody;
+
+    if (!imageBase64) {
+      return NextResponse.json(
+        { error: 'User image is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!outfitUrl && !outfitBase64) {
+      return NextResponse.json(
+        { error: 'Outfit image (URL or base64) is required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if type is valid
+    if (!['full', 'upper', 'lower'].includes(type)) {
+      return NextResponse.json(
+        { error: 'Try-on type must be one of: full, upper, lower' },
+        { status: 400 }
+      );
+    }
+
+    // Check if model version is valid
+    if (!['v1', 'v1.5'].includes(modelVersion)) {
+      return NextResponse.json(
+        { error: 'Model version must be one of: v1, v1.5' },
+        { status: 400 }
+      );
+    }
+
+    // Extract base64 data if it has a prefix
+    if (imageBase64.includes('base64,')) {
+      imageBase64 = imageBase64.split('base64,')[1];
+    }
+
+    // Do the same for outfit if provided as base64
+    if (outfitBase64 && outfitBase64.includes('base64,')) {
+      outfitBase64 = outfitBase64.split('base64,')[1];
+    }
+
+    // Check image size
+    const estimatedSize = estimateBase64Size(imageBase64);
+    if (estimatedSize > MAX_IMAGE_SIZE) {
+      return NextResponse.json(
+        {
+          error: 'User image is too large. Maximum size is 10MB.',
+          details: {
+            estimatedSize: `${Math.round(estimatedSize / 1024 / 1024 * 100) / 100}MB`,
+            maxSize: `${MAX_IMAGE_SIZE / 1024 / 1024}MB`
+          }
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log(`Processing try-on request with ${modelVersion}, type: ${type}, image size ~${Math.round(estimatedSize / 1024)}KB`);
+
+    // Generate the JWT token for KlingAI authentication
+    const token = generateKlingAIToken();
+
+    // Determine the endpoint based on model version
+    const endpoint = `${API_BASE_URL}${API_ENDPOINTS[modelVersion as keyof typeof API_ENDPOINTS]}`;
+
+    console.log(`Using KlingAI endpoint: ${endpoint}`);
+
+    // Prepare request payload according to KlingAI API specifications
+    const payload: any = {
+      model_name: modelVersion === 'v1.5' ? 'kolors-virtual-try-on-v1-5' : 'kolors-virtual-try-on-v1',
+      human_image: imageBase64
+    };
+
+    // Add cloth_image - prefer base64 if available, otherwise use URL
+    if (outfitBase64) {
+      payload.cloth_image = outfitBase64;
+    } else if (outfitUrl) {
+      payload.cloth_image_url = outfitUrl;
+    } else {
+      return NextResponse.json(
+        { error: 'Cloth image is required', details: 'Either cloth_image or cloth_image_url must be provided' },
+        { status: 400 }
+      );
+    }
+
+    // Add debug logging
+    console.log(`Payload parameters: human_image (truncated), cloth provided: ${outfitBase64 ? 'base64' : (outfitUrl ? 'url' : 'none')}`);
+
+    try {
+      console.log(`Making request to KlingAI API with model: ${payload.model_name}`);
+
+      // Make request to KlingAI API
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      // Handle API response
+      const responseText = await response.text();
+
+      // Try to parse JSON response
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error(`Failed to parse response: ${responseText.substring(0, 200)}`);
+        return NextResponse.json(
+          { error: 'Invalid response format from KlingAI API', details: responseText.substring(0, 500) },
+          { status: 500 }
+        );
+      }
+
+      console.log('KlingAI API response:', data);
+
+      if (!response.ok) {
+        console.error(`Error from KlingAI API:`, data);
+        return NextResponse.json(
+          { error: data.message || 'Error from KlingAI API', details: data },
+          { status: response.status }
+        );
+      }
+
+      // Check for task ID in response
+      if (!data.data || !data.data.task_id) {
+        console.error(`Missing task_id in response:`, data);
+        return NextResponse.json(
+          { error: 'Missing task ID in response', details: data },
+          { status: 500 }
+        );
+      }
+
+      // Get task ID from response
+      const taskId = data.data.task_id;
+      console.log(`Successfully created KlingAI task with ID: ${taskId}`);
+
+      // Poll for task completion
+      let resultImageUrl = null;
+      let maxRetries = 10;
+      let retryCount = 0;
+      const POLL_INTERVAL_MS = 2000; // 2 seconds between checks
+
+      while (retryCount < maxRetries) {
+        console.log(`Polling for task completion, attempt ${retryCount + 1}/${maxRetries}`);
+
+        // Wait a bit before polling
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+
+        // Query task status
+        const statusResponse = await fetch(`${API_BASE_URL}/v1/tasks/${taskId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        const statusData = await statusResponse.json();
+        console.log(`Task status: ${statusData.data?.status || 'unknown'}`);
+
+        // Check if task is complete
+        if (statusData.data?.status === 'SUCCESS') {
+          resultImageUrl = statusData.data.result?.output_url || statusData.data.result?.url;
+          console.log(`Task completed successfully, result URL: ${resultImageUrl}`);
+          break;
+        } 
+        
+        // Check if task failed
+        if (statusData.data?.status === 'FAILED') {
+          console.error(`Task failed:`, statusData.data.result);
+          return NextResponse.json(
+            { error: 'KlingAI task failed', details: statusData.data.result },
+            { status: 500 }
+          );
+        }
+
+        retryCount++;
+      }
+
+      // If we reached max retries without success
+      if (!resultImageUrl) {
+        console.error(`Task didn't complete within ${maxRetries} retries.`);
+        return NextResponse.json(
+          { error: 'Task processing timeout', details: 'The image processing task did not complete in the expected time.' },
+          { status: 504 }
+        );
+      }
+
+      // Return successful response with the result URL
+      return NextResponse.json({
+        success: true,
+        resultImageUrl: resultImageUrl
+      });
+
+    } catch (error) {
+      console.error('Error processing KlingAI request:', error);
+      return NextResponse.json(
+        { error: 'Error processing try-on request', details: error instanceof Error ? error.message : String(error) },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('Error in try-on API:', error);
     return NextResponse.json(
-      { error: 'Failed to process try-on request' },
+      { error: 'Failed to process try-on request', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
