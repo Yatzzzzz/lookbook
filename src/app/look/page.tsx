@@ -1,7 +1,8 @@
-"use client";
+"use client"
 
-import React, { useState, useRef, FormEvent, ChangeEvent, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import * as React from 'react'
+import { useState, useRef, FormEvent, ChangeEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image';
 
 // Force dynamic rendering to prevent static generation issues

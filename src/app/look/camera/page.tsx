@@ -1,0 +1,229 @@
+"use client";
+
+import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+
+export default function LookCameraPage() {
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    startCamera();
+    
+    // Clean up function to stop camera when component unmounts
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      
+      setStream(mediaStream);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    } catch (err) {
+      console.error('Error accessing camera:', err);
+      setError('Failed to access camera. Please make sure you have granted camera permissions.');
+    }
+  };
+
+  const captureImage = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Draw the current video frame on the canvas
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Convert canvas to data URL (base64)
+    const imageDataUrl = canvas.toDataURL('image/jpeg');
+    setCapturedImage(imageDataUrl);
+    
+    // Stop the camera stream
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+  };
+
+  const retakePhoto = () => {
+    setCapturedImage(null);
+    startCamera();
+  };
+
+  const uploadCapture = async () => {
+    if (!capturedImage) return;
+    
+    setIsProcessing(true);
+    
+    try {
+      // In a real implementation, this would send the image to an API
+      const response = await fetch('/api/looks/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          imageBase64: capturedImage,
+          source: 'camera'
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+      
+      // Navigate to preview or edit page
+      router.push('/look/preview');
+    } catch (err) {
+      console.error('Error uploading image:', err);
+      setError('Failed to upload image. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const switchCamera = async () => {
+    if (!stream) return;
+    
+    // Stop current stream
+    stream.getTracks().forEach(track => track.stop());
+    
+    try {
+      // Get current facing mode
+      const currentFacingMode = stream.getVideoTracks()[0].getSettings().facingMode;
+      
+      // Toggle facing mode
+      const newFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+      
+      // Start new stream with toggled facing mode
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: newFacingMode }
+      });
+      
+      setStream(newStream);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = newStream;
+      }
+    } catch (err) {
+      console.error('Error switching camera:', err);
+      setError('Failed to switch camera mode.');
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-4">
+        <div className="bg-red-100 p-4 rounded-md text-red-700 mb-4">
+          {error}
+        </div>
+        <button 
+          onClick={() => router.push('/look')}
+          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+        >
+          Back to Upload
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Capture Your Look</h1>
+      
+      <div className="relative overflow-hidden rounded-lg bg-gray-100 mb-4">
+        {capturedImage ? (
+          <div className="relative aspect-[3/4] w-full">
+            <Image
+              src={capturedImage}
+              alt="Captured look"
+              fill
+              style={{ objectFit: 'contain' }}
+              className="rounded-lg"
+            />
+          </div>
+        ) : (
+          <div className="relative aspect-[3/4] w-full bg-black">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          </div>
+        )}
+        
+        {/* Hidden canvas for image capture */}
+        <canvas ref={canvasRef} className="hidden" />
+      </div>
+      
+      <div className="flex justify-center space-x-4">
+        {capturedImage ? (
+          <>
+            <button
+              onClick={retakePhoto}
+              disabled={isProcessing}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50"
+            >
+              Retake Photo
+            </button>
+            <button
+              onClick={uploadCapture}
+              disabled={isProcessing}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
+            >
+              {isProcessing ? 'Processing...' : 'Use This Photo'}
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={switchCamera}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+            >
+              Switch Camera
+            </button>
+            <button
+              onClick={captureImage}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Take Photo
+            </button>
+          </>
+        )}
+      </div>
+      
+      <div className="mt-8 text-center">
+        <button
+          onClick={() => router.push('/look')}
+          className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+        >
+          Back to Upload
+        </button>
+      </div>
+    </div>
+  );
+} 

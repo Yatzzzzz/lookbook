@@ -1,0 +1,372 @@
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
+
+interface LookDetails {
+  description: string;
+  occasion: string;
+  season: string;
+  style: string;
+  brands: string[];
+  tags: string[];
+  isPrivate: boolean;
+}
+
+export default function LookDetailsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const lookId = searchParams.get('id');
+  const imageUrl = searchParams.get('image');
+  
+  const [details, setDetails] = useState<LookDetails>({
+    description: '',
+    occasion: '',
+    season: 'any',
+    style: '',
+    brands: [],
+    tags: [],
+    isPrivate: false
+  });
+  
+  const [currentTag, setCurrentTag] = useState('');
+  const [currentBrand, setCurrentBrand] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // If there's a lookId but no image, fetch the look details from the API
+    if (lookId && !imageUrl) {
+      fetchLookDetails(lookId);
+    }
+  }, [lookId, imageUrl]);
+
+  const fetchLookDetails = async (id: string) => {
+    try {
+      const response = await fetch(`/api/looks/${id}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch look details');
+      }
+      
+      const data = await response.json();
+      setDetails({
+        description: data.description || '',
+        occasion: data.occasion || '',
+        season: data.season || 'any',
+        style: data.style || '',
+        brands: data.brands || [],
+        tags: data.tags || [],
+        isPrivate: data.isPrivate || false
+      });
+    } catch (err) {
+      console.error('Error fetching look details:', err);
+      setError('Failed to load look details. Please try again.');
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setDetails(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setDetails(prev => ({ ...prev, [name]: checked }));
+  };
+
+  const addTag = () => {
+    if (currentTag.trim() && !details.tags.includes(currentTag.trim())) {
+      setDetails(prev => ({
+        ...prev,
+        tags: [...prev.tags, currentTag.trim()]
+      }));
+      setCurrentTag('');
+    }
+  };
+
+  const removeTag = (tag: string) => {
+    setDetails(prev => ({
+      ...prev,
+      tags: prev.tags.filter(t => t !== tag)
+    }));
+  };
+
+  const addBrand = () => {
+    if (currentBrand.trim() && !details.brands.includes(currentBrand.trim())) {
+      setDetails(prev => ({
+        ...prev,
+        brands: [...prev.brands, currentBrand.trim()]
+      }));
+      setCurrentBrand('');
+    }
+  };
+
+  const removeBrand = (brand: string) => {
+    setDetails(prev => ({
+      ...prev,
+      brands: prev.brands.filter(b => b !== brand)
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!details.description.trim()) {
+      setError('Please provide a description for your look');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // If we have an ID, we're updating an existing look
+      const url = lookId 
+        ? `/api/looks/${lookId}/update` 
+        : '/api/looks/create';
+      
+      const method = lookId ? 'PUT' : 'POST';
+      
+      // Include the image if we're creating a new look
+      const body = lookId 
+        ? { details } 
+        : { details, imageUrl };
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save look details');
+      }
+      
+      const data = await response.json();
+      
+      // Navigate to the look page or gallery
+      router.push(lookId ? `/look/${lookId}` : '/gallery');
+    } catch (err) {
+      console.error('Error saving look details:', err);
+      setError('Failed to save look details. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!lookId && !imageUrl) {
+    return (
+      <div className="container mx-auto p-4">
+        <div className="bg-red-100 p-4 rounded-md text-red-700 mb-4">
+          Missing required look information. Please upload an image first.
+        </div>
+        <button 
+          onClick={() => router.push('/look')}
+          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+        >
+          Go to Upload
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-4 max-w-2xl">
+      <h1 className="text-2xl font-bold mb-4">Look Details</h1>
+      
+      {error && (
+        <div className="bg-red-100 p-4 rounded-md text-red-700 mb-4">
+          {error}
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {imageUrl && (
+          <div className="relative h-60 w-full mb-4 rounded-lg overflow-hidden">
+            <Image
+              src={imageUrl}
+              alt="Look preview"
+              fill
+              style={{ objectFit: 'contain' }}
+              className="bg-gray-100"
+            />
+          </div>
+        )}
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Description
+          </label>
+          <textarea
+            name="description"
+            value={details.description}
+            onChange={handleInputChange}
+            placeholder="Describe your look..."
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            rows={3}
+            required
+          />
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Occasion
+            </label>
+            <input
+              type="text"
+              name="occasion"
+              value={details.occasion}
+              onChange={handleInputChange}
+              placeholder="e.g. Casual, Formal, Party..."
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Season
+            </label>
+            <select
+              name="season"
+              value={details.season}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="any">Any Season</option>
+              <option value="spring">Spring</option>
+              <option value="summer">Summer</option>
+              <option value="fall">Fall</option>
+              <option value="winter">Winter</option>
+            </select>
+          </div>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Style
+          </label>
+          <input
+            type="text"
+            name="style"
+            value={details.style}
+            onChange={handleInputChange}
+            placeholder="e.g. Minimalist, Bohemian, Street..."
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Brands
+          </label>
+          <div className="flex">
+            <input
+              type="text"
+              value={currentBrand}
+              onChange={(e) => setCurrentBrand(e.target.value)}
+              placeholder="Add a brand..."
+              className="flex-1 p-2 border border-gray-300 rounded-l-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addBrand())}
+            />
+            <button
+              type="button"
+              onClick={addBrand}
+              className="px-4 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600"
+            >
+              Add
+            </button>
+          </div>
+          
+          <div className="flex flex-wrap mt-2 gap-2">
+            {details.brands.map((brand, index) => (
+              <div key={index} className="flex items-center bg-gray-100 px-3 py-1 rounded-full">
+                <span className="text-sm">{brand}</span>
+                <button
+                  type="button"
+                  onClick={() => removeBrand(brand)}
+                  className="ml-2 text-gray-500 hover:text-red-500"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Tags
+          </label>
+          <div className="flex">
+            <input
+              type="text"
+              value={currentTag}
+              onChange={(e) => setCurrentTag(e.target.value)}
+              placeholder="Add a tag..."
+              className="flex-1 p-2 border border-gray-300 rounded-l-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+            />
+            <button
+              type="button"
+              onClick={addTag}
+              className="px-4 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600"
+            >
+              Add
+            </button>
+          </div>
+          
+          <div className="flex flex-wrap mt-2 gap-2">
+            {details.tags.map((tag, index) => (
+              <div key={index} className="flex items-center bg-gray-100 px-3 py-1 rounded-full">
+                <span className="text-sm">#{tag}</span>
+                <button
+                  type="button"
+                  onClick={() => removeTag(tag)}
+                  className="ml-2 text-gray-500 hover:text-red-500"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            id="isPrivate"
+            name="isPrivate"
+            checked={details.isPrivate}
+            onChange={handleCheckboxChange}
+            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          />
+          <label htmlFor="isPrivate" className="ml-2 block text-sm text-gray-700">
+            Private (only visible to you)
+          </label>
+        </div>
+        
+        <div className="flex space-x-4">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
+          >
+            {isSubmitting ? 'Saving...' : 'Save Details'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+} 

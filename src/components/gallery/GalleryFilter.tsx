@@ -1,0 +1,92 @@
+'use client';
+
+import { useState } from 'react';
+import * as Tabs from '@radix-ui/react-tabs';
+import { LookFilter } from '@/types/look';
+
+interface GalleryFilterProps {
+  onFilterChange: (filter: LookFilter) => void;
+  defaultValue?: string;
+}
+
+export function GalleryFilter({ onFilterChange, defaultValue = 'latest' }: GalleryFilterProps) {
+  const [activeTab, setActiveTab] = useState<string>(defaultValue);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    
+    let newFilter: LookFilter = {};
+    
+    // Set sort value based on tab
+    if (value === 'latest' || value === 'popular' || value === 'trending') {
+      newFilter.sort = value as 'latest' | 'popular' | 'trending';
+    }
+    
+    // If it's a category or style
+    if (['casual', 'formal', 'streetwear', 'vintage', 'athletic'].includes(value)) {
+      newFilter.style = value;
+    }
+    
+    onFilterChange(newFilter);
+  };
+
+  return (
+    <Tabs.Root 
+      className="w-full" 
+      defaultValue={defaultValue}
+      onValueChange={handleTabChange}
+    >
+      <Tabs.List className="flex overflow-x-auto pb-2 mb-4 border-b border-gray-200 dark:border-gray-800 gap-x-2">
+        <Tabs.Trigger
+          value="latest"
+          className={`px-3 py-2 text-sm font-medium rounded-md whitespace-nowrap 
+            ${activeTab === 'latest' 
+              ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white' 
+              : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
+        >
+          Latest
+        </Tabs.Trigger>
+
+        <Tabs.Trigger
+          value="popular"
+          className={`px-3 py-2 text-sm font-medium rounded-md whitespace-nowrap 
+            ${activeTab === 'popular' 
+              ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white' 
+              : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
+        >
+          Popular
+        </Tabs.Trigger>
+
+        <Tabs.Trigger
+          value="trending"
+          className={`px-3 py-2 text-sm font-medium rounded-md whitespace-nowrap 
+            ${activeTab === 'trending' 
+              ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white' 
+              : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
+        >
+          Trending
+        </Tabs.Trigger>
+
+        <Tabs.Trigger
+          value="streetwear"
+          className={`px-3 py-2 text-sm font-medium rounded-md whitespace-nowrap 
+            ${activeTab === 'streetwear' 
+              ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white' 
+              : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
+        >
+          Streetwear
+        </Tabs.Trigger>
+
+        <Tabs.Trigger
+          value="formal"
+          className={`px-3 py-2 text-sm font-medium rounded-md whitespace-nowrap 
+            ${activeTab === 'formal' 
+              ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white' 
+              : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
+        >
+          Formal
+        </Tabs.Trigger>
+      </Tabs.List>
+    </Tabs.Root>
+  );
+} 

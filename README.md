@@ -16,7 +16,7 @@ Lookbook is a mobile-first fashion social network application built with Next.js
 - **Frontend:** Next.js 15.2.4, React 19, Tailwind CSS 4
 - **Backend:** Supabase (PostgreSQL, Authentication, Storage)
 - **AI Integration:** (Simulated, would use Google AI Studio in production)
-- **Deployment:** Azure Static Web Sites
+- **Deployment:** Azure web app
 
 ## Getting Started
 
