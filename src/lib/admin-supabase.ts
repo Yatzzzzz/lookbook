@@ -9,7 +9,7 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 // Create a Supabase client with the service role key for admin privileges
-export const adminSupabase = createClient(
+const adminSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   {
@@ -20,14 +20,4 @@ export const adminSupabase = createClient(
   }
 );
 
-// Create a Supabase client with the anon key for public access
-export const publicSupabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true
-    }
-  }
-); 
+export default adminSupabase; 
