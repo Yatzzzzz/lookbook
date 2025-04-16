@@ -30,6 +30,7 @@ jobs:
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env.local
           echo "NEXT_PUBLIC_SUPABASE_URL=https://wwjuohjstrcyvshfuadr.supabase.co" >> .env.local
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env.local
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env.local
           echo "GOOGLE_APPLICATION_CREDENTIALS=./dummy-credentials.json" >> .env.local
           echo "NEXT_PUBLIC_WEBSOCKET_URL=wss://lookbook-nextjs-app.azurewebsites.net/api/gemini-live" >> .env.local
           echo "NEXT_TELEMETRY_DISABLED=1" >> .env.local
@@ -69,19 +70,30 @@ jobs:
 
       - name: Build Next.js Application
         run: |
-          # Ensure we have a fallback Supabase key for build time
-          # This is only used during static generation and will be replaced at runtime
+          # Ensure we have fallback Supabase keys for build time
+          # These are only used during static generation and will be replaced at runtime
           FALLBACK_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3anVvaGpzdHJjeXZzaGZ1YWRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM0NTYzMTQsImV4cCI6MjA1OTAzMjMxNH0.9frcwfcg4fXq_nGAQ2axdPpYcBsxcPspGvXz2bGTTEI"
+          FALLBACK_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3anVvaGpzdHJjeXZzaGZ1YWRyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MzQ1NjMxNCwiZXhwIjoyMDU5MDMyMzE0fQ.8pL_0gkrX1gIBA-gXMUywcS8Nc7t-m1vh3vKCJEyhgk"
           
-          # Use the secret if available, otherwise use the fallback
+          # Use the secrets if available, otherwise use the fallbacks
           SUPABASE_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+          SERVICE_ROLE_KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+          
           if [ -z "$SUPABASE_KEY" ]; then
             SUPABASE_KEY="$FALLBACK_ANON_KEY"
-            echo "Using fallback Supabase key for build"
+            echo "Using fallback Supabase anon key for build"
+          fi
+          
+          if [ -z "$SERVICE_ROLE_KEY" ]; then
+            SERVICE_ROLE_KEY="$FALLBACK_SERVICE_ROLE_KEY"
+            echo "Using fallback Supabase service role key for build"
           fi
           
           # Build with environment variables explicitly passed
-          NEXT_PUBLIC_SUPABASE_URL=https://wwjuohjstrcyvshfuadr.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_KEY npx next build
+          NEXT_PUBLIC_SUPABASE_URL=https://wwjuohjstrcyvshfuadr.supabase.co \
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_KEY \
+          SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY \
+          npx next build
         env:
           CI: true
           NEXT_TELEMETRY_DISABLED: 1
@@ -89,6 +101,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           NEXT_PUBLIC_SUPABASE_URL: "https://wwjuohjstrcyvshfuadr.supabase.co"
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           GOOGLE_APPLICATION_CREDENTIALS: "./dummy-credentials.json"
           NEXT_PUBLIC_WEBSOCKET_URL: "wss://lookbook-nextjs-app.azurewebsites.net/api/gemini-live"
 
