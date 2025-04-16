@@ -1,0 +1,211 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ThumbsUp, ThumbsDown, ArrowLeft, ArrowRight } from 'lucide-react';
+import CameraUpload from '../components/camera-upload';
+import AudienceSelector, { AudienceType } from '../components/audience-selector';
+
+interface Person {
+  id: string;
+  name: string;
+  avatar: string;
+}
+
+interface YayOrNayData {
+  imageData: string;
+  occasion: string;
+  audience: AudienceType;
+  excludedPeople: Person[];
+}
+
+// Common occasion suggestions
+const occasionSuggestions = [
+  "Work meeting",
+  "First date",
+  "Job interview",
+  "Casual Friday",
+  "Wedding",
+  "Dinner party",
+  "Meeting the parents",
+  "Night out",
+  "Beach day",
+  "Formal event",
+];
+
+export default function YayOrNayPage() {
+  const router = useRouter();
+  const [step, setStep] = useState<'upload' | 'occasion' | 'audience'>('upload');
+  const [imageData, setImageData] = useState<string | null>(null);
+  const [occasion, setOccasion] = useState<string>('');
+  const [audience, setAudience] = useState<AudienceType>('everyone');
+  const [excludedPeople, setExcludedPeople] = useState<Person[]>([]);
+
+  // Handle image capture from camera or file upload
+  const handleImageCapture = (capturedImageData: string) => {
+    setImageData(capturedImageData);
+    setStep('occasion');
+  };
+
+  // Go to audience selection step
+  const goToAudienceStep = () => {
+    if (occasion.trim()) {
+      setStep('audience');
+    }
+  };
+
+  // Handle audience selection complete
+  const handleAudienceComplete = (selectedAudience: AudienceType, selectedExcludedPeople: Person[]) => {
+    setAudience(selectedAudience);
+    setExcludedPeople(selectedExcludedPeople);
+    
+    // In a real application, save the yay/nay data to a database
+    const yayOrNayData: YayOrNayData = {
+      imageData: imageData!,
+      occasion,
+      audience: selectedAudience,
+      excludedPeople: selectedExcludedPeople
+    };
+    
+    console.log('Yay or Nay data saved:', yayOrNayData);
+    
+    // Return to the main options page
+    router.push('/testpages/look');
+  };
+
+  // Handle back button
+  const handleBack = () => {
+    if (step === 'occasion') {
+      setStep('upload');
+      setImageData(null);
+    } else if (step === 'audience') {
+      setStep('occasion');
+    }
+  };
+
+  // Handle suggestion click
+  const handleSuggestionClick = (suggestion: string) => {
+    setOccasion(suggestion);
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Yay or Nay</h1>
+      
+      {/* Step 1: Upload/Camera */}
+      {step === 'upload' && (
+        <div>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            Take a photo of your outfit for the community to vote on
+          </p>
+          <CameraUpload onImageCapture={handleImageCapture} />
+        </div>
+      )}
+      
+      {/* Step 2: Occasion Input */}
+      {step === 'occasion' && imageData && (
+        <div>
+          <button 
+            onClick={handleBack}
+            className="mb-4 flex items-center text-blue-500 hover:text-blue-600"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Back
+          </button>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Image preview */}
+            <div>
+              <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+                <img 
+                  src={imageData} 
+                  alt="Your outfit" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+            
+            {/* Occasion section */}
+            <div>
+              <h2 className="text-lg font-medium mb-2">Can I wear this to...</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Specify the occasion for others to give better feedback
+              </p>
+              
+              {/* Occasion input */}
+              <div className="mb-4">
+                <textarea
+                  value={occasion}
+                  onChange={(e) => setOccasion(e.target.value)}
+                  placeholder="Example: Job interview, First date, etc."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500 min-h-[100px]"
+                />
+              </div>
+              
+              {/* Occasion suggestions */}
+              <div className="mb-6">
+                <p className="text-sm font-medium mb-2">Suggestions:</p>
+                <div className="flex flex-wrap gap-2">
+                  {occasionSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-sm hover:bg-gray-200 dark:hover:bg-gray-700"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Preview */}
+              {occasion && (
+                <div className="mb-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                  <p className="font-medium mb-2">Preview:</p>
+                  <div className="flex items-center justify-between">
+                    <p>Can I wear this to {occasion}?</p>
+                    <div className="flex gap-2">
+                      <span className="flex items-center text-green-500">
+                        <ThumbsUp className="w-4 h-4 mr-1" /> Yay
+                      </span>
+                      <span className="flex items-center text-red-500">
+                        <ThumbsDown className="w-4 h-4 mr-1" /> Nay
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Next button */}
+              <button
+                onClick={goToAudienceStep}
+                disabled={!occasion.trim()}
+                className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next 
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Step 3: Audience Selection */}
+      {step === 'audience' && (
+        <div>
+          <button 
+            onClick={handleBack}
+            className="mb-4 flex items-center text-blue-500 hover:text-blue-600"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Back
+          </button>
+          
+          <AudienceSelector 
+            onComplete={handleAudienceComplete} 
+          />
+        </div>
+      )}
+    </div>
+  );
+} 

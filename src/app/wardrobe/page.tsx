@@ -84,7 +84,15 @@ export default function Wardrobe() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Your Wardrobe</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Your Wardrobe</h1>
+          <button
+            onClick={() => router.push('/lookbook')}
+            className="text-blue-600 text-sm hover:underline mt-1 flex items-center"
+          >
+            ← Back to Lookbook
+          </button>
+        </div>
         <AddItemButton onClick={handleAddItemClick} />
       </div>
 

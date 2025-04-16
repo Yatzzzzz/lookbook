@@ -1,0 +1,64 @@
+'use client';
+
+import React from 'react';
+import { useRouter } from 'next/navigation';
+import { Camera, Users, Heart, MessageCircle } from 'lucide-react';
+
+export default function LookOptionsPage() {
+  const router = useRouter();
+
+  const options = [
+    {
+      id: 'look',
+      title: 'Look',
+      description: 'Share your outfit',
+      icon: <Camera className="w-10 h-10 text-blue-500" />,
+      path: '/testpages/look/look',
+    },
+    {
+      id: 'battle',
+      title: 'Fashion Battle',
+      description: 'Compare outfits',
+      icon: <Users className="w-10 h-10 text-blue-500" />,
+      path: '/testpages/look/battle',
+    },
+    {
+      id: 'yayornay',
+      title: 'Yay or Nay',
+      description: 'Get opinions',
+      icon: <Heart className="w-10 h-10 text-blue-500" />,
+      path: '/testpages/look/yayornay',
+    },
+    {
+      id: 'crowd',
+      title: 'Opinions',
+      description: 'Ask for advice',
+      icon: <MessageCircle className="w-10 h-10 text-blue-500" />,
+      path: '/testpages/look/crowd',
+    },
+  ];
+
+  return (
+    <div className="min-h-screen bg-black text-white p-6">
+      <h1 className="text-3xl font-bold text-center mb-8">Create New Look</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        {options.map((option) => (
+          <div
+            key={option.id}
+            className="border border-gray-700 rounded-lg p-6 cursor-pointer hover:border-blue-500 transition-colors"
+            onClick={() => router.push(option.path)}
+          >
+            <div className="flex flex-col items-center justify-center h-32">
+              <div className="bg-gray-900 rounded-full p-6 mb-4">
+                {option.icon}
+              </div>
+              <h2 className="text-xl font-semibold text-center">{option.title}</h2>
+              <p className="text-blue-400 text-center">{option.description}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+} 

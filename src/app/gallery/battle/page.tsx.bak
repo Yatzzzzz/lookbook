@@ -1,0 +1,27 @@
+'use client';
+
+import React from 'react';
+import { Card, CardContent } from "@/components/ui/card";
+
+export default function BattlePage() {
+  return (
+    <div className="container mx-auto px-4 py-6">
+      <Card>
+        <CardContent className="p-6">
+          <h2 className="text-2xl font-bold mb-4">Fashion Battles</h2>
+          <p className="text-gray-600 mb-4">
+            Coming soon! This feature will allow you to compare two fashion looks head-to-head and vote for your favorite.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+            <div className="bg-gray-200 rounded-lg aspect-square flex items-center justify-center text-gray-600">
+              Look 1 placeholder
+            </div>
+            <div className="bg-gray-200 rounded-lg aspect-square flex items-center justify-center text-gray-600">
+              Look 2 placeholder
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+} 

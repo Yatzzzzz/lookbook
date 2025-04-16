@@ -1,0 +1,196 @@
+'use client';
+
+import React, { useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Star, MessageCircle, Send } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface OpinionItem {
+  look_id: string;
+  image_url: string;
+  caption: string;
+  username: string;
+  avatar_url?: string;
+  comments?: Array<{
+    id: string;
+    username: string;
+    avatar_url?: string;
+    text: string;
+    created_at: string;
+  }>;
+}
+
+interface OpinionsGridProps {
+  items: OpinionItem[];
+}
+
+const OpinionsGrid: React.FC<OpinionsGridProps> = ({ items }) => {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [comments, setComments] = useState<Record<string, string>>({});
+
+  const handleRating = (lookId: string, rating: number) => {
+    setRatings(prev => ({
+      ...prev,
+      [lookId]: rating
+    }));
+  };
+  
+  const handleCommentChange = (lookId: string, comment: string) => {
+    setComments(prev => ({
+      ...prev,
+      [lookId]: comment
+    }));
+  };
+  
+  const handleSubmitComment = (lookId: string) => {
+    if (!comments[lookId]?.trim()) return;
+    
+    // Here would be the API call to submit the comment
+    console.log(`Submitting comment for ${lookId}: ${comments[lookId]}`);
+    
+    // Clear the comment input
+    setComments(prev => ({
+      ...prev,
+      [lookId]: ''
+    }));
+  };
+
+  const handleExpandItem = (lookId: string) => {
+    setExpandedId(expandedId === lookId ? null : lookId);
+  };
+
+  return (
+    <div className="space-y-6 py-6">
+      {items.map((item) => (
+        <Card key={item.look_id} className="overflow-hidden">
+          <CardContent className="p-0">
+            <div className="flex flex-col md:flex-row">
+              <div className="md:w-1/3">
+                <img
+                  src={item.image_url}
+                  alt={item.caption}
+                  className="w-full h-full object-cover aspect-square md:aspect-auto"
+                />
+              </div>
+              
+              <div className="p-4 md:w-2/3">
+                <div className="flex items-center gap-2 mb-3">
+                  <img 
+                    src={item.avatar_url || "https://i.pravatar.cc/150"} 
+                    alt={item.username} 
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                  <span className="font-medium">{item.username}</span>
+                </div>
+                
+                <p className="mb-4">{item.caption}</p>
+                
+                <div className="mb-4">
+                  <div className="flex items-center gap-1 mb-2">
+                    <span className="text-sm font-medium">Your rating:</span>
+                    <div className="flex">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button 
+                          key={star} 
+                          onClick={() => handleRating(item.look_id, star)}
+                          className="focus:outline-none"
+                        >
+                          <Star 
+                            className={cn(
+                              "h-5 w-5", 
+                              star <= (ratings[item.look_id] || 0) 
+                                ? "text-yellow-400 fill-yellow-400" 
+                                : "text-gray-300"
+                            )} 
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                    onClick={() => handleExpandItem(item.look_id)}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Comments ({item.comments?.length || 0})</span>
+                  </Button>
+                </div>
+                
+                {expandedId === item.look_id && (
+                  <div className="mt-4">
+                    <div className="bg-muted rounded-lg p-3 max-h-60 overflow-y-auto">
+                      {item.comments && item.comments.length > 0 ? (
+                        <div className="space-y-3">
+                          {item.comments.map((comment) => (
+                            <div key={comment.id} className="flex gap-2">
+                              <img 
+                                src={comment.avatar_url || "https://i.pravatar.cc/150"} 
+                                alt={comment.username} 
+                                className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                              />
+                              <div>
+                                <div className="flex items-center gap-1">
+                                  <span className="font-medium text-sm">{comment.username}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(comment.created_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                <p className="text-sm">{comment.text}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-2">
+                          No comments yet. Be the first to comment!
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="mt-3 flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Add a comment..."
+                        className="flex-1 px-3 py-2 border border-input rounded-md text-sm"
+                        value={comments[item.look_id] || ''}
+                        onChange={(e) => handleCommentChange(item.look_id, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSubmitComment(item.look_id);
+                          }
+                        }}
+                      />
+                      <Button 
+                        size="sm"
+                        onClick={() => handleSubmitComment(item.look_id)}
+                        disabled={!comments[item.look_id]?.trim()}
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+      
+      {items.length === 0 && (
+        <div className="text-center p-8">
+          <p className="text-lg font-medium mb-2">No opinions to show</p>
+          <p className="text-muted-foreground">Check back later for fashion opinions</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default OpinionsGrid; 

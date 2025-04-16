@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+import { useGalleryContext } from './layout';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -16,7 +17,7 @@ interface Look {
   title?: string;
   description?: string;
   image_url: string;
-  audience?: string;
+  audience?: 'everyone' | 'following' | 'friends';
   created_at: string;
   rating?: string;
 }
@@ -25,104 +26,33 @@ interface Look {
 export const dynamic = 'force-dynamic';
 
 export default function GalleryPage() {
-  const [looks, setLooks] = useState<Look[]>([]);
+  const { activeSubTab } = useGalleryContext();
+  const [allLooks, setAllLooks] = useState<Look[]>([]);
+  const [filteredLooks, setFilteredLooks] = useState<Look[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [activeRating, setActiveRating] = useState<{[key: string]: number}>({});
   const sliderRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
   
-  // Add proper CSS for true masonry layout and slider
+  // Filter looks based on active secondary tab
   useEffect(() => {
-    const style = document.createElement("style");
-    style.textContent = `
-      /* True masonry layout using CSS columns */
-      .masonry-container {
-        column-count: 1;
-        column-gap: 16px;
+    if (allLooks.length > 0) {
+      let filtered = [...allLooks];
+      
+      // Apply filter based on the active secondary tab
+      if (activeSubTab === 'following') {
+        filtered = allLooks.filter(look => 
+          look.audience === 'following' || look.audience === 'everyone'
+        );
+      } else if (activeSubTab === 'friends') {
+        filtered = allLooks.filter(look => 
+          look.audience === 'friends' || look.audience === 'everyone'
+        );
       }
       
-      @media (min-width: 640px) {
-        .masonry-container {
-          column-count: 2;
-        }
-      }
-      
-      @media (min-width: 768px) {
-        .masonry-container {
-          column-count: 3;
-        }
-      }
-      
-      @media (min-width: 1024px) {
-        .masonry-container {
-          column-count: 4;
-        }
-      }
-      
-      .masonry-item {
-        break-inside: avoid;
-        margin-bottom: 16px;
-        display: inline-block;
-        width: 100%;
-      }
-      
-      /* Rating slider styles */
-      .rating-slider {
-        position: relative;
-        height: 32px;
-        background: rgba(0, 0, 0, 0.7);
-        border-radius: 16px;
-        overflow: hidden;
-      }
-      
-      .rating-background {
-        position: absolute;
-        top: 0;
-        left: 0;
-        height: 100%;
-        background: linear-gradient(90deg, #f59e0b, #ef4444);
-        border-radius: 16px;
-        z-index: 1;
-        transition: width 0.1s ease-out;
-      }
-      
-      .rating-labels {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        position: relative;
-        height: 100%;
-        z-index: 2;
-        padding: 0 12px;
-      }
-      
-      .rating-label {
-        color: white;
-        font-size: 12px;
-        font-weight: bold;
-      }
-      
-      .rating-value-box {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: white;
-        font-size: 14px;
-        font-weight: bold;
-        background: rgba(0, 0, 0, 0.7);
-        padding: 2px 8px;
-        border-radius: 10px;
-        z-index: 3;
-      }
-    `;
-    document.head.appendChild(style);
-    
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
+      setFilteredLooks(filtered);
+    }
+  }, [activeSubTab, allLooks]);
 
   useEffect(() => {
     async function fetchLooks() {
@@ -209,7 +139,7 @@ export default function GalleryPage() {
             }
           }
           
-          setLooks(processedLooks);
+          setAllLooks(processedLooks);
           setActiveRating(initialRatings);
         } else {
           // No database records, fall back to just listing storage files
@@ -233,10 +163,10 @@ export default function GalleryPage() {
               created_at: file.created_at
             }));
             
-            setLooks(processedLooks);
+            setAllLooks(processedLooks);
           } else {
             // No images found in either database or storage
-            setLooks([]);
+            setAllLooks([]);
           }
         }
       } catch (err: unknown) {
@@ -254,11 +184,6 @@ export default function GalleryPage() {
 
     fetchLooks();
   }, []);
-
-  // Function to handle rating slider visibility
-  const handleHover = (index: number | null) => {
-    setHoverIndex(index);
-  };
 
   // Function to handle slider movement
   const handleSliderMove = (e: React.MouseEvent, lookId: string) => {
@@ -291,7 +216,7 @@ export default function GalleryPage() {
         .update({ rating: rating.toString() })
         .eq('look_id', lookId);
 
-  if (error) {
+      if (error) {
         console.error('Error saving rating:', error);
       } else {
         console.log(`Rating ${rating} saved for look ${lookId}`);
@@ -302,139 +227,97 @@ export default function GalleryPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Fashion Gallery</h1>
-      </div>
-      
-      {/* Navigation Tabs - reduced to only Gallery */}
-      <div className="mb-8 border-b border-gray-200">
-        <nav className="flex space-x-8">
-          <div className="py-4 px-1 font-medium text-sm border-b-2 border-blue-500 text-blue-600">
-            Gallery
-          </div>
-        </nav>
-      </div>
-      
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-          <p className="font-bold">Error loading gallery</p>
-          <p>{error}</p>
-        </div>
-      )}
-      
+    <div className="container mx-auto px-2 sm:px-3 md:px-4 py-2 md:py-4">
       {loading ? (
         <div className="flex justify-center items-center h-64">
-          <p className="text-gray-500 text-xl">Loading images...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
         </div>
-      ) : looks.length === 0 ? (
-        <div className="text-center py-12 bg-gray-100 dark:bg-gray-800 rounded-lg">
-          <h2 className="text-2xl font-semibold mb-2">No images found</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">Check back later for fashion styles!</p>
+      ) : error ? (
+        <div className="text-center p-4 text-red-500">
+          <p>Error loading images: {error}</p>
+          <button 
+            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          </button>
+        </div>
+      ) : filteredLooks.length === 0 ? (
+        <div className="text-center p-8">
+          <p className="text-lg">No images found for this filter.</p>
+          <p className="text-gray-500 mt-2">Try a different filter or upload some looks!</p>
         </div>
       ) : (
-        <div className="masonry-container">
-          {looks.map((look, index) => (
-            <div 
-              key={look.look_id || index} 
-              className="masonry-item"
-              onMouseEnter={() => handleHover(index)}
-              onMouseLeave={() => handleHover(null)}
-              onTouchStart={() => handleHover(index === hoverIndex ? null : index)}
-            >
-              <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-lg">
-                <div className="relative overflow-hidden">
-                  {/* Share and Save buttons - at TOP */}
-                  <div className="absolute top-3 left-3 z-10">
-                    <button className="p-1 bg-white bg-opacity-70 rounded-full shadow-md hover:bg-opacity-100 transition-all">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                      </svg>
-                    </button>
-                  </div>
-        
-                  <div className="absolute top-3 right-3 z-10">
-                    <button className="p-1 bg-white bg-opacity-70 rounded-full shadow-md hover:bg-opacity-100 transition-all">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
-                      </svg>
-                    </button>
-                  </div>
-        
-                  <img
-                    src={look.image_url}
-                    alt={look.title || `Fashion look ${index + 1}`} 
-                    className="w-full h-auto object-contain" 
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filteredLooks.map((look) => (
+            <div key={look.look_id} className="rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+              <Link href={`/gallery/look/${look.look_id}`}>
+                <div className="relative w-full aspect-square bg-gray-100">
+                  <img 
+                    src={look.image_url} 
+                    alt={look.title || "Fashion look"} 
+                    className="w-full h-full object-cover"
+                    loading="lazy"
                   />
-                  
-                  {/* Interactive Rating Slider - correct implementation for mobile */}
-                  {hoverIndex === index && (
-                    <div className="absolute bottom-0 left-0 right-0 p-2 z-10">
-                      <div 
-                        ref={(el: HTMLDivElement | null) => {
-                          sliderRefs.current[look.look_id] = el;
-                          return undefined;
-                        }}
-                        className="rating-slider"
-                        onMouseMove={(e) => handleSliderMove(e, look.look_id)}
-                        onClick={() => handleSliderClick(look.look_id)}
-                        onTouchMove={(e) => {
-                          // Handle touch events for mobile
-                          const touch = e.touches[0];
-                          if (touch) {
-                            handleSliderMove({
-                              clientX: touch.clientX,
-                              clientY: touch.clientY
-                            } as React.MouseEvent, look.look_id);
-                          }
-                        }}
-                      >
-                        {/* The filled background that moves with rating */}
-                        <div 
-                          className="rating-background"
-                          style={{ 
-                            width: `${((activeRating[look.look_id] || 0) / 5) * 100}%`
-                          }}
-                        />
-                        
-                        {/* Only show "Ok" on left and "Amazing" on right */}
-                        <div className="rating-labels">
-                          <span className="rating-label">Ok</span>
-                          <span className="rating-label">Amazing</span>
-                        </div>
-                        
-                        {/* Current rating displayed in the middle */}
-                        <div className="rating-value-box">
-                          {activeRating[look.look_id] || 0}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                </div>
+              </Link>
+              
+              <div className="p-2">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h3 className="text-sm font-medium truncate max-w-[140px]">
+                      {look.title || (look.look_id.length > 10 ? `look-${look.look_id.substring(0, 8)}` : 'Look')}
+                    </h3>
+                    <p className="text-xs text-gray-500">@{look.username || "anonymous"}</p>
+                  </div>
+                  <span className="text-xs text-gray-400">
+                    {new Date(look.created_at).toLocaleDateString(undefined, {
+                      day: 'numeric',
+                      month: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </span>
                 </div>
                 
-                <div className="p-4">
-                  <div className="flex items-center mb-2">
-                    <div className="w-8 h-8 rounded-full bg-gray-300 mr-2 flex items-center justify-center">
-                      {look.username?.charAt(0).toUpperCase() || "A"}
+                <div 
+                  className="relative h-6 bg-gray-200 rounded-full overflow-hidden cursor-pointer"
+                  ref={el => sliderRefs.current[look.look_id] = el}
+                  onClick={(e) => {
+                    handleSliderClick(look.look_id);
+                    // Also process the click position
+                    if (sliderRefs.current[look.look_id]) {
+                      const rect = sliderRefs.current[look.look_id]!.getBoundingClientRect();
+                      const offsetX = e.clientX - rect.left;
+                      const percentage = offsetX / rect.width;
+                      const newRating = Math.max(1, Math.min(5, Math.ceil(percentage * 5)));
+                      setActiveRating(prev => ({ ...prev, [look.look_id]: newRating }));
+                    }
+                  }}
+                  onMouseMove={e => handleSliderMove(e, look.look_id)}
+                  onTouchMove={e => {
+                    const touch = e.touches[0];
+                    if (touch && sliderRefs.current[look.look_id]) {
+                      const rect = sliderRefs.current[look.look_id]!.getBoundingClientRect();
+                      const offsetX = Math.max(0, Math.min(rect.width, touch.clientX - rect.left));
+                      const percentage = offsetX / rect.width;
+                      const newRating = Math.max(1, Math.min(5, Math.ceil(percentage * 5)));
+                      setActiveRating(prev => ({ ...prev, [look.look_id]: newRating }));
+                    }
+                  }}
+                >
+                  <div 
+                    className="absolute top-0 left-0 h-full bg-amber-500 transition-all duration-150"
+                    style={{ width: `${(activeRating[look.look_id] || 0) * 20}%` }}
+                  ></div>
+                  <div className="flex justify-between px-2 py-1 relative z-10 text-xs font-medium">
+                    <span>1</span>
+                    <span>5</span>
+                  </div>
+                  {activeRating[look.look_id] > 0 && (
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white text-xs px-1.5 py-0.5 rounded z-20">
+                      {activeRating[look.look_id].toFixed(1)}
                     </div>
-                    <span className="font-medium text-sm">{look.username || "Anonymous"}</span>
-                  </div>
-                  
-                  <h2 className="text-lg font-semibold mb-2 truncate">
-                    {look.title || `Look ${index + 1}`}
-                  </h2>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">
-                      {new Date(look.created_at).toLocaleDateString()}
-                    </span>
-                    <Link 
-                      href={`/gallery/look/${look.look_id || encodeURIComponent(look.image_url.split('/').pop() || '')}`}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    >
-                      View Details
-                    </Link>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>

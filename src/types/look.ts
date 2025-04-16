@@ -1,21 +1,12 @@
 export interface Look {
   id: number;
-  user_id: string;
-  image_url: string;
-  caption?: string;
-  created_at: string;
-  likes_count: number;
-  views_count: number;
-  saved_count: number;
-  user: {
-    username: string;
-    avatar_url?: string;
-    display_name?: string;
-  };
+  userId?: string;
+  imageUrl: string;
+  description?: string;
   tags?: string[];
-  products?: Product[];
-  is_liked?: boolean;
-  is_saved?: boolean;
+  createdAt?: string;
+  likes?: number;
+  views?: number;
 }
 
 export interface Product {

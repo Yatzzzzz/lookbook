@@ -1,0 +1,33 @@
+.pageContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.statsContainer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: var(--muted);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.statsItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.statsLabel {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.statsValue {
+  font-weight: 600;
+  font-size: 1.125rem;
+} 

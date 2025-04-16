@@ -1,13 +1,18 @@
-import { Navigation } from "@/components/layout/navigation";
+'use client';
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import type { Look } from "@shared/schema";
 import { Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useState } from "react";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { BottomNav } from "@/components/layout/bottom-nav";
+import BottomNav from "@/components/BottomNav";
+import NavBar from "@/components/NavBar";
+
+// Define types
+interface Look {
+  id: number;
+  imageUrl: string;
+  description?: string;
+}
 
 interface VoteResult {
   lookId: number;
@@ -15,61 +20,61 @@ interface VoteResult {
   aiOpinion?: string;
 }
 
+// Mock data for testing until API is integrated
+const mockLooks: Look[] = [
+  {
+    id: 1,
+    imageUrl: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1920",
+    description: "Summer casual outfit with white shirt and jeans"
+  },
+  {
+    id: 2,
+    imageUrl: "https://images.unsplash.com/photo-1554412933-514a83d2f3c8?q=80&w=1920",
+    description: "Formal business attire with navy blazer"
+  }
+];
+
 export default function YayNayPage() {
-  const { toast } = useToast();
   const [votes, setVotes] = useState<VoteResult[]>([]);
+  const [isLoadingOpinions, setIsLoadingOpinions] = useState<Record<number, boolean>>({});
 
-  const { data: looks, isLoading } = useQuery<Look[]>({
-    queryKey: ["/api/looks"],
-  });
-
-  const getAIOpinionMutation = useMutation({
-    mutationFn: async (look: Look) => {
-      const response = await apiRequest("POST", "/api/clothes-gpt", {
-        prompt: `Analyze this outfit description and provide a quick opinion about its style: ${look.description}`
-      });
-      return response.json();
-    },
-    onSuccess: (data, look) => {
-      setVotes(prev => 
-        prev.map(v => 
-          v.lookId === look.id 
-            ? { ...v, aiOpinion: data.outfit }
-            : v
-        )
-      );
-    }
-  });
-
-  const handleVote = async (lookId: number, vote: "yay" | "nay") => {
-    const look = looks?.find(l => l.id === lookId);
-    setVotes(prev => [...prev, { lookId, result: vote }]);
-
-    if (look) {
-      getAIOpinionMutation.mutate(look);
-    }
-
-    toast({
-      title: vote === "yay" ? "Yay! 🎉" : "Nay! 👎",
-      description: "Your vote has been recorded.",
-    });
+  // Mock API response function
+  const getAIOpinion = async (description: string) => {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Return mock AI opinion
+    return {
+      outfit: `This ${description} looks ${Math.random() > 0.5 ? 'great for the occasion!' : 'stylish but could use some accessories.'}`,
+    };
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background pb-16">
-        <Navigation />
-        <div className="flex justify-center items-center min-h-[300px] md:min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-        <BottomNav />
-      </div>
-    );
-  }
+  const handleVote = async (lookId: number, vote: "yay" | "nay") => {
+    const look = mockLooks.find(l => l.id === lookId);
+    setVotes(prev => [...prev, { lookId, result: vote }]);
+
+    if (look?.description) {
+      setIsLoadingOpinions(prev => ({ ...prev, [lookId]: true }));
+      try {
+        const aiResponse = await getAIOpinion(look.description);
+        setVotes(prev => 
+          prev.map(v => 
+            v.lookId === lookId 
+              ? { ...v, aiOpinion: aiResponse.outfit }
+              : v
+          )
+        );
+      } catch (error) {
+        console.error("Error getting AI opinion:", error);
+      } finally {
+        setIsLoadingOpinions(prev => ({ ...prev, [lookId]: false }));
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-16">
-      <Navigation />
+      <NavBar />
 
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
         <div className="container flex items-center h-14">
@@ -79,8 +84,9 @@ export default function YayNayPage() {
 
       <main className="container px-4 py-6 md:py-8">
         <div className="space-y-4 md:space-y-8">
-          {looks?.map((look) => {
+          {mockLooks.map((look) => {
             const vote = votes.find((v) => v.lookId === look.id);
+            const isLoading = isLoadingOpinions[look.id];
 
             return (
               <Card key={look.id}>
@@ -130,8 +136,10 @@ export default function YayNayPage() {
                             <p className="text-sm text-muted-foreground">
                               {vote.aiOpinion}
                             </p>
-                          ) : (
+                          ) : isLoading ? (
                             <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Waiting for AI opinion...</p>
                           )}
                         </div>
                       </div>

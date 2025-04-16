@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 
@@ -11,7 +11,7 @@ interface SocialPlatform {
   shareUrl: (url: string, text: string) => string;
 }
 
-export default function ShareLookPage() {
+function ShareLookContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const lookId = searchParams.get('id');
@@ -281,5 +281,13 @@ export default function ShareLookPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function ShareLookPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ShareLookContent />
+    </Suspense>
   );
 } 

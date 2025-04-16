@@ -1,0 +1,156 @@
+'use client';
+
+import React, { useState } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { X, ArrowRight } from 'lucide-react';
+
+interface QueryCardProps {
+  title: string;
+  description: string;
+  icon: string;
+  initialPrompt?: string;
+  fields?: {
+    name: string;
+    label: string;
+    placeholder: string;
+    type?: string;
+  }[];
+  onSubmit?: (formData: Record<string, string>) => void;
+  isLoading?: boolean;
+  customAction?: () => void;
+  isCustomCard?: boolean;
+}
+
+export default function QueryCard({
+  title,
+  description,
+  icon,
+  initialPrompt = '',
+  fields = [],
+  onSubmit = () => {},
+  isLoading = false,
+  customAction,
+  isCustomCard = false
+}: QueryCardProps) {
+  const [open, setOpen] = useState(false);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormValues({
+      ...formValues,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formValues);
+  };
+
+  const handleCardClick = () => {
+    if (isCustomCard && customAction) {
+      customAction();
+    } else {
+      setOpen(true);
+    }
+  };
+
+  // Determine classes based on card type
+  const cardClasses = isCustomCard
+    ? "block w-full h-full bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-6 rounded-lg shadow-md hover:shadow-lg transition-all border border-blue-200 dark:border-blue-800 text-left hover:scale-[1.02]"
+    : "block w-full h-full bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700 text-left";
+
+  const titleClasses = isCustomCard
+    ? "font-bold text-xl mb-2 text-blue-700 dark:text-blue-400 flex items-center"
+    : "font-bold text-xl mb-2";
+
+  return (
+    <>
+      <button
+        onClick={handleCardClick}
+        className={cardClasses}
+      >
+        <div className="text-4xl mb-4">{icon}</div>
+        <h3 className={titleClasses}>
+          {title}
+          {isCustomCard && <ArrowRight className="ml-2 h-4 w-4" />}
+        </h3>
+        <p className="text-gray-600 dark:text-gray-400">{description}</p>
+      </button>
+
+      {!isCustomCard && (
+        <Dialog.Root open={open} onOpenChange={setOpen}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 bg-black/50 data-[state=open]:animate-overlayShow" />
+            <Dialog.Content className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-lg bg-white dark:bg-gray-800 p-6 shadow-lg focus:outline-none data-[state=open]:animate-contentShow overflow-y-auto">
+              <Dialog.Title className="text-xl font-bold mb-2">{title}</Dialog.Title>
+              <Dialog.Description className="text-gray-600 dark:text-gray-400 mb-5">
+                {description}
+              </Dialog.Description>
+
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                {fields.map((field) => (
+                  <div key={field.name} className="grid gap-2">
+                    <div className="flex items-baseline justify-between">
+                      <label className="font-medium text-sm">
+                        {field.label}
+                      </label>
+                      <p className="text-xs text-red-500">
+                        Please enter {field.label.toLowerCase()}
+                      </p>
+                    </div>
+                    {field.type === 'textarea' ? (
+                      <textarea
+                        name={field.name}
+                        className="border border-gray-300 dark:border-gray-600 rounded-md p-2 w-full bg-white dark:bg-gray-700 text-black dark:text-white"
+                        placeholder={field.placeholder}
+                        onChange={handleInputChange}
+                        required
+                        rows={4}
+                      />
+                    ) : (
+                      <input
+                        type={field.type || 'text'}
+                        name={field.name}
+                        className="border border-gray-300 dark:border-gray-600 rounded-md p-2 w-full bg-white dark:bg-gray-700 text-black dark:text-white"
+                        placeholder={field.placeholder}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    )}
+                  </div>
+                ))}
+
+                <div className="flex justify-end space-x-2 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Processing...' : 'Submit'}
+                  </button>
+                </div>
+              </form>
+
+              <Dialog.Close asChild>
+                <button
+                  className="absolute top-4 right-4 inline-flex h-6 w-6 items-center justify-center rounded-full text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+              </Dialog.Close>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
+      )}
+    </>
+  );
+} 

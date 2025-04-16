@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 
@@ -14,7 +14,7 @@ interface LookDetails {
   isPrivate: boolean;
 }
 
-export default function LookDetailsPage() {
+function LookDetailsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const lookId = searchParams.get('id');
@@ -368,5 +368,17 @@ export default function LookDetailsPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function LookDetailsPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto p-4 flex justify-center items-center min-h-[300px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    }>
+      <LookDetailsContent />
+    </Suspense>
   );
 } 
