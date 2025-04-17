@@ -93,72 +93,15 @@ const ChatInterface: React.FC = () => {
         localStorage.removeItem(STORAGE_KEY);
         setError(null);
     }, []);
-
-    // Speech recognition setup with improved behavior
-    const startSpeechRecognition = useCallback(async () => {
-        if (!navigator.mediaDevices || !window.MediaRecorder) {
-            setError("Your browser doesn't support speech recognition. Try Chrome or Edge.");
-            return;
-        }
-        
-        try {
-            // Clear any existing input and focus on what's being spoken
-            setInputText('');
-            setError(null);
-            setIsRecording(true);
-            audioChunksRef.current = [];
-            
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorderRef.current = new MediaRecorder(stream);
-            
-            mediaRecorderRef.current.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    audioChunksRef.current.push(event.data);
-                }
-            };
-            
-            mediaRecorderRef.current.onstop = async () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const reader = new FileReader();
-                
-                reader.onloadend = () => {
-                    const base64Audio = reader.result as string;
-                    setRecordedAudio(base64Audio);
-                    
-                    // For now, send directly. In production, you might want to validate or show preview
-                    if (base64Audio) {
-                        sendMessage(undefined, base64Audio);
-                    }
-                };
-                
-                reader.readAsDataURL(audioBlob);
-                
-                // Stop all audio tracks
-                stream.getTracks().forEach(track => track.stop());
-            };
-            
-            // Start recording immediately
-            mediaRecorderRef.current.start();
-            
-            // Visual feedback that recording has started
-            // Add a small notification if desired
-            console.log("Recording started");
-        } catch (err: any) {
-            console.error("Error accessing microphone:", err);
-            setIsRecording(false);
-            setError(`Microphone error: ${err.message || "Unable to access microphone"}`);
-        }
-    }, [sendMessage]);
     
-    const stopSpeechRecognition = useCallback(() => {
-        if (mediaRecorderRef.current && isRecording) {
-            mediaRecorderRef.current.stop();
-            setIsRecording(false);
-            console.log("Recording stopped");
+    // Text-to-speech for bot responses - define this early to avoid reference issues
+    const stopSpeaking = useCallback(() => {
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+            setIsSpeaking(false);
         }
-    }, [isRecording]);
-
-    // Text-to-speech for bot responses
+    }, []);
+    
     const speakText = useCallback((text: string) => {
         if (!window.speechSynthesis) {
             console.error("Speech synthesis not supported in this browser");
@@ -188,14 +131,7 @@ const ChatInterface: React.FC = () => {
         
         speechSynthesisRef.current = utterance;
         window.speechSynthesis.speak(utterance);
-    }, []);
-    
-    const stopSpeaking = useCallback(() => {
-        if (window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-            setIsSpeaking(false);
-        }
-    }, []);
+    }, [stopSpeaking]);
 
     const addMessage = useCallback((text: string, sender: 'user' | 'bot', image?: string, isGenerating: boolean = false) => {
         const id = uuidv4();
@@ -323,6 +259,70 @@ const ChatInterface: React.FC = () => {
             setIsLoading(false);
         }
     }, [inputText, latestFrame, isCapturingVideo, speakText, stopSpeaking, addMessage]);
+
+    // Speech recognition setup with improved behavior
+    const startSpeechRecognition = useCallback(async () => {
+        if (!navigator.mediaDevices || !window.MediaRecorder) {
+            setError("Your browser doesn't support speech recognition. Try Chrome or Edge.");
+            return;
+        }
+        
+        try {
+            // Clear any existing input and focus on what's being spoken
+            setInputText('');
+            setError(null);
+            setIsRecording(true);
+            audioChunksRef.current = [];
+            
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorderRef.current = new MediaRecorder(stream);
+            
+            mediaRecorderRef.current.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+            
+            mediaRecorderRef.current.onstop = async () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const reader = new FileReader();
+                
+                reader.onloadend = () => {
+                    const base64Audio = reader.result as string;
+                    setRecordedAudio(base64Audio);
+                    
+                    // For now, send directly. In production, you might want to validate or show preview
+                    if (base64Audio) {
+                        sendMessage(undefined, base64Audio);
+                    }
+                };
+                
+                reader.readAsDataURL(audioBlob);
+                
+                // Stop all audio tracks
+                stream.getTracks().forEach(track => track.stop());
+            };
+            
+            // Start recording immediately
+            mediaRecorderRef.current.start();
+            
+            // Visual feedback that recording has started
+            // Add a small notification if desired
+            console.log("Recording started");
+        } catch (err: any) {
+            console.error("Error accessing microphone:", err);
+            setIsRecording(false);
+            setError(`Microphone error: ${err.message || "Unable to access microphone"}`);
+        }
+    }, [sendMessage]);
+    
+    const stopSpeechRecognition = useCallback(() => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            console.log("Recording stopped");
+        }
+    }, [isRecording]);
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter' && !event.shiftKey) {
