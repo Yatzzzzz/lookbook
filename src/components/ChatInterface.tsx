@@ -75,7 +75,7 @@ const ChatInterface: React.FC = () => {
         setLatestFrame(base64Frame);
         if (base64Frame) {
             setShowCapturedImagePreview(true);
-            setGuidanceText('Image captured - click on the microphone to ask related questions');
+            setGuidanceText('Image captured - click on the microphone icon to ask questions about it');
             
             // Clear guidance after 10 seconds if not acted upon
             setTimeout(() => {
@@ -393,7 +393,7 @@ const ChatInterface: React.FC = () => {
             setGuidanceText('');
         } else {
             startSpeechRecognition();
-            setGuidanceText('Ask fashion related question and click on the send button to receive answers');
+            setGuidanceText('Ask a fashion related question about the captured image');
         }
     }, [isRecording, startSpeechRecognition, stopSpeechRecognition]);
 
@@ -428,67 +428,76 @@ const ChatInterface: React.FC = () => {
             {/* Chat Area */}
             <div className="flex-grow flex flex-col h-[50vh] overflow-hidden">
                 {/* Chat header with icons */}
-                <div className="p-2 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center space-x-3">
-                        {/* Clear chat button */}
-                        <button 
-                            onClick={(e) => handleButtonClick(e, clearConversation)}
-                            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                            aria-label="Clear conversation"
-                        >
-                            <Image src="/clear-chat.svg" alt="Clear Chat" width={20} height={20} />
-                        </button>
+                <div className="p-2 flex flex-col border-b border-gray-200 dark:border-gray-700">
+                    {/* Guidance text - separate line above controls */}
+                    {guidanceText && (
+                        <div className="w-full mb-2 px-1 py-1 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded">
+                            <p>{guidanceText}</p>
+                        </div>
+                    )}
+                    
+                    {/* Controls row with preview */}
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-3">
+                            {/* Clear chat button */}
+                            <button 
+                                onClick={(e) => handleButtonClick(e, clearConversation)}
+                                className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                aria-label="Clear conversation"
+                            >
+                                <Image src="/clear-chat.svg" alt="Clear Chat" width={18} height={18} />
+                            </button>
+                            
+                            {/* Small Send Text button */}
+                            <button
+                                onClick={(e) => handleButtonClick(e, () => sendMessage())}
+                                disabled={isLoading || (!inputText.trim() && !latestFrame && !isRecording)}
+                                className="px-2 py-1 text-xs rounded bg-white hover:bg-gray-100 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                                aria-label="Send message"
+                            >
+                                <span>Send</span>
+                                <Image src="/send.svg" alt="Send" width={12} height={12} priority />
+                            </button>
+                            
+                            {/* Microphone button - more prominent */}
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    console.log("Microphone button clicked");
+                                    toggleRecording(); // Use the simpler toggleRecording function
+                                }}
+                                className={`p-2 rounded-full transition-colors ${
+                                    isRecording 
+                                        ? 'bg-red-500 hover:bg-red-600 text-white' 
+                                        : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600'
+                                }`}
+                                aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+                            >
+                                <Image 
+                                    src={isRecording ? "/microphone-on.svg" : "/microphone.svg"} 
+                                    alt={isRecording ? "Microphone On" : "Microphone"} 
+                                    width={22} 
+                                    height={22} 
+                                    priority
+                                />
+                            </button>
+                        </div>
                         
-                        {/* Microphone button - more prominent */}
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                console.log("Microphone button clicked");
-                                toggleRecording(); // Use the simpler toggleRecording function
-                            }}
-                            className={`p-2 rounded-full transition-colors ${
-                                isRecording 
-                                    ? 'bg-red-500 hover:bg-red-600 text-white' 
-                                    : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600'
-                            }`}
-                            aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-                        >
-                            <Image 
-                                src={isRecording ? "/microphone-on.svg" : "/microphone.svg"} 
-                                alt={isRecording ? "Microphone On" : "Microphone"} 
-                                width={24} 
-                                height={24} 
-                                priority
-                            />
-                        </button>
-                        
-                        {/* Guidance text */}
-                        {guidanceText && (
-                            <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
-                                <span>{guidanceText}</span>
-                                {guidanceText.includes('send button') && (
-                                    <span className="ml-1 inline-flex items-center">
-                                        <Image src="/send.svg" alt="Send" width={16} height={16} priority />
-                                    </span>
-                                )}
+                        {/* Captured image preview */}
+                        {showCapturedImagePreview && latestFrame && (
+                            <div className="flex items-center space-x-2">
+                                <div className="text-xs text-gray-500 dark:text-gray-400">Latest capture:</div>
+                                <div className="w-12 h-12 relative border rounded overflow-hidden">
+                                    <img 
+                                        src={latestFrame} 
+                                        alt="Captured" 
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
                             </div>
                         )}
                     </div>
-                    
-                    {/* Captured image preview */}
-                    {showCapturedImagePreview && latestFrame && (
-                        <div className="flex items-center space-x-2">
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Latest capture:</div>
-                            <div className="w-12 h-12 relative border rounded overflow-hidden">
-                                <img 
-                                    src={latestFrame} 
-                                    alt="Captured" 
-                                    className="w-full h-full object-cover"
-                                />
-                            </div>
-                        </div>
-                    )}
                 </div>
                 
                 {/* Message List */}

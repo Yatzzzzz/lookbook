@@ -235,22 +235,6 @@ const VideoInput: React.FC<VideoInputProps> = ({
                             />
                         </button>
                         
-                        {/* Manual capture button - only shown when auto-capture is off */}
-                        {!isCapturing && (
-                            <button
-                                onClick={handleManualCapture}
-                                className="p-2 rounded-full transition-colors"
-                                aria-label="Take Picture"
-                            >
-                                <Image 
-                                    src="/camera-shutter.svg" 
-                                    alt="Take Picture" 
-                                    width={32} 
-                                    height={32} 
-                                />
-                            </button>
-                        )}
-                        
                         {/* Stop camera button */}
                         <button 
                             onClick={(e) => handleButtonClick(e, stopCamera)} 
