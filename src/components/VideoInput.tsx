@@ -270,8 +270,10 @@ const VideoInput: React.FC<VideoInputProps> = ({
                 {/* Capture feedback notification */}
                 {showCaptureFeedback && (
                     <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white p-2 rounded-lg shadow-lg animate-pulse transition-opacity">
-                        <p className="font-semibold">Image Captured! {captureCount > 1 ? `(${captureCount})` : ''}</p>
-                        <p className="text-xs mt-1">Now click the microphone icon to ask questions about this image</p>
+                        <div className="flex flex-col">
+                            <p className="font-semibold">Image Captured! {captureCount > 1 ? `(${captureCount})` : ''}</p>
+                            <p className="text-xs mt-1">Now click the microphone icon below to ask questions about this image</p>
+                        </div>
                     </div>
                 )}
                 

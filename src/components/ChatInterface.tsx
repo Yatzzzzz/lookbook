@@ -40,6 +40,10 @@ const ChatInterface: React.FC = () => {
     // Add a new state for the microphone notification
     const [showMicNotification, setShowMicNotification] = useState<boolean>(false);
 
+    // Add new state for guidance text
+    const [guidanceText, setGuidanceText] = useState<string>('');
+    const [showCapturedImagePreview, setShowCapturedImagePreview] = useState<boolean>(false);
+
     // Load chat history from localStorage on component mount
     useEffect(() => {
         try {
@@ -69,6 +73,15 @@ const ChatInterface: React.FC = () => {
 
     const handleFrameCapture = useCallback((base64Frame: string | null) => {
         setLatestFrame(base64Frame);
+        if (base64Frame) {
+            setShowCapturedImagePreview(true);
+            setGuidanceText('Image captured - click on the microphone to ask related questions');
+            
+            // Clear guidance after 10 seconds if not acted upon
+            setTimeout(() => {
+                setGuidanceText('');
+            }, 10000);
+        }
     }, []);
 
     const cleanupEventSource = () => {
@@ -169,6 +182,9 @@ const ChatInterface: React.FC = () => {
             return;
         }
 
+        // Clear guidance text when sending a message
+        setGuidanceText('');
+        
         setError(null);
         setIsLoading(true);
         stopSpeaking(); // Stop any ongoing speech
@@ -261,7 +277,7 @@ const ChatInterface: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [inputText, latestFrame, isCapturingVideo, speakText, stopSpeaking, addMessage]);
+    }, [inputText, latestFrame, isCapturingVideo, speakText, stopSpeaking, addMessage, setGuidanceText]);
 
     // Simplified speech recognition
     const startSpeechRecognition = useCallback(() => {
@@ -374,8 +390,10 @@ const ChatInterface: React.FC = () => {
         
         if (isRecording) {
             stopSpeechRecognition();
+            setGuidanceText('');
         } else {
             startSpeechRecognition();
+            setGuidanceText('Ask fashion related question and click on the send button to receive answers');
         }
     }, [isRecording, startSpeechRecognition, stopSpeechRecognition]);
 
@@ -411,7 +429,7 @@ const ChatInterface: React.FC = () => {
             <div className="flex-grow flex flex-col h-[50vh] overflow-hidden">
                 {/* Chat header with icons */}
                 <div className="p-2 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex space-x-3">
+                    <div className="flex items-center space-x-3">
                         {/* Clear chat button */}
                         <button 
                             onClick={(e) => handleButtonClick(e, clearConversation)}
@@ -444,7 +462,33 @@ const ChatInterface: React.FC = () => {
                                 priority
                             />
                         </button>
+                        
+                        {/* Guidance text */}
+                        {guidanceText && (
+                            <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                                <span>{guidanceText}</span>
+                                {guidanceText.includes('send button') && (
+                                    <span className="ml-1 inline-flex items-center">
+                                        <Image src="/send.svg" alt="Send" width={16} height={16} priority />
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
+                    
+                    {/* Captured image preview */}
+                    {showCapturedImagePreview && latestFrame && (
+                        <div className="flex items-center space-x-2">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Latest capture:</div>
+                            <div className="w-12 h-12 relative border rounded overflow-hidden">
+                                <img 
+                                    src={latestFrame} 
+                                    alt="Captured" 
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
                 
                 {/* Message List */}
