@@ -1,8 +1,7 @@
-'use client';
+'use client'
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { redirect } from 'next/navigation';
 
 export default function GeminiRedirectPage() {
   const router = useRouter();
@@ -15,9 +14,6 @@ export default function GeminiRedirectPage() {
     
     return () => clearTimeout(redirectTimeout);
   }, [router]);
-
-  // This will be used if JavaScript is disabled
-  redirect('/gemini');
 
   return (
     <div className="min-h-screen flex items-center justify-center">
