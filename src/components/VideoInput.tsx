@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import Image from 'next/image';
 
 interface VideoInputProps {
     onFrameCapture: (base64Frame: string | null) => void;
@@ -43,7 +44,11 @@ const VideoInput: React.FC<VideoInputProps> = ({
         }
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: { ideal: 640 }, height: { ideal: 480 } }, // Request a reasonable size
+                video: { 
+                    width: { ideal: 640 }, 
+                    height: { ideal: 480 },
+                    facingMode: 'environment' // Prefer rear camera on mobile
+                },
                 audio: false // No audio needed
             });
             streamRef.current = stream;
@@ -146,41 +151,83 @@ const VideoInput: React.FC<VideoInputProps> = ({
         };
     }, [cleanupStream]);
 
+    // Prevent event propagation to avoid page navigation issues
+    const handleButtonClick = (e: React.MouseEvent, callback: () => void) => {
+        e.preventDefault();
+        e.stopPropagation();
+        callback();
+    };
+
     return (
-        <div className="border p-2 rounded bg-gray-100 dark:bg-gray-800">
-            {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
-            <div className="relative mb-2">
+        <div className="relative w-full">
+            {error && <p className="text-red-500 text-sm absolute top-2 left-2 right-2 z-10 bg-black bg-opacity-50 p-1 rounded">{error}</p>}
+            <div className="relative w-full" style={{ minHeight: '160px' }}>
                 {/* Video element to display the stream */}
                 <video
                     ref={videoRef}
                     playsInline // Important for iOS Safari to play inline
                     muted // Mute to avoid feedback loops
-                    className={`w-full h-auto rounded ${!isCameraOn ? 'bg-black' : ''}`}
-                    style={{ transform: 'scaleX(-1)' }} // Flip horizontally for mirror effect
+                    className={`w-full h-auto ${!isCameraOn ? 'bg-black' : ''}`}
+                    style={{ 
+                        transform: 'scaleX(-1)', // Flip horizontally for mirror effect
+                        maxHeight: '50vh' // Limit height to half of viewport height
+                    }}
                 ></video>
                 {/* Hidden canvas for capturing frames */}
                 <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
-                {!isCameraOn && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white">Camera Off</div>}
-            </div>
-            <div className="flex space-x-2 justify-center">
-                {!isCameraOn ? (
-                    <button onClick={startCamera} className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
-                        Start Camera
-                    </button>
-                ) : (
-                    <>
-                        <button onClick={stopCamera} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">
-                            Stop Camera
-                        </button>
-                        {/* Toggle Auto-Capture */}
-                        <button
-                            onClick={() => setIsCapturing(!isCapturing)}
-                            className={`px-3 py-1 rounded ${isCapturing ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-500 hover:bg-gray-600'} text-white`}
-                            disabled={!isCameraOn}
+                
+                {/* Center camera control overlay */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                    {!isCameraOn ? (
+                        // Start camera icon button
+                        <button 
+                            onClick={(e) => handleButtonClick(e, startCamera)}
+                            className="p-3 rounded-full transition-colors"
+                            aria-label="Start Camera"
                         >
-                            {isCapturing ? 'Stop Auto-Capture' : 'Start Auto-Capture'}
+                            <Image 
+                                src="/start-camera.svg" 
+                                alt="Start Camera" 
+                                width={40} 
+                                height={40} 
+                            />
                         </button>
-                    </>
+                    ) : (
+                        <div></div>
+                    )}
+                </div>
+                
+                {/* Camera controls in the middle-left of the screen */}
+                {isCameraOn && (
+                    <div className="absolute left-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-4">
+                        {/* Auto-capture toggle button */}
+                        <button
+                            onClick={(e) => handleButtonClick(e, () => setIsCapturing(!isCapturing))}
+                            className="p-2 rounded-full transition-colors"
+                            aria-label={isCapturing ? "Auto-Capture is On" : "Start Auto-Capture"}
+                        >
+                            <Image 
+                                src={isCapturing ? "/capture-is-on.svg" : "/start-camera-capture.svg"} 
+                                alt={isCapturing ? "Auto-Capture is On" : "Start Auto-Capture"} 
+                                width={32} 
+                                height={32} 
+                            />
+                        </button>
+                        
+                        {/* Stop camera button */}
+                        <button 
+                            onClick={(e) => handleButtonClick(e, stopCamera)} 
+                            className="p-2 rounded-full transition-colors"
+                            aria-label="Stop Camera"
+                        >
+                            <Image 
+                                src="/stop-camera.svg" 
+                                alt="Stop Camera" 
+                                width={32} 
+                                height={32} 
+                            />
+                        </button>
+                    </div>
                 )}
             </div>
         </div>

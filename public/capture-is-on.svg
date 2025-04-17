@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M23 19.0001C23 19.5305 22.7893 20.0392 22.4142 20.4142C22.0391 20.7893 21.5304 21.0001 21 21.0001H3C2.46957 21.0001 1.96086 20.7893 1.58579 20.4142C1.21071 20.0392 1 19.5305 1 19.0001V8.00007C1 7.46964 1.21071 6.96093 1.58579 6.58586C1.96086 6.21078 2.46957 6.00007 3 6.00007H7L9 3.00007H15L17 6.00007H21C21.5304 6.00007 22.0391 6.21078 22.4142 6.58586C22.7893 6.96093 23 7.46964 23 8.00007V19.0001Z" stroke="#ff5050" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="12" cy="13.0001" r="4" stroke="#ff5050" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="12" cy="13.0001" r="2" fill="#ff5050" stroke="#ff5050" stroke-width="1"/>
+  <!-- Pulsing animation -->
+  <circle cx="12" cy="13.0001" r="6" stroke="#ff5050" stroke-width="1" opacity="0.3">
+    <animate attributeName="r" from="4" to="7" dur="1.5s" begin="0s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" from="0.6" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"/>
+  </circle>
+</svg> 

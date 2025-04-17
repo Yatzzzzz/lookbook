@@ -3,12 +3,15 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import VideoInput from './VideoInput';
 import { LucideVolume2, LucideMic, LucideSquare } from 'lucide-react';
+import Image from 'next/image';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Message {
     id: string;
     sender: 'user' | 'bot';
     text: string;
     image?: string;
+    isGenerating?: boolean;
 }
 
 const STORAGE_KEY = 'gemini-chat-history';
@@ -186,6 +189,29 @@ const ChatInterface: React.FC = () => {
         }
     }, []);
 
+    const addMessage = useCallback((text: string, sender: 'user' | 'bot', image?: string, isGenerating: boolean = false) => {
+        const id = uuidv4();
+        const newMessage: Message = { id, text, sender, timestamp: Date.now(), image, isGenerating };
+        
+        // Add to state
+        setMessages(prev => [...prev, newMessage]);
+        
+        // If it's a bot message being generated, track its ID
+        if (sender === 'bot' && isGenerating) {
+            currentBotMessageIdRef.current = id;
+        }
+        
+        // Store the updated conversation
+        try {
+            const updatedMessages = [...messages, newMessage];
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedMessages));
+        } catch (err) {
+            console.error('Failed to save conversation to localStorage:', err);
+        }
+        
+        return id;
+    }, [messages]);
+
     const sendMessage = useCallback(async (manualText?: string, audioData?: string) => {
         const textToSend = manualText !== undefined ? manualText : inputText.trim();
         const frameToSend = isCapturingVideo ? latestFrame : null;
@@ -201,20 +227,8 @@ const ChatInterface: React.FC = () => {
         stopSpeaking(); // Stop any ongoing speech
         cleanupEventSource();
 
-        const userMessageId = `user-${Date.now()}`;
-        const userMessage: Message = {
-            id: userMessageId,
-            sender: 'user',
-            text: textToSend || (audioToSend ? '🎤 Voice message' : ''),
-            image: frameToSend || undefined,
-        };
-        setMessages((prev) => [...prev, userMessage]);
-        setInputText('');
-        setRecordedAudio(null);
-
-        const botMessageId = `bot-${Date.now()}`;
-        currentBotMessageIdRef.current = botMessageId;
-        setMessages((prev) => [...prev, { id: botMessageId, sender: 'bot', text: '...' }]);
+        const userMessageId = addMessage(textToSend, 'user', frameToSend);
+        const botMessageId = addMessage('...', 'bot', undefined, true);
 
         try {
             const response = await fetch('/api/chat', {
@@ -300,7 +314,7 @@ const ChatInterface: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [inputText, latestFrame, isCapturingVideo, speakText, stopSpeaking]);
+    }, [inputText, latestFrame, isCapturingVideo, speakText, stopSpeaking, addMessage]);
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter' && !event.shiftKey) {
@@ -311,43 +325,69 @@ const ChatInterface: React.FC = () => {
         }
     };
 
+    const toggleRecording = useCallback(() => {
+        if (isRecording) {
+            stopSpeechRecognition();
+        } else {
+            startSpeechRecognition();
+        }
+    }, [isRecording, startSpeechRecognition, stopSpeechRecognition]);
+
+    // Prevent event propagation to avoid page navigation issues
+    const handleButtonClick = (e: React.MouseEvent, callback: () => void) => {
+        e.preventDefault();
+        e.stopPropagation();
+        callback();
+    };
+
     return (
-        <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] gap-4 p-4 bg-white dark:bg-gray-900">
-            {/* Video Input Area */}
-            <div className="w-full md:w-1/3 lg:w-1/4 border rounded-lg shadow-md overflow-hidden flex flex-col">
-                <h2 className="text-lg font-semibold p-2 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">Video Input</h2>
-                <div className="p-2 flex-grow">
-                    <VideoInput
-                        onFrameCapture={handleFrameCapture}
-                        isCapturing={isCapturingVideo}
-                        setIsCapturing={setIsCapturingVideo}
-                        captureInterval={3000} // Capture every 3s when active
-                    />
-                </div>
-                {latestFrame && isCapturingVideo && (
-                    <div className="p-2 border-t">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Last Captured Frame:</p>
-                        <img src={latestFrame} alt="Last captured frame" className="max-w-full h-auto rounded border"/>
-                    </div>
-                )}
+        <div className="flex flex-col h-[calc(100vh-4rem)] bg-white dark:bg-gray-900">
+            {/* Video Input Area - maximized to half the screen */}
+            <div className="w-full border-b border-gray-200 dark:border-gray-700 overflow-hidden">
+                <VideoInput
+                    onFrameCapture={handleFrameCapture}
+                    isCapturing={isCapturingVideo}
+                    setIsCapturing={setIsCapturingVideo}
+                    captureInterval={3000} // Capture every 3s when active
+                />
             </div>
 
             {/* Chat Area */}
-            <div className="w-full md:w-2/3 lg:w-3/4 border rounded-lg shadow-md overflow-hidden flex flex-col">
-                <div className="p-4 border-b bg-gray-100 dark:bg-gray-800 flex justify-between items-center">
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Chat with Gemini</h2>
-                    <button 
-                        onClick={clearConversation}
-                        className="px-3 py-1 text-sm bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors"
-                        aria-label="Clear conversation"
-                    >
-                        Clear Chat
-                    </button>
+            <div className="flex-grow flex flex-col h-[50vh] overflow-hidden">
+                {/* Chat header with icons */}
+                <div className="p-2 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex space-x-3">
+                        {/* Clear chat button */}
+                        <button 
+                            onClick={(e) => handleButtonClick(e, clearConversation)}
+                            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                            aria-label="Clear conversation"
+                        >
+                            <Image src="/clear-chat.svg" alt="Clear Chat" width={20} height={20} />
+                        </button>
+                        
+                        {/* Microphone button */}
+                        <button
+                            onClick={(e) => handleButtonClick(e, toggleRecording)}
+                            className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
+                                isRecording ? 'bg-red-100 dark:bg-red-900' : ''
+                            }`}
+                            aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+                        >
+                            <Image 
+                                src={isRecording ? "/microphone-on.svg" : "/microphone.svg"} 
+                                alt={isRecording ? "Microphone On" : "Microphone"} 
+                                width={20} 
+                                height={20} 
+                            />
+                        </button>
+                    </div>
                 </div>
+                
                 {/* Message List */}
                 <div 
                     ref={messagesContainerRef}
-                    className="flex-grow overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-700"
+                    className="flex-grow overflow-y-auto p-3 space-y-3 bg-gray-50 dark:bg-gray-700"
                 >
                     {messages.length === 0 ? (
                         <div className="flex items-center justify-center h-full">
@@ -356,16 +396,16 @@ const ChatInterface: React.FC = () => {
                             </p>
                         </div>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             {messages.map((msg) => (
                                 <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`p-3 rounded-lg shadow max-w-[80%] ${
+                                    <div className={`p-2 rounded-lg shadow max-w-[85%] ${
                                         msg.sender === 'user'
                                             ? 'bg-blue-500 text-white'
                                             : 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-gray-100'
                                     }`}>
                                         {msg.image && msg.sender === 'user' && (
-                                            <img src={msg.image} alt="User input frame" className="max-w-[150px] h-auto rounded mb-2 border"/>
+                                            <img src={msg.image} alt="User input frame" className="max-w-full h-auto rounded mb-2 border"/>
                                         )}
                                         {/* Render text with line breaks */}
                                         {msg.text.split('\n').map((line, index) => (
@@ -375,18 +415,25 @@ const ChatInterface: React.FC = () => {
                                             </span>
                                         ))}
                                         {/* Loading indicator for the bot message being generated */}
-                                        {msg.sender === 'bot' && isLoading && msg.id === currentBotMessageIdRef.current && (
-                                            <span className="inline-block w-2 h-2 ml-1 bg-current rounded-full animate-pulse"></span>
+                                        {msg.isGenerating && (
+                                            <span className="ml-1 inline-flex items-center">
+                                                <span className="w-1.5 h-1.5 bg-current rounded-full mr-1 animate-ping"></span>
+                                                <span className="w-1.5 h-1.5 bg-current rounded-full mr-1 animate-ping" style={{ animationDelay: '0.2s' }}></span>
+                                                <span className="w-1.5 h-1.5 bg-current rounded-full animate-ping" style={{ animationDelay: '0.4s' }}></span>
+                                            </span>
                                         )}
-                                        
-                                        {/* Speech button for bot messages */}
-                                        {msg.sender === 'bot' && msg.text !== '...' && msg.text.length > 0 && (
-                                            <button 
+                                        {/* Audio playback button for bot messages */}
+                                        {msg.sender === 'bot' && !msg.isGenerating && (
+                                            <button
                                                 onClick={() => speakText(msg.text)}
-                                                className="ml-2 p-1 rounded-full hover:bg-gray-300 dark:hover:bg-gray-500 inline-flex items-center justify-center"
-                                                title="Speak this message"
+                                                className="ml-1 p-1 text-xs rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 inline-flex items-center"
+                                                aria-label="Listen to response"
                                             >
-                                                <LucideVolume2 size={16} />
+                                                <span className="sr-only">Listen</span>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M11 5L6 9H2V15H6L11 19V5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                    <path d="M15.54 8.46C16.1255 9.04554 16.4684 9.83901 16.4684 10.67C16.4684 11.501 16.1255 12.2945 15.54 12.88" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
                                             </button>
                                         )}
                                     </div>
@@ -396,66 +443,57 @@ const ChatInterface: React.FC = () => {
                         </div>
                     )}
                 </div>
-
+                
                 {/* Input Area */}
-                <div className="p-4 border-t bg-gray-100 dark:bg-gray-800">
-                    {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+                <div className="p-2 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex items-center space-x-2">
                         <input
                             type="text"
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder={isCapturingVideo ? "Type message (frame will be sent)..." : "Type your message..."}
-                            className="flex-grow p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
-                            disabled={isLoading || isRecording}
-                        />
-                        
-                        {/* Voice Recording Button */}
-                        <button
-                            onClick={isRecording ? stopSpeechRecognition : startSpeechRecognition}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey && inputText.trim() && !isLoading) {
+                                    e.preventDefault();
+                                    sendMessage();
+                                }
+                            }}
+                            placeholder="Ask a fashion question..."
+                            className="flex-grow p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                             disabled={isLoading}
-                            className={`p-2 rounded-lg ${
-                                isRecording 
-                                    ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
-                                    : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500'
-                            } text-gray-800 dark:text-gray-200`}
-                            title={isRecording ? "Stop recording" : "Start voice input"}
-                        >
-                            {isRecording ? <LucideSquare size={20} /> : <LucideMic size={20} />}
-                        </button>
-                        
-                        {/* Send Button */}
+                        />
                         <button
-                            onClick={() => sendMessage()}
+                            onClick={(e) => handleButtonClick(e, () => sendMessage())}
                             disabled={isLoading || (!inputText.trim() && !latestFrame && !isRecording)}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="p-2 rounded-full bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                            aria-label="Send message"
                         >
-                            {isLoading ? 'Sending...' : 'Send'}
+                            <Image src="/send.svg" alt="Send" width={24} height={24} priority />
                         </button>
                     </div>
                     
-                    {/* Speech Indicators */}
-                    {isSpeaking && (
-                        <div className="mt-2 flex items-center justify-between">
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                                Speaking...
-                            </p>
-                            <button
-                                onClick={stopSpeaking}
-                                className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600"
-                            >
-                                Stop
-                            </button>
+                    {/* Status Indicators */}
+                    {(isSpeaking || isRecording) && (
+                        <div className="mt-1 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                            {isSpeaking && (
+                                <div className="flex items-center">
+                                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
+                                    <span>Speaking</span>
+                                    <button
+                                        onClick={stopSpeaking}
+                                        className="ml-1 text-xs text-blue-500 hover:text-blue-600"
+                                    >
+                                        Stop
+                                    </button>
+                                </div>
+                            )}
+                            
+                            {isRecording && (
+                                <div className="flex items-center">
+                                    <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-1 animate-pulse"></span>
+                                    <span>Recording</span>
+                                </div>
+                            )}
                         </div>
-                    )}
-                    
-                    {isRecording && (
-                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                            <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span>
-                            Recording... Click the mic button again to stop and send
-                        </p>
                     )}
                 </div>
             </div>

@@ -1,5 +1,8 @@
-import React from 'react';
+'use client';
+
+import React, { useCallback } from 'react';
 import ChatInterface from '@/components/ChatInterface';
+import { useRouter } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,11 +12,16 @@ export const metadata = {
 };
 
 export default function GeminiChatPage() {
+  const router = useRouter();
+
+  // Handle any necessary navigation from within the page
+  const handleNavigation = useCallback((path: string) => {
+    // Prevent default navigation behavior
+    router.push(path, { scroll: false });
+  }, [router]);
+
   return (
     <main className="min-h-screen bg-gray-100 dark:bg-gray-900">
-      <header className="bg-white dark:bg-gray-800 shadow py-4 px-6">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Gemini Fashion Assistant</h1>
-      </header>
       <ChatInterface />
     </main>
   );
