@@ -20,6 +20,8 @@ const VideoInput: React.FC<VideoInputProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [isCameraOn, setIsCameraOn] = useState<boolean>(false);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const [showCaptureFeedback, setShowCaptureFeedback] = useState(false);
+    const [captureCount, setCaptureCount] = useState(0);
 
     const cleanupStream = useCallback(() => {
         if (streamRef.current) {
@@ -110,6 +112,16 @@ const VideoInput: React.FC<VideoInputProps> = ({
         try {
             const base64Frame = canvas.toDataURL('image/jpeg', 0.8); // Adjust quality (0.0 to 1.0)
             onFrameCapture(base64Frame); // Pass frame to parent
+            
+            // Show capture feedback
+            setShowCaptureFeedback(true);
+            setCaptureCount(prev => prev + 1);
+            
+            // Hide feedback after 2 seconds
+            setTimeout(() => {
+                setShowCaptureFeedback(false);
+            }, 2000);
+            
             console.log("Frame captured");
             return base64Frame; // Return for potential immediate use
         } catch (e: any) {
@@ -156,6 +168,15 @@ const VideoInput: React.FC<VideoInputProps> = ({
         e.preventDefault();
         e.stopPropagation();
         callback();
+    };
+
+    // Manual capture button handler
+    const handleManualCapture = (e: React.MouseEvent) => {
+        handleButtonClick(e, () => {
+            if (isCameraOn && !isCapturing) {
+                captureFrame();
+            }
+        });
     };
 
     return (
@@ -214,6 +235,22 @@ const VideoInput: React.FC<VideoInputProps> = ({
                             />
                         </button>
                         
+                        {/* Manual capture button - only shown when auto-capture is off */}
+                        {!isCapturing && (
+                            <button
+                                onClick={handleManualCapture}
+                                className="p-2 rounded-full transition-colors"
+                                aria-label="Take Picture"
+                            >
+                                <Image 
+                                    src="/camera-shutter.svg" 
+                                    alt="Take Picture" 
+                                    width={32} 
+                                    height={32} 
+                                />
+                            </button>
+                        )}
+                        
                         {/* Stop camera button */}
                         <button 
                             onClick={(e) => handleButtonClick(e, stopCamera)} 
@@ -227,6 +264,24 @@ const VideoInput: React.FC<VideoInputProps> = ({
                                 height={32} 
                             />
                         </button>
+                    </div>
+                )}
+                
+                {/* Capture feedback notification */}
+                {showCaptureFeedback && (
+                    <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white p-2 rounded-lg shadow-lg animate-pulse transition-opacity">
+                        <p className="font-semibold">Image Captured! {captureCount > 1 ? `(${captureCount})` : ''}</p>
+                        <p className="text-xs mt-1">Now click the microphone icon to ask questions about this image</p>
+                    </div>
+                )}
+                
+                {/* Auto-capture indicator */}
+                {isCapturing && (
+                    <div className="absolute bottom-4 right-4 bg-black bg-opacity-70 text-white px-3 py-1 rounded-full shadow-lg">
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                            <span className="text-xs">Auto-Capturing</span>
+                        </div>
                     </div>
                 )}
             </div>

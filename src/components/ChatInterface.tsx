@@ -94,7 +94,7 @@ const ChatInterface: React.FC = () => {
         setError(null);
     }, []);
 
-    // Speech recognition setup
+    // Speech recognition setup with improved behavior
     const startSpeechRecognition = useCallback(async () => {
         if (!navigator.mediaDevices || !window.MediaRecorder) {
             setError("Your browser doesn't support speech recognition. Try Chrome or Edge.");
@@ -102,8 +102,10 @@ const ChatInterface: React.FC = () => {
         }
         
         try {
-            setIsRecording(true);
+            // Clear any existing input and focus on what's being spoken
+            setInputText('');
             setError(null);
+            setIsRecording(true);
             audioChunksRef.current = [];
             
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -135,18 +137,24 @@ const ChatInterface: React.FC = () => {
                 stream.getTracks().forEach(track => track.stop());
             };
             
+            // Start recording immediately
             mediaRecorderRef.current.start();
+            
+            // Visual feedback that recording has started
+            // Add a small notification if desired
+            console.log("Recording started");
         } catch (err: any) {
             console.error("Error accessing microphone:", err);
             setIsRecording(false);
             setError(`Microphone error: ${err.message || "Unable to access microphone"}`);
         }
-    }, []);
+    }, [sendMessage]);
     
     const stopSpeechRecognition = useCallback(() => {
         if (mediaRecorderRef.current && isRecording) {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
+            console.log("Recording stopped");
         }
     }, [isRecording]);
 
@@ -368,7 +376,15 @@ const ChatInterface: React.FC = () => {
                         
                         {/* Microphone button */}
                         <button
-                            onClick={(e) => handleButtonClick(e, toggleRecording)}
+                            onClick={(e) => {
+                                handleButtonClick(e, () => {
+                                    if (isRecording) {
+                                        stopSpeechRecognition();
+                                    } else {
+                                        startSpeechRecognition();
+                                    }
+                                });
+                            }}
                             className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
                                 isRecording ? 'bg-red-100 dark:bg-red-900' : ''
                             }`}
@@ -379,6 +395,7 @@ const ChatInterface: React.FC = () => {
                                 alt={isRecording ? "Microphone On" : "Microphone"} 
                                 width={20} 
                                 height={20} 
+                                priority
                             />
                         </button>
                     </div>
