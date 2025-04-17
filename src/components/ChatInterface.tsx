@@ -37,6 +37,9 @@ const ChatInterface: React.FC = () => {
     const audioChunksRef = useRef<Blob[]>([]);
     const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
 
+    // Add a new state for the microphone notification
+    const [showMicNotification, setShowMicNotification] = useState<boolean>(false);
+
     // Load chat history from localStorage on component mount
     useEffect(() => {
         try {
@@ -260,14 +263,9 @@ const ChatInterface: React.FC = () => {
         }
     }, [inputText, latestFrame, isCapturingVideo, speakText, stopSpeaking, addMessage]);
 
-    // Speech recognition setup with improved behavior - direct implementation
-    const startSpeechRecognition = useCallback(async () => {
-        console.log("Starting speech recognition...");
-        
-        if (!navigator.mediaDevices || !window.MediaRecorder) {
-            setError("Your browser doesn't support speech recognition. Try Chrome or Edge.");
-            return;
-        }
+    // Simplified speech recognition
+    const startSpeechRecognition = useCallback(() => {
+        console.log("Starting speech recognition (simplified)...");
         
         // Already recording, don't start again
         if (isRecording) {
@@ -275,90 +273,111 @@ const ChatInterface: React.FC = () => {
             return;
         }
         
-        try {
-            // First set recording state to true for immediate UI feedback
-            setIsRecording(true);
-            
-            // Clear any existing input and focus on what's being spoken
-            setInputText('');
-            setError(null);
-            audioChunksRef.current = [];
-            
-            console.log("Requesting microphone access...");
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
-                } 
-            });
-            
-            console.log("Microphone access granted, starting recorder");
-            const recorder = new MediaRecorder(stream);
-            mediaRecorderRef.current = recorder;
-            
-            recorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    audioChunksRef.current.push(event.data);
-                    console.log(`Audio chunk collected: ${event.data.size} bytes`);
-                }
-            };
-            
-            recorder.onstop = async () => {
-                console.log("Recording stopped, processing audio...");
-                
-                if (audioChunksRef.current.length === 0) {
-                    console.warn("No audio data collected");
-                    return;
-                }
-                
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                console.log(`Audio blob created: ${audioBlob.size} bytes`);
-                
-                const reader = new FileReader();
-                
-                reader.onloadend = () => {
-                    const base64Audio = reader.result as string;
-                    console.log("Audio converted to base64, sending message");
-                    setRecordedAudio(base64Audio);
-                    
-                    if (base64Audio) {
-                        // Directly send the audio data as a message
-                        setInputText(""); // Clear any text input
-                        sendMessage("", base64Audio);
-                    }
-                };
-                
-                reader.readAsDataURL(audioBlob);
-                
-                // Stop all audio tracks
-                stream.getTracks().forEach(track => {
-                    track.stop();
-                    console.log(`Stopped audio track: ${track.kind}`);
-                });
-            };
-            
-            // Start recording with 10ms timeslice to get data more frequently
-            recorder.start(10);
-            
-            console.log("Recording started successfully");
-        } catch (err: any) {
-            console.error("Error accessing microphone:", err);
-            setIsRecording(false);
-            setError(`Microphone error: ${err.message || "Unable to access microphone"}`);
+        if (!navigator.mediaDevices) {
+            setError("Your browser doesn't support speech recognition. Try Chrome or Edge.");
+            return;
         }
-    }, [setInputText, setError, setIsRecording, setRecordedAudio, sendMessage]);
+        
+        // First set recording state to true for immediate UI feedback
+        setIsRecording(true);
+        setError(null);
+        audioChunksRef.current = [];
+        
+        // Show notification
+        setShowMicNotification(true);
+        setTimeout(() => setShowMicNotification(false), 3000);
+        
+        // Use a try-catch block to handle potential permission issues
+        try {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    console.log("Microphone access granted");
+                    
+                    // Create and configure the MediaRecorder
+                    const recorder = new MediaRecorder(stream);
+                    mediaRecorderRef.current = recorder;
+                    
+                    // Set up event handlers
+                    recorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            audioChunksRef.current.push(event.data);
+                        }
+                    };
+                    
+                    recorder.onstop = () => {
+                        // Process the recorded audio
+                        if (audioChunksRef.current.length === 0) {
+                            console.warn("No audio data recorded");
+                            return;
+                        }
+                        
+                        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                        const reader = new FileReader();
+                        
+                        reader.onloadend = () => {
+                            const base64Audio = reader.result as string;
+                            if (base64Audio) {
+                                setRecordedAudio(base64Audio);
+                                sendMessage("", base64Audio);
+                            }
+                        };
+                        
+                        reader.readAsDataURL(audioBlob);
+                        
+                        // Clean up
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+                    
+                    // Start recording
+                    recorder.start(100); // Collect data every 100ms
+                    console.log("Recording started successfully");
+                })
+                .catch(err => {
+                    console.error("Error accessing microphone:", err);
+                    setIsRecording(false);
+                    setError(`Microphone error: ${err.message || "Unable to access microphone. Please check browser permissions."}`);
+                });
+        } catch (err) {
+            console.error("Critical error starting recording:", err);
+            setIsRecording(false);
+            setError("Failed to start recording. Please check your microphone permissions.");
+        }
+    }, [sendMessage, setRecordedAudio, setShowMicNotification, setError]);
     
     const stopSpeechRecognition = useCallback(() => {
         console.log("Stopping speech recognition...");
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-            mediaRecorderRef.current.stop();
-            console.log("MediaRecorder stopped");
-        } else {
-            console.warn("MediaRecorder not active, nothing to stop");
+        
+        // Stop the recorder if it exists and is active
+        if (mediaRecorderRef.current) {
+            try {
+                if (mediaRecorderRef.current.state !== 'inactive') {
+                    mediaRecorderRef.current.stop();
+                    console.log("MediaRecorder stopped");
+                } else {
+                    console.warn("MediaRecorder not active");
+                }
+            } catch (err) {
+                console.error("Error stopping MediaRecorder:", err);
+            }
+            
+            // Clear the reference
+            mediaRecorderRef.current = null;
         }
+        
+        // Update UI state regardless of recorder state
         setIsRecording(false);
     }, []);
+    
+    // Simplified toggle function
+    const toggleRecording = useCallback(() => {
+        console.log("Toggle recording, current state:", isRecording);
+        
+        if (isRecording) {
+            stopSpeechRecognition();
+        } else {
+            startSpeechRecognition();
+        }
+    }, [isRecording, startSpeechRecognition, stopSpeechRecognition]);
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter' && !event.shiftKey) {
@@ -368,14 +387,6 @@ const ChatInterface: React.FC = () => {
             }
         }
     };
-
-    const toggleRecording = useCallback(() => {
-        if (isRecording) {
-            stopSpeechRecognition();
-        } else {
-            startSpeechRecognition();
-        }
-    }, [isRecording, startSpeechRecognition, stopSpeechRecognition]);
 
     // Prevent event propagation to avoid page navigation issues
     const handleButtonClick = (e: React.MouseEvent, callback: () => void) => {
@@ -410,27 +421,26 @@ const ChatInterface: React.FC = () => {
                             <Image src="/clear-chat.svg" alt="Clear Chat" width={20} height={20} />
                         </button>
                         
-                        {/* Microphone button */}
+                        {/* Microphone button - more prominent */}
                         <button
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                if (isRecording) {
-                                    stopSpeechRecognition();
-                                } else {
-                                    startSpeechRecognition();
-                                }
+                                console.log("Microphone button clicked");
+                                toggleRecording(); // Use the simpler toggleRecording function
                             }}
-                            className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
-                                isRecording ? 'bg-red-100 dark:bg-red-900' : ''
+                            className={`p-2 rounded-full transition-colors ${
+                                isRecording 
+                                    ? 'bg-red-500 hover:bg-red-600 text-white' 
+                                    : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600'
                             }`}
                             aria-label={isRecording ? 'Stop recording' : 'Start recording'}
                         >
                             <Image 
                                 src={isRecording ? "/microphone-on.svg" : "/microphone.svg"} 
                                 alt={isRecording ? "Microphone On" : "Microphone"} 
-                                width={20} 
-                                height={20} 
+                                width={24} 
+                                height={24} 
                                 priority
                             />
                         </button>
@@ -550,6 +560,16 @@ const ChatInterface: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            {/* Microphone activation notification */}
+            {showMicNotification && (
+                <div className="fixed top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-lg z-50 shadow-lg">
+                    <div className="flex items-center space-x-2">
+                        <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+                        <span>Microphone activated! Speak now...</span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
