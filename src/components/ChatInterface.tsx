@@ -448,17 +448,6 @@ const ChatInterface: React.FC = () => {
                                 <Image src="/clear-chat.svg" alt="Clear Chat" width={18} height={18} />
                             </button>
                             
-                            {/* Small Send Text button */}
-                            <button
-                                onClick={(e) => handleButtonClick(e, () => sendMessage())}
-                                disabled={isLoading || (!inputText.trim() && !latestFrame && !isRecording)}
-                                className="px-2 py-1 text-xs rounded bg-white hover:bg-gray-100 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
-                                aria-label="Send message"
-                            >
-                                <span>Send</span>
-                                <Image src="/send.svg" alt="Send" width={12} height={12} priority />
-                            </button>
-                            
                             {/* Microphone button - more prominent */}
                             <button
                                 onClick={(e) => {
@@ -481,6 +470,26 @@ const ChatInterface: React.FC = () => {
                                     height={22} 
                                     priority
                                 />
+                            </button>
+                            
+                            {/* Small Send Text button - now to the right of microphone */}
+                            <button
+                                onClick={(e) => {
+                                    handleButtonClick(e, () => {
+                                        // Stop recording if it's active
+                                        if (isRecording) {
+                                            stopSpeechRecognition();
+                                        }
+                                        // Then send the message
+                                        sendMessage();
+                                    });
+                                }}
+                                disabled={isLoading || (!inputText.trim() && !latestFrame && !isRecording)}
+                                className="px-2 py-1 text-xs rounded bg-white hover:bg-gray-100 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                                aria-label="Send message"
+                            >
+                                <span>Send</span>
+                                <Image src="/send.svg" alt="Send" width={12} height={12} priority />
                             </button>
                         </div>
                         
@@ -570,6 +579,11 @@ const ChatInterface: React.FC = () => {
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter' && !e.shiftKey && inputText.trim() && !isLoading) {
                                     e.preventDefault();
+                                    // Stop recording if it's active
+                                    if (isRecording) {
+                                        stopSpeechRecognition();
+                                    }
+                                    // Then send the message
                                     sendMessage();
                                 }
                             }}
@@ -578,7 +592,14 @@ const ChatInterface: React.FC = () => {
                             disabled={isLoading}
                         />
                         <button
-                            onClick={(e) => handleButtonClick(e, () => sendMessage())}
+                            onClick={(e) => handleButtonClick(e, () => {
+                                // Stop recording if it's active
+                                if (isRecording) {
+                                    stopSpeechRecognition();
+                                }
+                                // Then send the message
+                                sendMessage();
+                            })}
                             disabled={isLoading || (!inputText.trim() && !latestFrame && !isRecording)}
                             className="p-2 rounded-full bg-white hover:bg-gray-100 border border-gray-300 dark:bg-gray-600 dark:border-gray-500 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                             aria-label="Send message"
