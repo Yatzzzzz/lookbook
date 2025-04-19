@@ -7,9 +7,10 @@ interface UserAvatarProps {
   name?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
+  alt?: string;
 }
 
-export function UserAvatar({ src, name = 'User', size = 'md', className = '' }: UserAvatarProps) {
+export function UserAvatar({ src, name = 'User', size = 'md', className = '', alt }: UserAvatarProps) {
   // Get first letter of name for fallback
   const firstLetter = name ? name.charAt(0).toUpperCase() : 'U';
   
@@ -30,7 +31,7 @@ export function UserAvatar({ src, name = 'User', size = 'md', className = '' }: 
       <Avatar.Image
         className="h-full w-full rounded-full object-cover"
         src={src || undefined}
-        alt={`${name}'s avatar`}
+        alt={alt || `${name}'s avatar`}
       />
       <Avatar.Fallback
         className="flex h-full w-full items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium"

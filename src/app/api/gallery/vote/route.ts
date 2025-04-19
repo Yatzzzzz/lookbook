@@ -75,21 +75,63 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      // Insert or update rating
-      const { data, error } = await supabase
-        .from('look_ratings')
-        .upsert({
-          user_id: session.user.id,
-          look_id: body.look_id,
-          rating: body.rating
-        })
-        .select();
-      
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      try {
+        // Validate look_id exists to avoid WHERE clause issues
+        if (!body.look_id) {
+          console.error('Missing look_id for rating');
+          return NextResponse.json({ 
+            error: 'Look ID is required for rating' 
+          }, { status: 400 });
+        }
+        
+        // Insert or update rating
+        const { data: ratingData, error: ratingError } = await supabase
+          .from('look_ratings')
+          .upsert({
+            user_id: session.user.id,
+            look_id: body.look_id,
+            rating: body.rating
+          })
+          .select();
+        
+        if (ratingError) {
+          console.error('Rating error:', ratingError);
+          return NextResponse.json({ error: ratingError.message }, { status: 500 });
+        }
+        
+        // Get the updated look statistics
+        const { data: lookData, error: lookError } = await supabase
+          .from('looks')
+          .select('rating, rating_count, avg_rating')
+          .eq('look_id', body.look_id)
+          .single();
+        
+        if (lookError) {
+          console.error('Error fetching updated look data:', lookError);
+          // Still return success for the rating even if we couldn't fetch updated stats
+          return NextResponse.json({ 
+            success: true, 
+            rating: ratingData[0],
+            message: 'Rating saved successfully' 
+          });
+        }
+        
+        return NextResponse.json({ 
+          success: true, 
+          rating: ratingData[0],
+          stats: {
+            rating: lookData.rating || '0',
+            rating_count: lookData.rating_count || 0,
+            avg_rating: lookData.avg_rating || 0
+          },
+          message: 'Rating saved successfully' 
+        });
+      } catch (error) {
+        console.error('Unexpected error during rating:', error);
+        return NextResponse.json({ 
+          error: 'An unexpected error occurred while saving your rating' 
+        }, { status: 500 });
       }
-      
-      return NextResponse.json({ success: true, rating: data[0] });
     }
     else if (body.vote_type === 'yay_nay') {
       if (body.vote === undefined || !['yay', 'nay'].includes(body.vote)) {

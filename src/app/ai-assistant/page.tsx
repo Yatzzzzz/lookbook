@@ -1,22 +1,75 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import QueryCard from './QueryCard';
 import ResponseDisplay from './ResponseDisplay';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 const queryClient = new QueryClient();
 
 export default function AIAssistantPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [response, setResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Handle navigation events - stop AI responses when leaving the page
+  useEffect(() => {
+    // Function to clean up ongoing tasks
+    const cleanupOngoingTasks = () => {
+      // Stop any speech synthesis
+      stopSpeaking();
+      
+      // Cancel any ongoing fetch requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      
+      // Reset loading state
+      setIsLoading(false);
+    };
+
+    // Add listeners for navigation events
+    const handleBeforeUnload = () => {
+      cleanupOngoingTasks();
+    };
+
+    // Listen for tab/window close
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Listen for navigation via links within the app
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        cleanupOngoingTasks();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      // Clean up event listeners
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      cleanupOngoingTasks();
+    };
+  }, [pathname]);
 
   const handleSubmit = async (formData: Record<string, string>, basePrompt: string) => {
     try {
+      // Cancel any ongoing requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // Create a new abort controller for this request
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
       setIsLoading(true);
       setError(null);
 
@@ -34,6 +87,7 @@ export default function AIAssistantPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ question: prompt }),
+        signal, // Pass the abort signal to the fetch request
       });
 
       if (!response.ok) {
@@ -43,8 +97,12 @@ export default function AIAssistantPage() {
       const data = await response.json();
       setResponse(data.result || 'No response from the fashion AI');
     } catch (err) {
-      console.error('Error submitting query:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      if (err.name === 'AbortError') {
+        console.log('Request was cancelled');
+      } else {
+        console.error('Error submitting query:', err);
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -52,6 +110,11 @@ export default function AIAssistantPage() {
   
   // Navigate to the Gemini chat page
   const navigateToGeminiChat = () => {
+    // Stop any ongoing responses before navigating
+    stopSpeaking();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
     router.push('/gemini');
   };
 
@@ -92,6 +155,13 @@ export default function AIAssistantPage() {
   }, []);
 
   const queryCards = [
+    {
+      title: 'Chat with AI',
+      description: 'Experience our full-featured Gemini AI chat with camera, voice input, and image analysis. Ideal for complex fashion questions and real-time advice.',
+      icon: '🤖',
+      customAction: navigateToGeminiChat,
+      isCustomCard: true,
+    },
     {
       title: 'Fashion Advice',
       description: 'Get personalized fashion advice for any situation',
@@ -186,27 +256,37 @@ export default function AIAssistantPage() {
         },
       ],
     },
-    {
-      title: 'Chat with AI',
-      description: 'Experience our full-featured Gemini AI chat with camera, voice input, and image analysis. Ideal for complex fashion questions and real-time advice.',
-      icon: '🤖',
-      customAction: navigateToGeminiChat,
-      isCustomCard: true,
-    },
   ];
+
+  // Separate Chat with AI card from the rest
+  const chatWithAICard = queryCards[0];
+  const featureCards = queryCards.slice(1);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">AI Fashion Assistant</h1>
-          <p className="text-gray-600 dark:text-gray-400">
+      <div className="max-w-6xl mx-auto px-2 sm:px-4">
+        <div className="mb-3 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">AI Fashion Assistant</h1>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
             Get personalized fashion advice, outfit recommendations, and style guidance from our AI assistant.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {queryCards.map((card) => (
+        {/* Chat with AI - full width */}
+        <div className="mb-3 sm:mb-4">
+          <QueryCard
+            key={chatWithAICard.title}
+            title={chatWithAICard.title}
+            description={chatWithAICard.description}
+            icon={chatWithAICard.icon}
+            customAction={chatWithAICard.customAction}
+            isCustomCard={chatWithAICard.isCustomCard}
+          />
+        </div>
+
+        {/* Feature cards in 2x2 grid */}
+        <div className="grid grid-cols-2 gap-2 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
+          {featureCards.map((card) => (
             <QueryCard
               key={card.title}
               title={card.title}
@@ -214,10 +294,8 @@ export default function AIAssistantPage() {
               icon={card.icon}
               initialPrompt={card.initialPrompt || ''}
               fields={card.fields}
-              onSubmit={card.isCustomCard ? undefined : (formData) => handleSubmit(formData, card.initialPrompt || '')}
+              onSubmit={(formData) => handleSubmit(formData, card.initialPrompt || '')}
               isLoading={isLoading}
-              customAction={card.customAction}
-              isCustomCard={card.isCustomCard}
             />
           ))}
         </div>

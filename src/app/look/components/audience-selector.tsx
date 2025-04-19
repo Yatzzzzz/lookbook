@@ -15,11 +15,20 @@ interface Person {
 interface AudienceSelectorProps {
   onComplete: (audience: AudienceType, excludedPeople: Person[]) => void;
   onBack?: () => void;
+  initialAudience?: AudienceType;
+  initialExcludedPeople?: Person[];
+  loading?: boolean;
 }
 
-export default function AudienceSelector({ onComplete, onBack }: AudienceSelectorProps) {
-  const [selectedAudience, setSelectedAudience] = useState<AudienceType>('everyone');
-  const [excludedPeople, setExcludedPeople] = useState<Person[]>([]);
+export default function AudienceSelector({ 
+  onComplete, 
+  onBack, 
+  initialAudience = 'everyone', 
+  initialExcludedPeople = [], 
+  loading = false 
+}: AudienceSelectorProps) {
+  const [selectedAudience, setSelectedAudience] = useState<AudienceType>(initialAudience);
+  const [excludedPeople, setExcludedPeople] = useState<Person[]>(initialExcludedPeople);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Mock data for people suggestions
@@ -177,9 +186,22 @@ export default function AudienceSelector({ onComplete, onBack }: AudienceSelecto
         <button
           onClick={handleComplete}
           className="flex-1 px-4 py-2 bg-blue-500 rounded-md text-white font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-1"
+          disabled={loading}
         >
-          <Check className="w-4 h-4" />
-          Continue
+          {loading ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Uploading...
+            </>
+          ) : (
+            <>
+              <Check className="w-4 h-4" />
+              Continue
+            </>
+          )}
         </button>
       </div>
     </div>

@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 // POST /api/user-record - Create a user record if it doesn't exist
-export async function POST(_request: NextRequest) {
+export async function POST(_: NextRequest) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
     
@@ -62,6 +62,40 @@ export async function POST(_request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     } else {
       console.error('Error creating user record:', error);
+      return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
+    }
+  }
+}
+
+export async function GET(_: NextRequest) {
+  try {
+    const supabase = createRouteHandlerClient({ cookies });
+    
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Get user record
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+    
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    
+    return NextResponse.json({ user });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('Error fetching user record:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    } else {
+      console.error('Error fetching user record:', error);
       return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
     }
   }

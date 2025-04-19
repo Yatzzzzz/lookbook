@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, ArrowRight } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 
 interface QueryCardProps {
   title: string;
@@ -25,7 +26,6 @@ export default function QueryCard({
   title,
   description,
   icon,
-  initialPrompt = '',
   fields = [],
   onSubmit = () => {},
   isLoading = false,
@@ -34,6 +34,27 @@ export default function QueryCard({
 }: QueryCardProps) {
   const [open, setOpen] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const pathname = usePathname();
+
+  // Close dialog when the pathname changes (user navigates away)
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // Listen for visibility change to close dialog when user changes tabs or windows
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormValues({
@@ -45,6 +66,8 @@ export default function QueryCard({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formValues);
+    // Close the dialog after submission
+    setOpen(false);
   };
 
   const handleCardClick = () => {
@@ -57,12 +80,12 @@ export default function QueryCard({
 
   // Determine classes based on card type
   const cardClasses = isCustomCard
-    ? "block w-full h-full bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-6 rounded-lg shadow-md hover:shadow-lg transition-all border border-blue-200 dark:border-blue-800 text-left hover:scale-[1.02]"
-    : "block w-full h-full bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700 text-left";
+    ? "block w-full h-full bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 sm:p-6 rounded-lg shadow-md hover:shadow-lg transition-all border border-blue-200 dark:border-blue-800 text-left hover:scale-[1.02]"
+    : "block w-full h-full bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700 text-left";
 
   const titleClasses = isCustomCard
-    ? "font-bold text-xl mb-2 text-blue-700 dark:text-blue-400 flex items-center"
-    : "font-bold text-xl mb-2";
+    ? "font-bold text-lg sm:text-xl mb-2 text-blue-700 dark:text-blue-400 flex items-center"
+    : "font-bold text-sm sm:text-lg mb-1 sm:mb-2";
 
   return (
     <>
@@ -70,19 +93,20 @@ export default function QueryCard({
         onClick={handleCardClick}
         className={cardClasses}
       >
-        <div className="text-4xl mb-4">{icon}</div>
         <h3 className={titleClasses}>
           {title}
           {isCustomCard && <ArrowRight className="ml-2 h-4 w-4" />}
         </h3>
-        <p className="text-gray-600 dark:text-gray-400">{description}</p>
+        <p className={`text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 ${isCustomCard ? '' : 'line-clamp-2 sm:line-clamp-3'}`}>
+          {description}
+        </p>
       </button>
 
       {!isCustomCard && (
         <Dialog.Root open={open} onOpenChange={setOpen}>
           <Dialog.Portal>
             <Dialog.Overlay className="fixed inset-0 bg-black/50 data-[state=open]:animate-overlayShow" />
-            <Dialog.Content className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-lg bg-white dark:bg-gray-800 p-6 shadow-lg focus:outline-none data-[state=open]:animate-contentShow overflow-y-auto">
+            <Dialog.Content className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-lg bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-lg focus:outline-none data-[state=open]:animate-contentShow overflow-y-auto">
               <Dialog.Title className="text-xl font-bold mb-2">{title}</Dialog.Title>
               <Dialog.Description className="text-gray-600 dark:text-gray-400 mb-5">
                 {description}
@@ -91,7 +115,7 @@ export default function QueryCard({
               <form className="space-y-4" onSubmit={handleSubmit}>
                 {fields.map((field) => (
                   <div key={field.name} className="grid gap-2">
-                    <div className="flex items-baseline justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between">
                       <label className="font-medium text-sm">
                         {field.label}
                       </label>
@@ -125,13 +149,13 @@ export default function QueryCard({
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     Cancel
                   </button>
                   <button 
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none"
+                    className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none"
                     disabled={isLoading}
                   >
                     {isLoading ? 'Processing...' : 'Submit'}

@@ -2,33 +2,40 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePathname } from 'next/navigation';
 
 export default function Navbar() {
   const { user, signOut, loading } = useAuth();
+  const pathname = usePathname();
+  
+  // Check if we're on the opinions page
+  const isOpinionsPage = pathname === '/gallery/opinions';
 
   return (
-    <nav className="bg-white dark:bg-gray-800 shadow">
+    <nav className="bg-white shadow">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Link href="/" className="text-xl font-bold text-gray-800 dark:text-white">
-                Lookbook
-              </Link>
-            </div>
+            {!isOpinionsPage && (
+              <div className="flex-shrink-0">
+                <Link href="/" className="text-xl font-bold text-[#222222]">
+                  Lookbook
+                </Link>
+              </div>
+            )}
             <div className="ml-10 flex items-baseline space-x-4">
               {/* Home and Instruments Test links removed */}
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
             {loading ? (
-              <span className="text-gray-500">Loading...</span>
+              <span className="text-[#222222]">Loading...</span>
             ) : user ? (
               <div className="ml-3 relative flex items-center space-x-4">
-                <span className="text-sm text-gray-700">{user.email}</span>
+                <span className="text-sm text-[#222222]">{user.email}</span>
                 <button
                   onClick={() => signOut()}
-                  className="text-gray-700 hover:text-gray-900"
+                  className="text-[#222222] hover:text-black"
                 >
                   Sign Out
                 </button>
@@ -37,7 +44,7 @@ export default function Navbar() {
               <div className="space-x-4">
                 <Link 
                   href="/login" 
-                  className="text-gray-700 hover:text-gray-900"
+                  className="text-[#222222] hover:text-black"
                 >
                   Login
                 </Link>
@@ -51,15 +58,17 @@ export default function Navbar() {
             )}
           </div>
           
-          {/* Mobile menu button */}
-          <div className="flex items-center sm:hidden">
-            <button className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100">
-              <span className="sr-only">Open main menu</span>
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          </div>
+          {/* Mobile menu button - hide on opinions page */}
+          {!isOpinionsPage && (
+            <div className="flex items-center sm:hidden">
+              <button className="inline-flex items-center justify-center p-2 rounded-md text-[#222222] hover:text-black hover:bg-gray-100">
+                <span className="sr-only">Open main menu</span>
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </nav>

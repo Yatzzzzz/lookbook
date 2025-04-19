@@ -60,12 +60,70 @@ export default function ResponseDisplay({
     );
   }
 
-  const paragraphs = response.split('\n').filter(p => p.trim() !== '');
+  // Format the response with enhanced styling
+  const formatResponse = () => {
+    // Split by newlines for processing
+    const lines = response.split('\n');
+    
+    // Process each line to identify special formatting
+    return lines.map((line, index) => {
+      if (!line.trim()) return null;
+
+      // Check for various heading and list formats
+      if (line.match(/^\*\*.*\*\*$/)) {
+        // Bold heading like **Key Trends**
+        return (
+          <h4 key={`line-${index}`} className="font-bold text-blue-800 dark:text-blue-300 mt-4 mb-2">
+            {line.replace(/^\*\*|\*\*$/g, '')}
+          </h4>
+        );
+      } else if (line.match(/^\*\*.*\*\*:/)) {
+        // Bold heading with colon like **Key Trends:**
+        return (
+          <h4 key={`line-${index}`} className="font-bold text-blue-800 dark:text-blue-300 mt-4 mb-2">
+            {line.replace(/^\*\*|\*\*:/g, '')}:
+          </h4>
+        );
+      } else if (line.startsWith('* ')) {
+        // Bullet point
+        return (
+          <div key={`line-${index}`} className="flex items-start my-1">
+            <span className="text-blue-800 dark:text-blue-300 mr-2">•</span>
+            <p className="text-blue-900 dark:text-blue-100 flex-1">{line.substring(2)}</p>
+          </div>
+        );
+      } else if (line.match(/^-\s+/)) {
+        // Dash bullet point
+        return (
+          <div key={`line-${index}`} className="flex items-start my-1">
+            <span className="text-blue-800 dark:text-blue-300 mr-2">•</span>
+            <p className="text-blue-900 dark:text-blue-100 flex-1">{line.substring(2)}</p>
+          </div>
+        );
+      } else if (line.match(/^\d+\.\s+/)) {
+        // Numbered list item
+        const number = line.match(/^\d+/)?.[0];
+        return (
+          <div key={`line-${index}`} className="flex items-start my-1">
+            <span className="text-blue-800 dark:text-blue-300 mr-2">{number}.</span>
+            <p className="text-blue-900 dark:text-blue-100 flex-1">{line.replace(/^\d+\.\s+/, '')}</p>
+          </div>
+        );
+      } else {
+        // Regular paragraph
+        return (
+          <p key={`line-${index}`} className="my-2 text-blue-900 dark:text-blue-100">
+            {line}
+          </p>
+        );
+      }
+    });
+  };
 
   return (
     <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
       <div className="flex justify-between items-start mb-4">
-        <h3 className="font-bold text-xl">AI Fashion Assistant Response</h3>
+        <h3 className="font-bold text-xl bg-blue-100 dark:bg-blue-900/30 px-3 py-1 rounded-lg text-blue-700 dark:text-blue-300">AI Fashion Assistant Response</h3>
         <div className="flex space-x-2">
           {isSpeaking ? (
             <button
@@ -89,11 +147,9 @@ export default function ResponseDisplay({
       
       <div 
         ref={responseRef}
-        className="prose dark:prose-invert prose-sm max-w-none overflow-y-auto max-h-96"
+        className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-lg overflow-y-auto max-h-96"
       >
-        {paragraphs.map((paragraph, index) => (
-          <p key={index}>{paragraph}</p>
-        ))}
+        {formatResponse()}
       </div>
     </div>
   );

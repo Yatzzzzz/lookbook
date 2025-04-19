@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Trash2, Edit, Loader2 } from 'lucide-react';
 import WardrobeCategories from '@/components/WardrobeCategories';
 import AddItemButton from '@/components/AddItemButton';
+import WardrobeRankingCard from '@/components/WardrobeRankingCard';
 
 export default function Wardrobe() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -96,25 +97,57 @@ export default function Wardrobe() {
         <AddItemButton onClick={handleAddItemClick} />
       </div>
 
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="mt-4 text-muted-foreground">Loading your wardrobe items...</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="mt-4 text-muted-foreground">Loading your wardrobe items...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <p className="text-red-500 mb-2">Error loading your wardrobe</p>
+              <p className="text-muted-foreground">{error}</p>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="mt-4 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <WardrobeCategories />
+          )}
         </div>
-      ) : error ? (
-        <div className="text-center py-12">
-          <p className="text-red-500 mb-2">Error loading your wardrobe</p>
-          <p className="text-muted-foreground">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-4 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
-          >
-            Try Again
-          </button>
+        
+        <div className="space-y-6">
+          <WardrobeRankingCard />
+          
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Tips for Higher Ranking
+            </h2>
+            <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
+                <span>Add items across different categories</span>
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
+                <span>Include high-quality photos of your items</span>
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
+                <span>Add detailed descriptions and brands</span>
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
+                <span>Keep your wardrobe updated regularly</span>
+              </li>
+            </ul>
+          </div>
         </div>
-      ) : (
-        <WardrobeCategories />
-      )}
+      </div>
 
       {isAddModalOpen && (
         <AddWardrobeItemModal isOpen={isAddModalOpen} onClose={handleCloseModal} />

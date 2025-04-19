@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import Link from 'next/link';
-
+import { ImageOff, Loader2 } from 'lucide-react';
 
 interface LookCardProps {
   look: {
@@ -17,6 +17,8 @@ interface LookCardProps {
 
 export default function LookCard({ look, index }: LookCardProps) {
   const [showSlider, setShowSlider] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseEnter = () => {
@@ -36,19 +38,48 @@ export default function LookCard({ look, index }: LookCardProps) {
     setShowSlider(prev => !prev);
   };
 
+  const handleImageLoad = () => {
+    setImageLoading(false);
+  };
+
+  const handleImageError = () => {
+    console.error(`Failed to load image: ${look.image_url}`);
+    setImageLoading(false);
+    setImageError(true);
+  };
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-lg">
+    <div className="bg-white rounded-lg overflow-hidden shadow-lg">
       <div 
         className="relative h-64 overflow-hidden" 
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onClick={handleTouch} // For mobile touch
       >
-        <img 
-          src={look.image_url} 
-          alt={look.title || `Fashion look ${index + 1}`} 
-          className="w-full h-full object-contain" // Using object-contain to maintain aspect ratio
-        />
+        <div className="w-full h-full bg-gray-100 relative">
+          {/* Loading indicator */}
+          {imageLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+              <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
+            </div>
+          )}
+          
+          {/* Error fallback */}
+          {imageError ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100">
+              <ImageOff className="h-8 w-8 text-gray-400 mb-2" />
+              <p className="text-sm text-gray-500">Image not available</p>
+            </div>
+          ) : (
+            <img 
+              src={look.image_url} 
+              alt={look.title || `Fashion look ${index + 1}`} 
+              className="w-full h-full object-contain" 
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+            />
+          )}
+        </div>
                     
         {/* Share and Save buttons */}
         <div className="absolute bottom-3 left-3">

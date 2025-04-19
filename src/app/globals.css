@@ -1,8 +1,41 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 90% 4.9%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 90% 4.9%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 90% 4.9%;
+    
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 30%;
+    
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    
+    --radius: 0.5rem;
+  }
 }
 
 @theme inline {
@@ -12,15 +45,149 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+}
+
+/* Enforce light mode text contrast */
+html.light {
+  background-color: white;
+  color-scheme: light;
+}
+
+html.light body {
+  background-color: white;
+  color: black;
+}
+
+/* Global strong contrast for all text elements */
+h1, h2, h3, h4, h5, h6 {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+
+p, span, label, button, a, input, textarea, select, li, div {
+  color: hsl(var(--foreground));
+}
+
+/* Text on dark background elements like buttons */
+.bg-blue-600 span, .bg-blue-600 p, .bg-blue-700 span, .bg-blue-700 p,
+.bg-gray-800 span, .bg-gray-800 p, .bg-gray-900 span, .bg-gray-900 p,
+.bg-black span, .bg-black p {
+  color: white;
+}
+
+/* Fix for specific Tailwind classes */
+.text-gray-600 {
+  color: #2d3748 !important; /* Much darker than default */
+}
+
+.text-gray-500, 
+.text-gray-400 {
+  color: #4a5568 !important; /* Darker than default */
+}
+
+/* Fix for form elements */
+input, textarea, select {
+  color: #000 !important;
+  background-color: #fff;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #718096 !important;
+}
+
+/* Fix for buttons */
+button {
+  color: inherit;
+}
+
+/* Fix for Tailwind's text-white */
+.text-white {
+  color: white !important;
+}
+
+/* Swipe animations */
+@keyframes swipe-left {
+  to {
+    transform: translateX(-200%) rotate(-30deg);
+    opacity: 0;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes swipe-right {
+  to {
+    transform: translateX(200%) rotate(30deg);
+    opacity: 0;
+  }
+}
+
+.animate-swipe-left {
+  animation: swipe-left 0.5s forwards;
+}
+
+.animate-swipe-right {
+  animation: swipe-right 0.5s forwards;
+}
+
+/* Swipe indicators */
+[data-swipe="right"] .card-yay {
+  opacity: 1;
+}
+
+[data-swipe="left"] .card-nay {
+  opacity: 1;
+}
+
+/* Add transition for the overlay indicators */
+.card-yay,
+.card-nay {
+  transition: opacity 0.2s ease;
+}
+
+/* Global high contrast modifier */
+.high-contrast {
+  --contrast-factor: 1.2;
+}
+
+.high-contrast h1 {
+  color: black;
+  font-weight: 700;
+}
+
+.high-contrast h2, 
+.high-contrast h3, 
+.high-contrast h4, 
+.high-contrast h5, 
+.high-contrast h6 {
+  color: black;
+  font-weight: 600;
+}
+
+.high-contrast p {
+  color: #000000;
+}
+
+.high-contrast input,
+.high-contrast textarea,
+.high-contrast select {
+  color: #000000 !important;
+  border-color: #666666;
+  background-color: #ffffff;
+}
+
+/* Override any dark background elements in light mode */
+.high-contrast.light .bg-black,
+.high-contrast.light .bg-gray-900,
+.high-contrast.light .bg-gray-800 {
+  background-color: white !important;
+  color: black !important;
+}
+
+.high-contrast.light .bg-black *,
+.high-contrast.light .bg-gray-900 *,
+.high-contrast.light .bg-gray-800 * {
+  color: black !important;
 }

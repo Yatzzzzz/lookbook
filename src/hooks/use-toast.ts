@@ -4,6 +4,7 @@ type ToastType = {
   title: string;
   description?: string;
   type?: 'default' | 'success' | 'error' | 'warning' | 'info';
+  variant?: 'default' | 'destructive';
 };
 
 type ToastState = ToastType & {
@@ -21,6 +22,7 @@ export function useToast() {
       id,
       visible: true,
       type: props.type || 'default',
+      variant: props.variant || 'default',
     };
 
     setToasts((prev) => [...prev, newToast]);

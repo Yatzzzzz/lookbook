@@ -19,6 +19,7 @@ const VideoInput: React.FC<VideoInputProps> = ({
     const streamRef = useRef<MediaStream | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isCameraOn, setIsCameraOn] = useState<boolean>(false);
+    const [cameraInitializing, setCameraInitializing] = useState<boolean>(false);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const [showCaptureFeedback, setShowCaptureFeedback] = useState(false);
     const [captureCount, setCaptureCount] = useState(0);
@@ -38,12 +39,21 @@ const VideoInput: React.FC<VideoInputProps> = ({
         onFrameCapture(null); // Signal no frame is available
     }, [setIsCapturing, onFrameCapture]);
 
-    const startCamera = useCallback(async () => {
+    const startCamera = useCallback(async (e?: React.MouseEvent) => {
+        // Prevent default behavior if event is provided
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
         setError(null);
-        if (streamRef.current) { // Camera already running
-            setIsCameraOn(true);
+        // Prevent multiple initialization attempts
+        if (streamRef.current || cameraInitializing) {
             return;
         }
+        
+        setCameraInitializing(true);
+        
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { 
@@ -53,7 +63,9 @@ const VideoInput: React.FC<VideoInputProps> = ({
                 },
                 audio: false // No audio needed
             });
+            
             streamRef.current = stream;
+            
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 // Ensure metadata is loaded before accessing dimensions or playing
@@ -66,6 +78,7 @@ const VideoInput: React.FC<VideoInputProps> = ({
                     }
                 };
             }
+            
             setIsCameraOn(true);
             console.log("Camera started.");
         } catch (err: any) {
@@ -78,10 +91,16 @@ const VideoInput: React.FC<VideoInputProps> = ({
                 setError(`Error accessing camera: ${err.message}`);
             }
             cleanupStream();
+        } finally {
+            setCameraInitializing(false);
         }
-    }, [cleanupStream]);
+    }, [cleanupStream, cameraInitializing]);
 
-    const stopCamera = useCallback(() => {
+    const stopCamera = useCallback((e?: React.MouseEvent) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         cleanupStream();
     }, [cleanupStream]);
 
@@ -163,20 +182,20 @@ const VideoInput: React.FC<VideoInputProps> = ({
         };
     }, [cleanupStream]);
 
-    // Prevent event propagation to avoid page navigation issues
-    const handleButtonClick = (e: React.MouseEvent, callback: () => void) => {
+    // Toggle auto-capture
+    const toggleAutoCapture = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        callback();
-    };
+        setIsCapturing(!isCapturing);
+    }, [isCapturing, setIsCapturing]);
 
     // Manual capture button handler
     const handleManualCapture = (e: React.MouseEvent) => {
-        handleButtonClick(e, () => {
-            if (isCameraOn && !isCapturing) {
-                captureFrame();
-            }
-        });
+        e.preventDefault();
+        e.stopPropagation();
+        if (isCameraOn && !isCapturing) {
+            captureFrame();
+        }
     };
 
     return (
@@ -199,22 +218,25 @@ const VideoInput: React.FC<VideoInputProps> = ({
                 
                 {/* Center camera control overlay */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                    {!isCameraOn ? (
+                    {!isCameraOn && (
                         // Start camera icon button
                         <button 
-                            onClick={(e) => handleButtonClick(e, startCamera)}
-                            className="p-3 rounded-full transition-colors"
+                            onClick={startCamera}
+                            disabled={cameraInitializing}
+                            className={`p-3 rounded-full transition-colors ${cameraInitializing ? 'opacity-50' : ''}`}
                             aria-label="Start Camera"
                         >
-                            <Image 
-                                src="/start-camera.svg" 
-                                alt="Start Camera" 
-                                width={40} 
-                                height={40} 
-                            />
+                            {cameraInitializing ? (
+                                <div className="w-10 h-10 rounded-full border-4 border-gray-300 border-t-blue-600 animate-spin"></div>
+                            ) : (
+                                <Image 
+                                    src="/start-camera.svg" 
+                                    alt="Start Camera" 
+                                    width={40} 
+                                    height={40} 
+                                />
+                            )}
                         </button>
-                    ) : (
-                        <div></div>
                     )}
                 </div>
                 
@@ -223,7 +245,7 @@ const VideoInput: React.FC<VideoInputProps> = ({
                     <div className="absolute left-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-4">
                         {/* Auto-capture toggle button */}
                         <button
-                            onClick={(e) => handleButtonClick(e, () => setIsCapturing(!isCapturing))}
+                            onClick={toggleAutoCapture}
                             className="p-2 rounded-full transition-colors"
                             aria-label={isCapturing ? "Auto-Capture is On" : "Start Auto-Capture"}
                         >
@@ -237,7 +259,7 @@ const VideoInput: React.FC<VideoInputProps> = ({
                         
                         {/* Stop camera button */}
                         <button 
-                            onClick={(e) => handleButtonClick(e, stopCamera)} 
+                            onClick={stopCamera} 
                             className="p-2 rounded-full transition-colors"
                             aria-label="Stop Camera"
                         >

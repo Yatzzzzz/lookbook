@@ -17,6 +17,8 @@ type Look = {
   image_url: string;
   description: string | null;
   created_at: string;
+  feature_in?: string[];
+  upload_type?: string;
 };
 
 export default function LookbookPage() {
@@ -61,8 +63,9 @@ export default function LookbookPage() {
     try {
       const { data, error } = await supabase
         .from('looks')
-        .select('look_id, image_url, description, created_at')
+        .select('look_id, image_url, description, created_at, feature_in, upload_type')
         .eq('user_id', user.id)
+        .or(`upload_type.eq.regular,feature_in.cs.{lookbook}`)
         .order('created_at', { ascending: false });
       
       if (error) throw error;

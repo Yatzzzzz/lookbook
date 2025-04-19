@@ -49,6 +49,17 @@ const YayOrNayGrid: React.FC<YayOrNayGridProps> = ({ items, onVote }) => {
     }, 500);
   };
 
+  // If there are no items at all
+  if (items.length === 0) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-lg font-medium mb-2">No yay or nay looks available</p>
+        <p className="text-muted-foreground">Looks marked as yay or nay will appear here</p>
+      </div>
+    );
+  }
+
+  // When all items have been viewed
   if (!currentItem) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh]">

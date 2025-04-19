@@ -56,7 +56,7 @@ export const getLooks = async (params: LooksParams): Promise<ApiResponse> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 800));
   
-  const { tab = 'gallery', filter = 'all', page = 1, limit = 20 } = params;
+  const { tab = 'gallery', page = 1, limit = 20 } = params;
   const mockLooks = generateMockLooks(limit);
   
   if (tab === 'gallery') {

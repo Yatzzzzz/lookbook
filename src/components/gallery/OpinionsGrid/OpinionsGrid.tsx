@@ -186,7 +186,7 @@ const OpinionsGrid: React.FC<OpinionsGridProps> = ({ items }) => {
       {items.length === 0 && (
         <div className="text-center p-8">
           <p className="text-lg font-medium mb-2">No opinions to show</p>
-          <p className="text-muted-foreground">Check back later for fashion opinions</p>
+          <p className="text-muted-foreground">Looks marked as opinions will appear here</p>
         </div>
       )}
     </div>

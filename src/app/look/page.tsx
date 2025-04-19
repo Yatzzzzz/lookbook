@@ -39,22 +39,22 @@ export default function LookOptionsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
+    <div className="min-h-screen bg-white text-black p-6">
       <h1 className="text-3xl font-bold text-center mb-8">Create New Look</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
         {options.map((option) => (
           <div
             key={option.id}
-            className="border border-gray-700 rounded-lg p-6 cursor-pointer hover:border-blue-500 transition-colors"
+            className="border border-gray-200 rounded-lg p-6 cursor-pointer hover:border-blue-500 transition-colors shadow-sm"
             onClick={() => router.push(option.path)}
           >
             <div className="flex flex-col items-center justify-center h-32">
-              <div className="bg-gray-900 rounded-full p-6 mb-4">
+              <div className="bg-gray-100 rounded-full p-6 mb-4">
                 {option.icon}
               </div>
               <h2 className="text-xl font-semibold text-center">{option.title}</h2>
-              <p className="text-blue-400 text-center">{option.description}</p>
+              <p className="text-blue-600 text-center">{option.description}</p>
             </div>
           </div>
         ))}

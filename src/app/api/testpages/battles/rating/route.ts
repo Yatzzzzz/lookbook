@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { lookId, battleId, rating, userId } = body;
+    const { lookId, battleId, rating } = body;
     
     // Validate required fields
     if (!lookId) {

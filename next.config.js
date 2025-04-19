@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack: (config, { isServer, webpack }) => {
+  webpack: (config) => {
     config.experiments = { ...config.experiments, topLevelAwait: true };
     return config;
   },
@@ -20,9 +20,23 @@ const nextConfig = {
   },
   // Configure the static generation to skip problematic pages
   output: 'standalone',
-  // Add staticPages configuration to avoid error during build
+  // Configure images to allow Supabase domains with broader patterns
   images: {
-    unoptimized: true
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'wwjuohjstrcyvshfuadr.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/**',
+      }
+    ],
+    // Set unoptimized to true to prevent issues with Supabase storage URLs
+    unoptimized: true,
+    domains: ['wwjuohjstrcyvshfuadr.supabase.co'],
   },
   // Skip TypeScript checks during build (we'll rely on local checks only)
   typescript: {

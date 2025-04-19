@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import BottomNav from '@/components/BottomNav';
+import { Search as SearchIcon } from 'lucide-react';
 
 // Force dynamic rendering to prevent static prerendering issues with Supabase
 export const dynamic = 'force-dynamic';
 
 export default function Search() {
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('most-searched');
 
   const tabs = [
@@ -16,9 +18,42 @@ export default function Search() {
     { id: 'ai-search', name: 'AI Search' },
   ];
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Implement search functionality here
+    console.log('Searching for:', searchQuery);
+  };
+
   return (
     <div className="pb-16">
       <h1 className="text-2xl font-bold p-4">Search</h1>
+      
+      {/* Main Search Bar */}
+      <div className="px-4 mb-4">
+        <form onSubmit={handleSearch}>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <SearchIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            </div>
+            <input
+              type="text"
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+              placeholder="Search for outfits, styles, trends..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <button 
+              type="submit"
+              className="absolute right-2.5 top-2.5 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              <span className="sr-only">Search</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+            </button>
+          </div>
+        </form>
+      </div>
       
       {/* Tabs */}
       <div className="flex overflow-x-auto border-b">

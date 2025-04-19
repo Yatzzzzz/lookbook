@@ -2,7 +2,7 @@ import { Navigation } from "@/components/layout/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import type { Look } from "@shared/schema";
+import type { Look } from "@/shared/schema";
 import { Loader2, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -10,7 +10,7 @@ import { useState } from "react";
 import { BottomNav } from "@/components/layout/bottom-nav";
 
 interface BattleState {
-  winner?: number;
+  winner?: string;
   aiSuggestion?: string;
 }
 
@@ -25,12 +25,12 @@ export default function BattlePage() {
   const getAISuggestionMutation = useMutation({
     mutationFn: async (looks: Look[]) => {
       const response = await apiRequest("POST", "/api/clothes-gpt", {
-        prompt: `Compare these outfits: ${looks.map(l => l.description).join(" vs ")}. Which one is more stylish and why?`
+        prompt: `Compare these outfits: ${looks.map(l => l.caption).join(" vs ")}. Which one is more stylish and why?`
       });
       return response.json();
     },
     onSuccess: (data, variables) => {
-      const battleId = Math.floor(variables[0].id / 2);
+      const battleId = Math.floor(parseInt(variables[0].look_id) / 2);
       setBattles(prev => ({
         ...prev,
         [battleId]: {
@@ -41,7 +41,7 @@ export default function BattlePage() {
     }
   });
 
-  const handleVote = async (battleId: number, winnerId: number) => {
+  const handleVote = async (battleId: number, winnerId: string) => {
     setBattles(prev => ({
       ...prev,
       [battleId]: {
@@ -98,14 +98,14 @@ export default function BattlePage() {
                 <CardContent className="p-4">
                   <div className="grid md:grid-cols-2 gap-4 md:gap-8">
                     {battle.map((look, index) => (
-                      <div key={look.id} className="relative">
+                      <div key={look.look_id} className="relative">
                         <div className="relative">
                           <img
-                            src={look.imageUrl}
-                            alt={look.description || "Fashion look"}
+                            src={look.image_url}
+                            alt={look.caption || "Fashion look"}
                             className="w-full aspect-square object-cover rounded-md"
                           />
-                          {battleState.winner === look.id && (
+                          {battleState.winner === look.look_id && (
                             <div className="absolute top-2 right-2">
                               <Trophy className="h-6 w-6 text-yellow-500" />
                             </div>
@@ -115,7 +115,7 @@ export default function BattlePage() {
                         {!battleState.winner && (
                           <Button
                             className="mt-4 w-full"
-                            onClick={() => handleVote(battleId, look.id)}
+                            onClick={() => handleVote(battleId, look.look_id)}
                           >
                             Vote for this look
                           </Button>

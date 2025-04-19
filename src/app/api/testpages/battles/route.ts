@@ -37,7 +37,7 @@ export async function GET() {
       tags: ['summer', 'casual', 'formal', 'business', 'evening', 'street', 'vintage', 'minimal']
         .sort(() => 0.5 - Math.random())
         .slice(0, 3),
-      rating: (3 + Math.random() * 2).toFixed(1),
+      rating: Number((3 + Math.random() * 2).toFixed(1)),
       rating_count: Math.floor(10 + Math.random() * 190)
     }));
     

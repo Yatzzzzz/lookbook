@@ -29,6 +29,7 @@ const ChatInterface: React.FC = () => {
     const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
     const [recordedAudio, setRecordedAudio] = useState<string | null>(null);
     const [transcribedText, setTranscribedText] = useState<string>('');
+    const [voicesLoaded, setVoicesLoaded] = useState<boolean>(false);
     
     const currentBotMessageIdRef = useRef<string | null>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -55,6 +56,27 @@ const ChatInterface: React.FC = () => {
         } catch (err) {
             console.error('Failed to load chat history from localStorage:', err);
             // If loading fails, we just start with an empty chat
+        }
+
+        // Initialize speech synthesis voices when component mounts
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            // Check if voices are already available
+            const voices = window.speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                setVoicesLoaded(true);
+            } else {
+                // If voices aren't available yet, listen for the voiceschanged event
+                const onVoicesChanged = () => {
+                    setVoicesLoaded(true);
+                    window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
+                };
+                window.speechSynthesis.addEventListener('voiceschanged', onVoicesChanged);
+                
+                // Clean up event listener
+                return () => {
+                    window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
+                };
+            }
         }
     }, []);
 
@@ -112,46 +134,139 @@ const ChatInterface: React.FC = () => {
     
     // Text-to-speech for bot responses - define this early to avoid reference issues
     const stopSpeaking = useCallback(() => {
-        if (window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-            setIsSpeaking(false);
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            try {
+                window.speechSynthesis.cancel();
+                setIsSpeaking(false);
+            } catch (err) {
+                console.error("Error stopping speech synthesis:", err);
+            }
         }
     }, []);
     
     const speakText = useCallback((text: string) => {
-        if (!window.speechSynthesis) {
+        if (typeof window === 'undefined' || !window.speechSynthesis) {
             console.error("Speech synthesis not supported in this browser");
             return;
         }
         
-        // Stop any ongoing speech
-        stopSpeaking();
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0; // Normal speaking rate
-        utterance.pitch = 1.0; // Normal pitch
-        
-        // Use a female voice if available
-        const voices = window.speechSynthesis.getVoices();
-        const femaleVoice = voices.find(voice => voice.name.includes('female') || voice.name.includes('Female'));
-        if (femaleVoice) {
-            utterance.voice = femaleVoice;
-        }
-        
-        utterance.onstart = () => setIsSpeaking(true);
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = (event) => {
-            console.error("Speech synthesis error:", event);
+        try {
+            // Stop any ongoing speech
+            stopSpeaking();
+            
+            // Break the text into smaller chunks if it's too long (browser limitation)
+            const MAX_CHUNK_LENGTH = 100;
+            const processTextInChunks = (text: string) => {
+                // Split by sentences or other logical breaks
+                const sentences = text.split(/(?<=[.!?])\s+/);
+                let currentChunk = '';
+                const chunks: string[] = [];
+                
+                sentences.forEach(sentence => {
+                    if ((currentChunk + sentence).length < MAX_CHUNK_LENGTH) {
+                        currentChunk += (currentChunk ? ' ' : '') + sentence;
+                    } else {
+                        if (currentChunk) {
+                            chunks.push(currentChunk);
+                        }
+                        currentChunk = sentence;
+                    }
+                });
+                
+                if (currentChunk) {
+                    chunks.push(currentChunk);
+                }
+                
+                return chunks;
+            };
+            
+            const textChunks = processTextInChunks(text);
+            let chunkIndex = 0;
+            
+            const speakNextChunk = () => {
+                if (chunkIndex >= textChunks.length) {
+                    setIsSpeaking(false);
+                    return;
+                }
+                
+                const chunk = textChunks[chunkIndex];
+                const utterance = new SpeechSynthesisUtterance(chunk);
+                
+                // Configure utterance
+                utterance.rate = 1.0; // Normal speaking rate
+                utterance.pitch = 1.0; // Normal pitch
+                
+                // Try to find a female voice if available and voices are loaded
+                if (voicesLoaded) {
+                    try {
+                        const voices = window.speechSynthesis.getVoices();
+                        // Prefer female voices, fall back to first available
+                        const femaleVoice = voices.find(voice => 
+                            voice.name.toLowerCase().includes('female') || 
+                            voice.name.toLowerCase().includes('woman')
+                        );
+                        
+                        if (femaleVoice) {
+                            utterance.voice = femaleVoice;
+                        } else if (voices.length > 0) {
+                            // Use first available voice as fallback
+                            utterance.voice = voices[0];
+                        }
+                    } catch (err) {
+                        console.warn("Error setting voice:", err);
+                    }
+                }
+                
+                // Set event handlers
+                utterance.onstart = () => {
+                    setIsSpeaking(true);
+                };
+                
+                utterance.onend = () => {
+                    // Move to next chunk
+                    chunkIndex++;
+                    speakNextChunk();
+                };
+                
+                utterance.onerror = (event) => {
+                    console.warn("Speech synthesis error:", event);
+                    // Try to continue with next chunk
+                    chunkIndex++;
+                    speakNextChunk();
+                };
+                
+                // Keep track of current utterance
+                speechSynthesisRef.current = utterance;
+                
+                // Speak with slight delay to prevent browser issues
+                setTimeout(() => {
+                    try {
+                        window.speechSynthesis.speak(utterance);
+                    } catch (err) {
+                        console.error("Error during speech synthesis:", err);
+                        setIsSpeaking(false);
+                    }
+                }, 50);
+            };
+            
+            // Start the speaking process
+            speakNextChunk();
+            
+        } catch (err) {
+            console.error("Critical error in speech synthesis:", err);
             setIsSpeaking(false);
-        };
-        
-        speechSynthesisRef.current = utterance;
-        window.speechSynthesis.speak(utterance);
-    }, [stopSpeaking]);
+        }
+    }, [stopSpeaking, voicesLoaded]);
 
     const addMessage = useCallback((text: string, sender: 'user' | 'bot', image?: string, isGenerating: boolean = false) => {
         const id = uuidv4();
-        const newMessage: Message = { id, text, sender, timestamp: Date.now(), image, isGenerating };
+        const newMessage: Message = { 
+            id, 
+            text, 
+            sender, 
+            image, 
+            isGenerating 
+        };
         
         // Add to state
         setMessages(prev => [...prev, newMessage]);
@@ -161,16 +276,8 @@ const ChatInterface: React.FC = () => {
             currentBotMessageIdRef.current = id;
         }
         
-        // Store the updated conversation
-        try {
-            const updatedMessages = [...messages, newMessage];
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedMessages));
-        } catch (err) {
-            console.error('Failed to save conversation to localStorage:', err);
-        }
-        
         return id;
-    }, [messages]);
+    }, []);
 
     const sendMessage = useCallback(async (manualText?: string, audioData?: string) => {
         const textToSend = manualText !== undefined ? manualText : inputText.trim();
@@ -190,7 +297,10 @@ const ChatInterface: React.FC = () => {
         stopSpeaking(); // Stop any ongoing speech
         cleanupEventSource();
 
-        const userMessageId = addMessage(textToSend, 'user', frameToSend);
+        // Clear input field immediately for better UX
+        setInputText('');
+        
+        const userMessageId = addMessage(textToSend, 'user', frameToSend || undefined);
         const botMessageId = addMessage('...', 'bot', undefined, true);
 
         try {
@@ -261,7 +371,13 @@ const ChatInterface: React.FC = () => {
             // Once the full response is received, speak it if needed
             if (fullResponse && audioToSend) {
                 // Only auto-speak if the user sent audio (voice message)
-                speakText(fullResponse);
+                try {
+                    setTimeout(() => {
+                        speakText(fullResponse);
+                    }, 100);
+                } catch (err) {
+                    console.warn("Could not auto-speak response:", err);
+                }
             }
             
         } catch (error: any) {
@@ -385,7 +501,13 @@ const ChatInterface: React.FC = () => {
     }, []);
     
     // Simplified toggle function
-    const toggleRecording = useCallback(() => {
+    const toggleRecording = useCallback((e?: React.MouseEvent) => {
+        // Prevent default event behavior if provided
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
         console.log("Toggle recording, current state:", isRecording);
         
         if (isRecording) {
@@ -404,13 +526,6 @@ const ChatInterface: React.FC = () => {
                 sendMessage();
             }
         }
-    };
-
-    // Prevent event propagation to avoid page navigation issues
-    const handleButtonClick = (e: React.MouseEvent, callback: () => void) => {
-        e.preventDefault();
-        e.stopPropagation();
-        callback();
     };
 
     return (
@@ -441,7 +556,11 @@ const ChatInterface: React.FC = () => {
                         <div className="flex items-center space-x-3">
                             {/* Clear chat button */}
                             <button 
-                                onClick={(e) => handleButtonClick(e, clearConversation)}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    clearConversation();
+                                }}
                                 className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                 aria-label="Clear conversation"
                             >
@@ -450,12 +569,7 @@ const ChatInterface: React.FC = () => {
                             
                             {/* Microphone button - more prominent */}
                             <button
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    console.log("Microphone button clicked");
-                                    toggleRecording(); // Use the simpler toggleRecording function
-                                }}
+                                onClick={toggleRecording}
                                 className={`p-2 rounded-full transition-colors ${
                                     isRecording 
                                         ? 'bg-red-500 hover:bg-red-600 text-white' 
@@ -475,14 +589,15 @@ const ChatInterface: React.FC = () => {
                             {/* Small Send Text button - now to the right of microphone */}
                             <button
                                 onClick={(e) => {
-                                    handleButtonClick(e, () => {
-                                        // Stop recording if it's active
-                                        if (isRecording) {
-                                            stopSpeechRecognition();
-                                        }
-                                        // Then send the message
-                                        sendMessage();
-                                    });
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    
+                                    // Stop recording if it's active
+                                    if (isRecording) {
+                                        stopSpeechRecognition();
+                                    }
+                                    // Then send the message
+                                    sendMessage();
                                 }}
                                 disabled={isLoading || (!inputText.trim() && !latestFrame && !isRecording)}
                                 className="px-2 py-1 text-xs rounded bg-white hover:bg-gray-100 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
@@ -550,7 +665,15 @@ const ChatInterface: React.FC = () => {
                                         {/* Audio playback button for bot messages */}
                                         {msg.sender === 'bot' && !msg.isGenerating && (
                                             <button
-                                                onClick={() => speakText(msg.text)}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    try {
+                                                        speakText(msg.text);
+                                                    } catch (err) {
+                                                        console.warn("Failed to speak message:", err);
+                                                    }
+                                                }}
                                                 className="ml-1 p-1 text-xs rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 inline-flex items-center"
                                                 aria-label="Listen to response"
                                             >
@@ -576,30 +699,23 @@ const ChatInterface: React.FC = () => {
                             type="text"
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey && inputText.trim() && !isLoading) {
-                                    e.preventDefault();
-                                    // Stop recording if it's active
-                                    if (isRecording) {
-                                        stopSpeechRecognition();
-                                    }
-                                    // Then send the message
-                                    sendMessage();
-                                }
-                            }}
+                            onKeyDown={handleKeyDown}
                             placeholder="Ask a fashion question..."
                             className="flex-grow p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                             disabled={isLoading}
                         />
                         <button
-                            onClick={(e) => handleButtonClick(e, () => {
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                
                                 // Stop recording if it's active
                                 if (isRecording) {
                                     stopSpeechRecognition();
                                 }
                                 // Then send the message
                                 sendMessage();
-                            })}
+                            }}
                             disabled={isLoading || (!inputText.trim() && !latestFrame && !isRecording)}
                             className="p-2 rounded-full bg-white hover:bg-gray-100 border border-gray-300 dark:bg-gray-600 dark:border-gray-500 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                             aria-label="Send message"
@@ -616,7 +732,11 @@ const ChatInterface: React.FC = () => {
                                     <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
                                     <span>Speaking</span>
                                     <button
-                                        onClick={stopSpeaking}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            stopSpeaking();
+                                        }}
                                         className="ml-1 text-xs text-blue-500 hover:text-blue-600"
                                     >
                                         Stop

@@ -21,46 +21,46 @@ export const isStaticBuild = () => {
 const createDummyClient = () => {
   console.log('Creating dummy Supabase client for static build');
   return {
-    from: (table) => ({
-      select: (columns) => ({
-        eq: (column, value) => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
           maybeSingle: () => Promise.resolve({ data: null, error: null }),
-          limit: (limit) => Promise.resolve({ data: [], error: null }),
+          limit: () => Promise.resolve({ data: [], error: null }),
           single: () => Promise.resolve({ data: null, error: null }),
         }),
-        limit: (limit) => Promise.resolve({ data: [], error: null }),
+        limit: () => Promise.resolve({ data: [], error: null }),
       }),
-      insert: (data) => Promise.resolve({ data: null, error: null }),
-      update: (data) => ({
-        eq: (column, value) => Promise.resolve({ data: null, error: null }),
-        match: (criteria) => Promise.resolve({ data: null, error: null }),
+      insert: () => Promise.resolve({ data: null, error: null }),
+      update: () => ({
+        eq: () => Promise.resolve({ data: null, error: null }),
+        match: () => Promise.resolve({ data: null, error: null }),
       }),
       delete: () => ({
-        eq: (column, value) => Promise.resolve({ data: null, error: null }),
-        match: (criteria) => Promise.resolve({ data: null, error: null }),
+        eq: () => Promise.resolve({ data: null, error: null }),
+        match: () => Promise.resolve({ data: null, error: null }),
       }),
     }),
     storage: {
-      from: (bucket) => ({
-        list: (prefix, options) => Promise.resolve({ data: [], error: null }),
-        upload: (path, file) => Promise.resolve({ data: null, error: null }),
-        getPublicUrl: (path) => ({ data: { publicUrl: '' } }),
-        remove: (paths) => Promise.resolve({ data: null, error: null }),
+      from: () => ({
+        list: () => Promise.resolve({ data: [], error: null }),
+        upload: () => Promise.resolve({ data: null, error: null }),
+        getPublicUrl: () => ({ data: { publicUrl: '' } }),
+        remove: () => Promise.resolve({ data: null, error: null }),
       }),
       listBuckets: () => Promise.resolve({ data: [], error: null }),
     },
     auth: {
       getUser: () => Promise.resolve({ data: { user: null }, error: null }),
-      signUp: (options) => Promise.resolve({ data: null, error: null }),
-      signIn: (options) => Promise.resolve({ data: null, error: null }),
-      signInWithPassword: (options) => Promise.resolve({ data: null, error: null }),
+      signUp: () => Promise.resolve({ data: null, error: null }),
+      signIn: () => Promise.resolve({ data: null, error: null }),
+      signInWithPassword: () => Promise.resolve({ data: null, error: null }),
       signOut: () => Promise.resolve({ error: null }),
-      onAuthStateChange: (callback) => {
+      onAuthStateChange: () => {
         // Return an unsubscribe function that does nothing
         return { data: { subscription: null } };
       },
     },
-    rpc: (fn, params) => Promise.resolve({ data: null, error: null }),
+    rpc: () => Promise.resolve({ data: null, error: null }),
   };
 };
 

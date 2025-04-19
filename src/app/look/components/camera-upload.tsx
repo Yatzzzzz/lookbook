@@ -2,9 +2,10 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, Upload, X, RefreshCw, Check } from 'lucide-react';
+import { HighContrastText, MutedText } from '@/components/ui/text';
 
 interface CameraUploadProps {
-  onImageCapture: (imageData: string) => void;
+  onImageCapture: (imageData: string, file: File | null) => void;
   aspectRatio?: string;
 }
 
@@ -16,6 +17,7 @@ export default function CameraUpload({ onImageCapture, aspectRatio = '3/4' }: Ca
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedFile, setCapturedFile] = useState<File | null>(null);
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -103,6 +105,14 @@ export default function CameraUpload({ onImageCapture, aspectRatio = '3/4' }: Ca
       const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8); // 0.8 quality for compression
       setCapturedImage(imageDataUrl);
       setShowImagePreview(true);
+      
+      // Convert canvas data to blob/file
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `camera-capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
+          setCapturedFile(file);
+        }
+      }, 'image/jpeg', 0.8);
     } catch (err) {
       console.error('Error capturing image:', err);
       setError('Failed to capture image');
@@ -111,15 +121,17 @@ export default function CameraUpload({ onImageCapture, aspectRatio = '3/4' }: Ca
 
   const approveImage = () => {
     if (capturedImage) {
-      onImageCapture(capturedImage);
+      onImageCapture(capturedImage, capturedFile);
       stopCamera();
       setShowImagePreview(false);
       setCapturedImage(null);
+      setCapturedFile(null);
     }
   };
 
   const rejectImage = () => {
     setCapturedImage(null);
+    setCapturedFile(null);
     setShowImagePreview(false);
     // Keep camera active for another capture
   };
@@ -136,7 +148,7 @@ export default function CameraUpload({ onImageCapture, aspectRatio = '3/4' }: Ca
     reader.onload = (event) => {
       const imageDataUrl = event.target?.result as string;
       setLoading(false);
-      onImageCapture(imageDataUrl);
+      onImageCapture(imageDataUrl, file);
     };
     
     reader.onerror = () => {
@@ -211,10 +223,12 @@ export default function CameraUpload({ onImageCapture, aspectRatio = '3/4' }: Ca
       ) : (
         <div className="p-8 text-center">
           <Camera className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-2" />
-          <p className="text-lg font-medium">Capture or upload an image</p>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-6">
+          <HighContrastText as="p" className="text-lg font-medium mb-1">
+            Capture or upload an image
+          </HighContrastText>
+          <MutedText as="p" className="mt-1 mb-6">
             Take a photo or choose from your gallery
-          </p>
+          </MutedText>
           
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <button
@@ -226,7 +240,7 @@ export default function CameraUpload({ onImageCapture, aspectRatio = '3/4' }: Ca
               {loading ? 'Starting...' : 'Start Camera'}
             </button>
             
-            <label className="flex items-center justify-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer">
+            <label className="flex items-center justify-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer">
               <Upload size={18} className="mr-2" />
               Upload Photo
               <input
@@ -240,13 +254,15 @@ export default function CameraUpload({ onImageCapture, aspectRatio = '3/4' }: Ca
           </div>
           
           {error && (
-            <div className="mt-4 text-sm text-red-500">
-              {error}
+            <div className="mt-4 text-red-500 dark:text-red-400">
+              <p>{error}</p>
             </div>
           )}
         </div>
       )}
-      <canvas ref={canvasRef} className="hidden" />
+      
+      {/* Hidden canvas for image processing */}
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
     </div>
   );
 } 

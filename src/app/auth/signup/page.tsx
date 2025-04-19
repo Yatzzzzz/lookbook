@@ -18,7 +18,11 @@ const getSupabaseClient = () => {
       return {
         auth: {
           signUp: () => ({ data: null, error: null })
-        }
+        },
+        from: () => ({
+          insert: () => ({ data: null, error: null }),
+          select: () => ({ data: null, error: null }),
+        })
       };
     }
     throw error; // Re-throw if we're in the browser

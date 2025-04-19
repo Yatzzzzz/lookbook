@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, Upload, Loader2, X, Check, ArrowLeft, ArrowRight, PlusCircle } from 'lucide-react';
 import AudienceSelector, { AudienceType } from '../components/audience-selector';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 interface Person {
   id: string;
@@ -28,6 +29,7 @@ interface BattleData {
 // Main component content
 function BattleContent() {
   const router = useRouter();
+  const supabase = createClientComponentClient();
   const [step, setStep] = useState<'upload-main' | 'upload-options' | 'review' | 'audience'>('upload-main');
   const [mainOutfit, setMainOutfit] = useState<Look | null>(null);
   const [option1, setOption1] = useState<Look | null>(null);
@@ -111,43 +113,170 @@ function BattleContent() {
   };
 
   // Handle file upload for main outfit
-  const handleMainFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMainFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const imageUrl = e.target?.result as string;
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error('You must be logged in to upload');
+        return;
+      }
+      
+      // Get username for path
+      const { data: profiles } = await supabase
+        .from('users')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+      
+      const username = profiles?.username || user.id;
+      
+      // Generate a unique filename
+      const fileName = `${username}/${Date.now()}-main.${file.name.split('.').pop()}`;
+      
+      // Upload the file to Supabase Storage "battle" bucket
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('battle')
+        .upload(fileName, file);
+      
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        throw uploadError;
+      }
+      
+      // Get the public URL for the uploaded image
+      const { data: publicUrlData } = supabase.storage
+        .from('battle')
+        .getPublicUrl(fileName);
+      
+      const imageUrl = publicUrlData.publicUrl;
+      
       setMainOutfit({ image_url: imageUrl, caption: mainCaption });
       setStep('upload-options');
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageUrl = e.target?.result as string;
+        setMainOutfit({ image_url: imageUrl, caption: mainCaption });
+        setStep('upload-options');
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Handle file upload for option 1
-  const handleOption1FileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleOption1FileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const imageUrl = e.target?.result as string;
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error('You must be logged in to upload');
+        return;
+      }
+      
+      // Get username for path
+      const { data: profiles } = await supabase
+        .from('users')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+      
+      const username = profiles?.username || user.id;
+      
+      // Generate a unique filename
+      const fileName = `${username}/${Date.now()}-option1.${file.name.split('.').pop()}`;
+      
+      // Upload the file to Supabase Storage "battle" bucket
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('battle')
+        .upload(fileName, file);
+      
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        throw uploadError;
+      }
+      
+      // Get the public URL for the uploaded image
+      const { data: publicUrlData } = supabase.storage
+        .from('battle')
+        .getPublicUrl(fileName);
+      
+      const imageUrl = publicUrlData.publicUrl;
+      
       setOption1({ image_url: imageUrl, caption: option1Caption });
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageUrl = e.target?.result as string;
+        setOption1({ image_url: imageUrl, caption: option1Caption });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Handle file upload for option 2
-  const handleOption2FileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleOption2FileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const imageUrl = e.target?.result as string;
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error('You must be logged in to upload');
+        return;
+      }
+      
+      // Get username for path
+      const { data: profiles } = await supabase
+        .from('users')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+      
+      const username = profiles?.username || user.id;
+      
+      // Generate a unique filename
+      const fileName = `${username}/${Date.now()}-option2.${file.name.split('.').pop()}`;
+      
+      // Upload the file to Supabase Storage "battle" bucket
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('battle')
+        .upload(fileName, file);
+      
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        throw uploadError;
+      }
+      
+      // Get the public URL for the uploaded image
+      const { data: publicUrlData } = supabase.storage
+        .from('battle')
+        .getPublicUrl(fileName);
+      
+      const imageUrl = publicUrlData.publicUrl;
+      
       setOption2({ image_url: imageUrl, caption: option2Caption });
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageUrl = e.target?.result as string;
+        setOption2({ image_url: imageUrl, caption: option2Caption });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Handle camera close
@@ -179,21 +308,63 @@ function BattleContent() {
   };
 
   // Handle audience selection complete
-  const handleAudienceComplete = (selectedAudience: AudienceType, selectedExcludedPeople: Person[]) => {
+  const handleAudienceComplete = async (selectedAudience: AudienceType, selectedExcludedPeople: Person[]) => {
     setAudience(selectedAudience);
     setExcludedPeople(selectedExcludedPeople);
     
-    // In a real application, save the battle data to a database
-    const battleData: BattleData = {
-      mainOutfit: mainOutfit!,
-      option1: option1!,
-      option2: option2!,
-      selectedOption,
-      audience: selectedAudience,
-      excludedPeople: selectedExcludedPeople
-    };
-    
-    console.log('Battle data saved:', battleData);
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error('You must be logged in to save battle data');
+        return;
+      }
+      
+      // In a real application, save the battle data to a database
+      const battleData: BattleData = {
+        mainOutfit: mainOutfit!,
+        option1: option1!,
+        option2: option2!,
+        selectedOption,
+        audience: selectedAudience,
+        excludedPeople: selectedExcludedPeople
+      };
+      
+      console.log('Battle data saved:', battleData);
+
+      // Also store the battle in the looks table
+      const lookData = {
+        user_id: user.id,
+        image_url: mainOutfit!.image_url,
+        description: mainOutfit!.caption,
+        upload_type: 'battle',
+        feature_in: ['battle'],
+        audience: selectedAudience,
+        tags: ['battle'],
+        battle_options: [
+          {
+            image_url: option1!.image_url,
+            caption: option1!.caption
+          },
+          {
+            image_url: option2!.image_url,
+            caption: option2!.caption
+          }
+        ],
+        selected_option: selectedOption === 'option1' ? 0 : selectedOption === 'option2' ? 1 : null
+      };
+      
+      const { error: insertError } = await supabase
+        .from('looks')
+        .insert(lookData);
+        
+      if (insertError) {
+        console.error('Error saving battle data to database:', insertError);
+      }
+    } catch (error) {
+      console.error('Error saving battle data:', error);
+    }
     
     // Return to the main options page
     router.push('/look');

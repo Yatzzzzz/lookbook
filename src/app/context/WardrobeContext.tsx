@@ -21,9 +21,26 @@ export interface WardrobeItem {
   description?: string;
 }
 
+export interface WardrobeRanking {
+  id: string;
+  user_id: string;
+  item_count: number;
+  top_count: number;
+  bottom_count: number;
+  shoes_count: number;
+  dress_count: number;
+  accessories_count: number;
+  outerwear_count: number;
+  bags_count: number;
+  other_count: number;
+  ranking_score: number;
+  ranking_position?: number;
+}
+
 interface WardrobeContextType {
   wardrobeItems: WardrobeItem[];
   setWardrobeItems: React.Dispatch<React.SetStateAction<WardrobeItem[]>>;
+  wardrobeRanking: WardrobeRanking | null;
   isLoading: boolean;
   error: string | null;
   addItem: (item: Omit<WardrobeItem, 'item_id' | 'user_id' | 'created_at'>) => Promise<void>;
@@ -32,13 +49,15 @@ interface WardrobeContextType {
   getCategoryCount: (category: string) => number;
   getTotalItems: () => number;
   uploadImage: (file: File) => Promise<string>;
-  refreshSession: () => Promise<void>;
+  refreshSession: () => Promise<any>;
+  refreshRanking: () => Promise<void>;
 }
 
 const WardrobeContext = createContext<WardrobeContextType | undefined>(undefined);
 
 export function WardrobeProvider({ children }: { children: React.ReactNode }) {
   const [wardrobeItems, setWardrobeItems] = useState<WardrobeItem[]>([]);
+  const [wardrobeRanking, setWardrobeRanking] = useState<WardrobeRanking | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const { user, refreshSession: authRefreshSession } = useAuth();
@@ -67,6 +86,12 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      if (!supabase) {
+        setError("Supabase client is not initialized");
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
 
@@ -85,6 +110,9 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
 
         console.log(`Found ${data?.length || 0} wardrobe items`);
         setWardrobeItems(data || []);
+        
+        // Also fetch ranking data
+        await fetchWardrobeRanking();
       } catch (err: any) {
         console.error('Error fetching wardrobe items:', err);
         setError(err.message || 'Failed to fetch wardrobe items');
@@ -96,103 +124,74 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
     fetchWardrobeItems();
   }, [user, supabase]);
   
-  // Upload image to Supabase storage
+  // Function to fetch wardrobe ranking
+  const fetchWardrobeRanking = async () => {
+    if (!user || !supabase) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('wardrobes')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (error && error.code !== 'PGRST116') { // PGRST116 is the "not found" error
+        console.error('Error fetching wardrobe ranking:', error);
+      } else if (data) {
+        setWardrobeRanking(data);
+      } else {
+        // No ranking data exists yet
+        setWardrobeRanking(null);
+      }
+    } catch (err) {
+      console.error('Error in fetchWardrobeRanking:', err);
+    }
+  };
+  
+  // Function to refresh ranking - called after operations that might affect it
+  const refreshRanking = async () => {
+    await fetchWardrobeRanking();
+  };
+  
+  // Function to upload image
   const uploadImage = async (file: File): Promise<string> => {
     if (!user || !user.id) {
       throw new Error('You must be logged in to upload images');
     }
     
+    if (!supabase) {
+      throw new Error('Supabase client is not initialized');
+    }
+    
+    if (!file) {
+      throw new Error('No file provided');
+    }
+    
     try {
-      // Try to refresh the session but don't fail if it doesn't work
-      try {
-        await refreshSession();
-      } catch (sessionError) {
-        console.error('Session refresh error during upload:', sessionError);
-        // Continue with potentially expired token - API might still work
-      }
-      
+      // Create a unique file name
       const fileExt = file.name.split('.').pop();
-      const fileName = `${uuidv4()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
+      const fileName = `${user.id}/${uuidv4()}.${fileExt}`;
+      const filePath = fileName;
       
-      console.log('Attempting to upload to path:', filePath);
-      
-      // Try the client upload first
-      try {
-        const { error: uploadError } = await supabase.storage
-          .from('wardrobe')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false
-          });
-          
-        if (uploadError) {
-          console.error('Upload error details:', uploadError);
-          
-          // For any error, try the server API as fallback
-          console.log('Upload failed, attempting via server API...');
-          
-          // Create a form data object to send to the server
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('userId', user.id);
-          
-          try {
-            const response = await fetch('/api/wardrobe/upload', {
-              method: 'POST',
-              body: formData,
-            });
-            
-            if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.error || 'Failed to upload via API');
-            }
-            
-            const data = await response.json();
-            console.log('Upload via API succeeded:', data.publicUrl);
-            return data.publicUrl;
-          } catch (apiError: any) {
-            console.error('API upload failed:', apiError);
-            throw new Error(`Upload failed: ${apiError.message}`);
-          }
-        }
+      // Upload the file
+      const { error: uploadError } = await supabase.storage
+        .from('wardrobe')
+        .upload(filePath, file);
         
-        const { data } = supabase.storage
-          .from('wardrobe')
-          .getPublicUrl(filePath);
-        
-        console.log('Upload succeeded via client:', data.publicUrl);
-        return data.publicUrl;
-      } catch (clientError) {
-        console.error('Unexpected client upload error:', clientError);
-        
-        // Try the server API as fallback for any client-side errors
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('userId', user.id);
-        
-        try {
-          const response = await fetch('/api/wardrobe/upload', {
-            method: 'POST',
-            body: formData,
-          });
-          
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to upload via API');
-          }
-          
-          const data = await response.json();
-          console.log('Upload via API succeeded (after client error):', data.publicUrl);
-          return data.publicUrl;
-        } catch (apiError: any) {
-          console.error('API upload failed after client error:', apiError);
-          throw new Error(`Upload failed: ${apiError.message}`);
-        }
+      if (uploadError) {
+        throw uploadError;
       }
+      
+      // Get the public URL
+      const { data } = supabase.storage
+        .from('wardrobe')
+        .getPublicUrl(filePath);
+        
+      return data.publicUrl;
     } catch (err: any) {
       console.error('Error uploading image:', err);
-      throw new Error(err.message || 'Failed to upload image');
+      setError(err.message || 'Failed to upload image');
+      throw err;
     }
   };
   
@@ -200,6 +199,10 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
   const addItem = async (item: Omit<WardrobeItem, 'item_id' | 'user_id' | 'created_at'>) => {
     if (!user || !user.id) {
       throw new Error('You must be logged in to add items');
+    }
+    
+    if (!supabase) {
+      throw new Error('Supabase client is not initialized');
     }
     
     try {
@@ -268,6 +271,9 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
         
         if (data && data.length > 0) {
           setWardrobeItems(prev => [...prev, data[0]]);
+          
+          // Refresh the ranking after adding an item
+          setTimeout(() => refreshRanking(), 1000);
           return;
         } else {
           console.log('No data returned, trying API route');
@@ -304,6 +310,9 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
       
       const apiData = await response.json();
       setWardrobeItems(prev => [...prev, apiData]);
+      
+      // Refresh the ranking after adding an item via API
+      setTimeout(() => refreshRanking(), 1000);
     } catch (apiError: any) {
       console.error('API insert failed:', apiError);
       throw new Error(`Failed to add item: ${apiError.message}`);
@@ -314,6 +323,10 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
   const removeItem = async (itemId: string) => {
     if (!user || !user.id) {
       throw new Error('You must be logged in to remove items');
+    }
+    
+    if (!supabase) {
+      throw new Error('Supabase client is not initialized');
     }
     
     try {
@@ -338,6 +351,9 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
       }
       
       setWardrobeItems(prev => prev.filter(item => item.item_id !== itemId));
+      
+      // Refresh the ranking after removing an item
+      setTimeout(() => refreshRanking(), 1000);
     } catch (err: any) {
       console.error('Error removing wardrobe item:', err);
       setError(err.message || 'Failed to remove wardrobe item');
@@ -349,6 +365,10 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
   const updateItem = async (itemId: string, updates: Partial<WardrobeItem>) => {
     if (!user || !user.id) {
       throw new Error('You must be logged in to update items');
+    }
+    
+    if (!supabase) {
+      throw new Error('Supabase client is not initialized');
     }
     
     try {
@@ -369,6 +389,11 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
       setWardrobeItems(prev => 
         prev.map(item => (item.item_id === itemId ? data[0] : item))
       );
+      
+      // If category was changed, refresh the ranking
+      if (updates.category) {
+        setTimeout(() => refreshRanking(), 1000);
+      }
     } catch (err: any) {
       console.error('Error updating wardrobe item:', err);
       setError(err.message || 'Failed to update wardrobe item');
@@ -389,6 +414,7 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
       value={{
         wardrobeItems,
         setWardrobeItems,
+        wardrobeRanking,
         isLoading,
         error,
         addItem,
@@ -397,7 +423,8 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
         getCategoryCount,
         getTotalItems,
         uploadImage,
-        refreshSession
+        refreshSession,
+        refreshRanking
       }}
     >
       {children}

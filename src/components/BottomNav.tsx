@@ -4,13 +4,22 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export default function BottomNav() {
+interface BottomNavProps {
+  activeTab?: string;
+}
+
+export default function BottomNav({ activeTab: propActiveTab }: BottomNavProps = {}) {
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState('/gallery');
 
   useEffect(() => {
-    setActiveTab(pathname);
-  }, [pathname]);
+    // If prop is provided, use that, otherwise use the pathname
+    if (propActiveTab) {
+      setActiveTab(propActiveTab);
+    } else {
+      setActiveTab(pathname);
+    }
+  }, [pathname, propActiveTab]);
 
   // Navigation items with correct paths
   const navItems = [
@@ -33,7 +42,7 @@ export default function BottomNav() {
               className={`flex flex-col items-center justify-center px-1 ${
                 activeTab.startsWith(item.path)
                   ? 'text-blue-600'
-                  : 'text-gray-500 hover:text-blue-500'
+                  : 'text-[#222222] hover:text-blue-500'
               }`}
               onClick={() => setActiveTab(item.path)}
             >

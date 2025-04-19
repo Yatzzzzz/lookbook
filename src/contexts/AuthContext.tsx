@@ -30,10 +30,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const supabase = getSupabaseClient();
 
+  // Ensure user record exists in database
+  const ensureUserRecord = async (currentUser: User) => {
+    try {
+      // Call the user-record API endpoint to create a record if it doesn't exist
+      const response = await fetch('/api/user-record', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        console.error('Error ensuring user record:', data.error);
+      } else {
+        const data = await response.json();
+        console.log('User record status:', data.message);
+      }
+    } catch (err) {
+      console.error('Failed to ensure user record exists:', err);
+    }
+  };
+
   // Function to refresh the session with better error handling
   const refreshSession = async (): Promise<Session | null> => {
     try {
       setError(null);
+      
+      if (!supabase) {
+        setError("Supabase client is not initialized");
+        return null;
+      }
+      
       const { data, error } = await supabase.auth.refreshSession();
       
       if (error) {
@@ -60,6 +89,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        if (!supabase) {
+          setError("Supabase client is not initialized");
+          setLoading(false);
+          return;
+        }
+        
         setLoading(true);
         setError(null);
         
@@ -97,23 +132,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initializeAuth();
 
     // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id);
-        setUser(session?.user || null);
-        setLoading(false);
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          console.log('Auth state changed:', event, session?.user?.id);
+          
+          if (session?.user) {
+            setUser(session.user);
+            // Ensure user record exists on auth state change
+            ensureUserRecord(session.user);
+          } else {
+            setUser(null);
+          }
+          
+          setLoading(false);
+        }
+      );
+  
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
   }, []);
 
   // Sign out with error handling
   const signOut = async () => {
     try {
       setError(null);
+      
+      if (!supabase) {
+        setError("Supabase client is not initialized");
+        return;
+      }
+      
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Error signing out:', error);
@@ -133,6 +184,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = (session: Session) => {
     setUser(session.user);
     setError(null);
+    // Ensure user record exists when signing in
+    ensureUserRecord(session.user);
   };
 
   return (

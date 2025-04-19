@@ -1,39 +1,352 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import BottomNav from "@/components/BottomNav";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
+import { Send, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
 
-export default function OpinionsPage() {
+interface Look {
+  look_id: string;
+  image_url: string;
+  description?: string | null;
+  user_id: string;
+  username?: string;
+  created_at: string;
+  user?: { username: string };
+}
+
+interface Opinion {
+  id: string;
+  look_id: string;
+  user_id: string;
+  comment: string;
+  tags: string[];
+  created_at: string;
+  username?: string;
+}
+
+function OpinionsPageContent() {
+  const [comment, setComment] = useState('');
+  const [tag, setTag] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [look, setLook] = useState<Look | null>(null);
+  const [opinions, setOpinions] = useState<Opinion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const supabase = createClientComponentClient();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        
+        // Fetch a random look marked for opinions
+        const { data: lookData, error: lookError } = await supabase
+          .from('looks')
+          .select(`
+            look_id,
+            image_url,
+            description,
+            user_id,
+            created_at,
+            user:users(username)
+          `)
+          .eq('storage_bucket', 'opinions')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (lookError) {
+          // No opinions look found
+          setLoading(false);
+          return;
+        }
+        
+        if (lookData) {
+          setLook({
+            ...lookData,
+            username: lookData.user?.username || 'Anonymous'
+          });
+          
+          // Fetch opinions for this look
+          const { data: opinionsData, error: opinionsError } = await supabase
+            .from('opinions')
+            .select(`
+              id,
+              look_id,
+              user_id,
+              comment,
+              tags,
+              created_at,
+              users(username)
+            `)
+            .eq('look_id', lookData.look_id)
+            .order('created_at', { ascending: false });
+          
+          if (opinionsError) throw opinionsError;
+          
+          setOpinions(opinionsData || []);
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('Failed to load look and opinions');
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchData();
+  }, [supabase]);
+
+  const handleAddTag = () => {
+    if (tag.trim()) {
+      setTags([...tags, tag.trim()]);
+      setTag('');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleAddTag();
+    }
+  };
+
+  const handleSubmitOpinion = async () => {
+    if (!look || !comment.trim()) return;
+    
+    try {
+      // Prepare the opinion data
+      const newOpinion = {
+        look_id: look.look_id,
+        user_id: 'guest', // This would be the actual user_id in production
+        comment: comment.trim(),
+        tags: tags,
+        created_at: new Date().toISOString()
+      };
+      
+      // In production, this would be saved to the database
+      const { data, error } = await supabase.from('opinions').insert(newOpinion);
+      
+      if (error) throw error;
+      
+      // Add the new opinion to the UI
+      toast({
+        title: "Opinion submitted!",
+        description: "Your thoughts have been shared with the community.",
+      });
+      
+      // Reset form
+      setComment('');
+      setTags([]);
+      
+      // Refresh opinions
+      const { data: refreshedOpinions, error: refreshError } = await supabase
+        .from('opinions')
+        .select(`
+          id,
+          look_id,
+          user_id,
+          comment,
+          tags,
+          created_at,
+          users(username)
+        `)
+        .eq('look_id', look.look_id)
+        .order('created_at', { ascending: false });
+        
+      if (!refreshError && refreshedOpinions) {
+        setOpinions(refreshedOpinions);
+      }
+    } catch (err) {
+      console.error('Error submitting opinion:', err);
+      toast({
+        title: "Error",
+        description: "Failed to submit your opinion. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRemoveTag = (index: number) => {
+    const newTags = tags.filter((_, i) => i !== index);
+    setTags(newTags);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center pb-16">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-4" />
+        <p className="text-gray-500">Loading fashion look...</p>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (error || !look) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center pb-16">
+        <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-4">
+          <p className="font-bold">Error loading look</p>
+          <p>{error || 'No look found for opinions'}</p>
+        </div>
+        <Button onClick={() => window.location.reload()}>Try Again</Button>
+        <BottomNav />
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto px-4 py-6">
-      <Card>
-        <CardContent className="p-6">
-          <h2 className="text-2xl font-bold mb-4">Fashion Opinions</h2>
-          <p className="text-gray-600 mb-4">
-            Coming soon! This feature will allow you to share your opinions on the latest fashion trends and see what others think.
-          </p>
-          <div className="mt-8 space-y-4">
-            <div className="bg-gray-100 p-4 rounded-lg">
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
-                <div className="ml-3">
-                  <h3 className="font-medium">User Feedback</h3>
-                  <p className="text-sm text-gray-500">Opinion placeholder</p>
+    <div className="min-h-screen bg-background pb-16">
+      <main className="container px-4 py-6 md:py-8">
+        {loading ? (
+          <div className="flex justify-center items-center h-[60vh]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : !look ? (
+          <div className="text-center py-8">
+            <p className="text-lg font-medium mb-2">No opinions available</p>
+            <p className="text-muted-foreground mb-4">
+              Looks marked as opinions will appear here
+            </p>
+            <Button asChild>
+              <a href="/upload">Upload Look</a>
+            </Button>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Image Section */}
+            <Card className="overflow-hidden">
+              <CardContent className="p-0">
+                <img 
+                  src={look.image_url} 
+                  alt={look.description || "Fashion item"} 
+                  className="w-full aspect-square md:aspect-auto md:h-full object-cover"
+                />
+              </CardContent>
+            </Card>
+            
+            {/* Description and Author */}
+            <div>
+              <h2 className="text-xl font-semibold mb-3">{look.description || "What do you think of this look?"}</h2>
+              <p className="text-muted-foreground mb-4">Shared by @{look.username}</p>
+              
+              {/* Comment input */}
+              <div className="space-y-4">
+                <div>
+                  <Textarea
+                    placeholder="Share your thoughts on this look..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    className="w-full h-32 resize-none"
+                  />
                 </div>
-              </div>
-            </div>
-            <div className="bg-gray-100 p-4 rounded-lg">
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
-                <div className="ml-3">
-                  <h3 className="font-medium">Expert Commentary</h3>
-                  <p className="text-sm text-gray-500">Opinion placeholder</p>
+                
+                <div>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      placeholder="Add a tag (optional)"
+                      value={tag}
+                      onChange={(e) => setTag(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && tag.trim()) {
+                          e.preventDefault();
+                          handleAddTag();
+                        }
+                      }}
+                      className="px-3 py-2 border rounded-md flex-1"
+                    />
+                    <Button type="button" onClick={handleAddTag} disabled={!tag.trim()}>
+                      Add
+                    </Button>
+                  </div>
+                  
+                  {tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {tags.map((t, i) => (
+                        <Badge key={i} variant="outline" className="bg-primary/10 flex items-center gap-1">
+                          #{t}
+                          <button 
+                            onClick={() => handleRemoveTag(i)}
+                            className="hover:text-red-500 ml-1 text-xs"
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex justify-end">
+                  <Button 
+                    className="flex items-center gap-2"
+                    disabled={!comment.trim()}
+                    onClick={handleSubmitOpinion}
+                  >
+                    <Send className="h-4 w-4" />
+                    Submit
+                  </Button>
                 </div>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        )}
+        
+        {/* Responses Section */}
+        {look && (
+          <div className="mt-8">
+            <div className="text-lg font-medium mb-4">Responses</div>
+            
+            <div className="space-y-4">
+              {opinions.length === 0 ? (
+                <div className="text-center p-8 border border-dashed rounded-lg">
+                  <p className="text-muted-foreground">No responses yet. Be the first to comment!</p>
+                </div>
+              ) : (
+                opinions.map(opinion => (
+                  <Card key={opinion.id}>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <p className="font-medium">@{opinion.username || 'Anonymous'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(opinion.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <p className="mb-3">{opinion.comment}</p>
+                      {opinion.tags && opinion.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {opinion.tags.map((tag, i) => (
+                            <Badge key={i} variant="outline" className="bg-primary/10">#{tag}</Badge>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+      
+      <BottomNav />
     </div>
+  );
+}
+
+export default function OpinionsPage() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <OpinionsPageContent />
+    </QueryClientProvider>
   );
 } 

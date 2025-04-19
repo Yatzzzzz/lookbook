@@ -17,10 +17,10 @@ function GalleryContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'gallery');
   const [filterTab, setFilterTab] = useState(searchParams.get('filter') || 'all');
-  const [looks, setLooks] = useState([]);
-  const [yayNayItems, setYayNayItems] = useState([]);
-  const [battleItems, setBattleItems] = useState([]);
-  const [opinionItems, setOpinionItems] = useState([]);
+  const [looks, setLooks] = useState<any[]>([]);
+  const [yayNayItems, setYayNayItems] = useState<any[]>([]);
+  const [battleItems, setBattleItems] = useState<any[]>([]);
+  const [opinionItems, setOpinionItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -41,13 +41,13 @@ function GalleryContent() {
       });
 
       if (activeTab === 'gallery') {
-        setLooks(prev => page === 1 ? response.looks : [...prev, ...response.looks]);
+        setLooks(prev => page === 1 ? response.looks || [] : [...prev, ...(response.looks || [])]);
       } else if (activeTab === 'yay_or_nay') {
-        setYayNayItems(prev => page === 1 ? response.items : [...prev, ...response.items]);
+        setYayNayItems(prev => page === 1 ? response.items || [] : [...prev, ...(response.items || [])]);
       } else if (activeTab === 'battle') {
-        setBattleItems(prev => page === 1 ? response.items : [...prev, ...response.items]);
+        setBattleItems(prev => page === 1 ? response.items || [] : [...prev, ...(response.items || [])]);
       } else if (activeTab === 'opinions') {
-        setOpinionItems(prev => page === 1 ? response.items : [...prev, ...response.items]);
+        setOpinionItems(prev => page === 1 ? response.items || [] : [...prev, ...(response.items || [])]);
       }
 
       setHasMore(response.pagination.has_more);

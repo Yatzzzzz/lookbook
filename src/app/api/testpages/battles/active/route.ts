@@ -86,7 +86,7 @@ export async function GET() {
   try {
     // Get active battles
     const activeBattles: ActiveBattle[] = Object.entries(mockBattles)
-      .filter(([_, battle]) => battle.isActive)
+      .filter(([, battle]) => battle.isActive)
       .map(([battleId, battle]) => {
         const votes = mockVotes[battleId] || [];
         const completionPercentage = Math.min(
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     
     // Get active battles
     let activeBattles: ActiveBattle[] = Object.entries(mockBattles)
-      .filter(([_, battle]) => battle.isActive)
+      .filter(([, battle]) => battle.isActive)
       .map(([battleId, battle]) => {
         const votes = mockVotes[battleId] || [];
         const completionPercentage = Math.min(

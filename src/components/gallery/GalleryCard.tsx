@@ -38,10 +38,10 @@ export function GalleryCard({ look, onSave, onShare, compact = false }: GalleryC
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className={`relative ${compact ? 'h-48' : 'h-72'}`}>
-        {look.image_url ? (
+        {look.imageUrl ? (
           <Image
-            src={look.image_url}
-            alt={look.caption || 'Fashion look'}
+            src={look.imageUrl}
+            alt={look.description || 'Fashion look'}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             style={{ objectFit: 'cover' }}
@@ -58,9 +58,9 @@ export function GalleryCard({ look, onSave, onShare, compact = false }: GalleryC
           <button
             onClick={handleSave}
             className="p-1.5 bg-white dark:bg-gray-800 rounded-full shadow-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-            aria-label={look.is_liked ? 'Unsave' : 'Save'}
+            aria-label="Save"
           >
-            <Heart size={16} fill={look.is_liked ? 'red' : 'none'} stroke={look.is_liked ? 'red' : 'currentColor'} />
+            <Heart size={16} />
           </button>
           <button
             onClick={handleShare}
@@ -78,26 +78,26 @@ export function GalleryCard({ look, onSave, onShare, compact = false }: GalleryC
           <div className="flex items-center mb-2">
             <div className="flex-shrink-0">
               <UserAvatar 
-                src={look.user.avatar_url} 
-                name={look.user.username} 
+                src={null} 
+                name={look.userId || "User"} 
                 size="sm"
               />
             </div>
             <span className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-              {look.user.username}
+              {look.userId || "Anonymous"}
             </span>
           </div>
           
-          {look.caption && (
+          {look.description && (
             <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
-              {look.caption}
+              {look.description}
             </p>
           )}
           
           <div className="flex items-center mt-2 text-xs text-gray-500 dark:text-gray-400 space-x-3">
-            <span>{look.likes_count} likes</span>
+            <span>{look.likes || 0} likes</span>
             <span>•</span>
-            <span>{look.views_count} views</span>
+            <span>{look.views || 0} views</span>
           </div>
         </div>
       )}

@@ -2,22 +2,17 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ArrowLeft, ThumbsUp, ThumbsDown, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import NavBar from "@/components/NavBar";
+import { Textarea } from "@/components/ui/textarea";
 
 // Define types
 interface Look {
   id: number;
   imageUrl: string;
   description?: string;
-}
-
-interface VoteResult {
-  lookId: number;
-  result: "yay" | "nay";
-  aiOpinion?: string;
 }
 
 // Mock data for testing until API is integrated
@@ -34,43 +29,50 @@ const mockLooks: Look[] = [
   }
 ];
 
+// Suggested occasions for users to choose from
+const SUGGESTED_OCCASIONS = [
+  "Work meeting",
+  "First date",
+  "Job interview",
+  "Casual Friday",
+  "Wedding",
+  "Dinner party",
+  "Meeting the parents",
+  "Night out",
+  "Beach day",
+  "Formal event"
+];
+
 export default function YayNayPage() {
-  const [votes, setVotes] = useState<VoteResult[]>([]);
-  const [isLoadingOpinions, setIsLoadingOpinions] = useState<Record<number, boolean>>({});
-
-  // Mock API response function
-  const getAIOpinion = async (description: string) => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Return mock AI opinion
-    return {
-      outfit: `This ${description} looks ${Math.random() > 0.5 ? 'great for the occasion!' : 'stylish but could use some accessories.'}`,
-    };
+  const [currentLookIndex, setCurrentLookIndex] = useState(0);
+  const [customOccasion, setCustomOccasion] = useState('');
+  const [selectedOccasion, setSelectedOccasion] = useState('');
+  const [vote, setVote] = useState<'yay' | 'nay' | null>(null);
+  
+  const handleOccasionSelect = (occasion: string) => {
+    setSelectedOccasion(occasion);
+    setCustomOccasion(occasion);
   };
-
-  const handleVote = async (lookId: number, vote: "yay" | "nay") => {
-    const look = mockLooks.find(l => l.id === lookId);
-    setVotes(prev => [...prev, { lookId, result: vote }]);
-
-    if (look?.description) {
-      setIsLoadingOpinions(prev => ({ ...prev, [lookId]: true }));
-      try {
-        const aiResponse = await getAIOpinion(look.description);
-        setVotes(prev => 
-          prev.map(v => 
-            v.lookId === lookId 
-              ? { ...v, aiOpinion: aiResponse.outfit }
-              : v
-          )
-        );
-      } catch (error) {
-        console.error("Error getting AI opinion:", error);
-      } finally {
-        setIsLoadingOpinions(prev => ({ ...prev, [lookId]: false }));
-      }
+  
+  const handleVote = (result: 'yay' | 'nay') => {
+    setVote(result);
+  };
+  
+  const handleNext = () => {
+    // In a real app, would save feedback to backend here
+    // Then move to next look if available
+    if (currentLookIndex < mockLooks.length - 1) {
+      setCurrentLookIndex(currentLookIndex + 1);
+      setCustomOccasion('');
+      setSelectedOccasion('');
+      setVote(null);
+    } else {
+      // End of items, could redirect to a thank you page or back to main gallery
+      alert("You've reviewed all items!");
     }
   };
+
+  const currentLook = mockLooks[currentLookIndex];
 
   return (
     <div className="min-h-screen bg-background pb-16">
@@ -83,72 +85,112 @@ export default function YayNayPage() {
       </div>
 
       <main className="container px-4 py-6 md:py-8">
-        <div className="space-y-4 md:space-y-8">
-          {mockLooks.map((look) => {
-            const vote = votes.find((v) => v.lookId === look.id);
-            const isLoading = isLoadingOpinions[look.id];
-
-            return (
-              <Card key={look.id}>
-                <CardContent className="p-4">
-                  <div className="grid md:grid-cols-3 gap-4 md:gap-8">
-                    <div className="relative">
-                      <img
-                        src={look.imageUrl}
-                        alt={look.description || "Fashion look"}
-                        className="w-full aspect-square object-cover rounded-md"
-                      />
+        <div className="flex items-center mb-6">
+          <Button variant="ghost" size="sm" className="rounded-full">
+            <a href="/gallery" className="flex items-center">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </a>
+          </Button>
+        </div>
+        
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Left side - Image */}
+          <Card className="overflow-hidden">
+            <CardContent className="p-0">
+              <img
+                src={currentLook.imageUrl}
+                alt={currentLook.description || "Fashion look"}
+                className="w-full h-full object-cover"
+              />
+            </CardContent>
+          </Card>
+          
+          {/* Right side - Occasion and voting */}
+          <Card>
+            <CardContent className="p-4 md:p-6">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-lg font-medium mb-2">Can I wear this to...</h2>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Specify the occasion for others to give better feedback
+                  </p>
+                  
+                  <Textarea
+                    placeholder="What occasion are you dressing for?"
+                    className="resize-none mb-4"
+                    value={customOccasion}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomOccasion(e.target.value)}
+                  />
+                  
+                  <div className="mb-6">
+                    <div className="text-sm font-medium mb-2">Suggestions:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {SUGGESTED_OCCASIONS.map((occasion, index) => (
+                        <Button
+                          key={index}
+                          variant={selectedOccasion === occasion ? "default" : "outline"}
+                          size="sm"
+                          className="rounded-full text-xs"
+                          onClick={() => handleOccasionSelect(occasion)}
+                        >
+                          {occasion}
+                        </Button>
+                      ))}
                     </div>
-
-                    <div className="flex items-center">
-                      <div className="text-center w-full space-y-4">
-                        <h3 className="text-lg md:text-xl font-semibold">
-                          {look.description || "Rate this look"}
-                        </h3>
-                        {!vote && (
-                          <div className="flex gap-4 justify-center">
-                            <Button
-                              onClick={() => handleVote(look.id, "yay")}
-                              variant="outline"
-                              className="w-20 md:w-24"
-                            >
-                              <ThumbsUp className="mr-2 h-4 w-4" />
-                              Yay
-                            </Button>
-                            <Button
-                              onClick={() => handleVote(look.id, "nay")}
-                              variant="outline"
-                              className="w-20 md:w-24"
-                            >
-                              <ThumbsDown className="mr-2 h-4 w-4" />
-                              Nay
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {vote && (
-                      <div className="flex items-center">
-                        <div className="text-center w-full">
-                          <h4 className="text-base md:text-lg font-medium mb-4">AI Opinion</h4>
-                          {vote.aiOpinion ? (
-                            <p className="text-sm text-muted-foreground">
-                              {vote.aiOpinion}
-                            </p>
-                          ) : isLoading ? (
-                            <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                          ) : (
-                            <p className="text-sm text-muted-foreground">Waiting for AI opinion...</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                </div>
+                
+                {customOccasion && (
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="font-medium mb-2">Preview:</div>
+                    <div>
+                      Can I wear this to {customOccasion}?
+                      
+                      {vote && (
+                        <span className="ml-2">
+                          {vote === 'yay' ? (
+                            <span className="inline-flex items-center text-green-500">
+                              <ThumbsUp className="h-4 w-4 mr-1" /> Yay
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center text-red-500">
+                              <ThumbsDown className="h-4 w-4 mr-1" /> Nay
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {customOccasion && !vote && (
+                  <div className="flex justify-end gap-4">
+                    <Button 
+                      onClick={() => handleVote('yay')}
+                      className="bg-green-500 hover:bg-green-600 text-white"
+                    >
+                      <ThumbsUp className="mr-2 h-4 w-4" /> Yay
+                    </Button>
+                    <Button 
+                      onClick={() => handleVote('nay')}
+                      className="bg-red-500 hover:bg-red-600 text-white"
+                    >
+                      <ThumbsDown className="mr-2 h-4 w-4" /> Nay
+                    </Button>
+                  </div>
+                )}
+                
+                {vote && (
+                  <Button 
+                    onClick={handleNext}
+                    className="w-full"
+                  >
+                    Next <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
 

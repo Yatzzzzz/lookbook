@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
           console.error('Description column error, trying without it:', error);
           
           // Remove the description field and try again
-          const { description, ...itemWithoutDescription } = newItem;
+          const { ...itemWithoutDescription } = newItem;
+          delete itemWithoutDescription.description;
           
           const retryResult = await adminSupabase
             .from('wardrobe')

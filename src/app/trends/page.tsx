@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import BottomNav from '@/components/BottomNav';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 type Trend = {
   id: string;
@@ -9,6 +12,7 @@ type Trend = {
   description: string;
   imageUrl: string;
   popularity: number;
+  username?: string;
 };
 
 type Influencer = {
@@ -19,265 +23,846 @@ type Influencer = {
   bio: string;
 };
 
+// Placeholder image for fallbacks
+const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x400?text=Image+Unavailable';
+
+type TopLook = {
+  look_id: string;
+  image_url: string;
+  description?: string;
+  user_id: string;
+  username?: string;
+  avatar_url?: string;
+  likes?: number;
+  views?: number;
+  rating_count?: number;
+  avg_rating?: number;
+};
+
+type Wardrobe = {
+  id: string;
+  username: string;
+  itemCount: number;
+  rank: number;
+  rankingScore: number;
+  categoryBreakdown: {
+    tops: number;
+    bottoms: number;
+    dresses: number;
+    shoes: number;
+    accessories: number;
+    outerwear: number;
+    bags: number;
+    other: number;
+  };
+  previewImages: string[];
+};
+
 export default function TrendsPage() {
   const [activeTab, setActiveTab] = useState('top-looks');
+  const [topLooks, setTopLooks] = useState<TopLook[]>([]);
+  const [topInfluencers, setTopInfluencers] = useState<Influencer[]>([]);
+  const [topWardrobes, setTopWardrobes] = useState<Wardrobe[]>([]);
   const [risingTrends, setRisingTrends] = useState<Trend[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const supabase = createClientComponentClient();
+
+  // Verify database connection on mount
+  useEffect(() => {
+    const verifyConnection = async () => {
+      try {
+        console.log('Verifying Supabase connection...');
+        const { data, error } = await supabase
+          .from('looks')
+          .select('count(*)', { count: 'exact' })
+          .limit(1);
+          
+        if (error) {
+          console.error('Supabase connection error:', error);
+        } else {
+          console.log('Supabase connection verified!', data);
+        }
+        
+        // Also verify ratings table access
+        console.log('Checking ratings table access...');
+        const { data: ratingsData, error: ratingsError } = await supabase
+          .from('look_ratings')
+          .select('count(*)', { count: 'exact' })
+          .limit(1);
+          
+        if (ratingsError) {
+          console.error('Error accessing ratings table:', ratingsError);
+          // Try initializing the database via API
+          try {
+            console.log('Attempting to initialize database...');
+            const initResponse = await fetch('/api/init-database');
+            if (initResponse.ok) {
+              console.log('Database initialization successful');
+            } else {
+              console.error('Database initialization failed');
+            }
+          } catch (initErr) {
+            console.error('Failed to initialize database:', initErr);
+          }
+        } else {
+          console.log('Ratings table access verified!', ratingsData);
+        }
+      } catch (err) {
+        console.error('Failed to verify Supabase connection:', err);
+      }
+    };
+    
+    verifyConnection();
+  }, [supabase]);
 
   const tabs = [
-    { id: 'top-looks', name: 'Top Looks' },
+    { id: 'top-looks', name: 'Top Rated Looks' },
     { id: 'top-influencers', name: 'Top Influencers' },
     { id: 'top-wardrobes', name: 'Top Wardrobes' },
     { id: 'rising-trends', name: 'Rising Trends' },
   ];
 
-  // Mock data for demonstration
-  const mockInfluencers: Influencer[] = [
-    {
-      id: '1',
-      username: 'fashionista',
-      avatarUrl: 'https://i.pravatar.cc/150?img=1',
-      followers: 15000,
-      bio: 'Fashion blogger and stylist with a love for sustainable fashion',
-    },
-    {
-      id: '2',
-      username: 'stylemaster',
-      avatarUrl: 'https://i.pravatar.cc/150?img=2',
-      followers: 12500,
-      bio: 'Helping you find your unique style every day',
-    },
-    {
-      id: '3',
-      username: 'trendwatcher',
-      avatarUrl: 'https://i.pravatar.cc/150?img=3',
-      followers: 9800,
-      bio: 'Always one step ahead of the latest fashion trends',
-    },
-    {
-      id: '4',
-      username: 'chic_style',
-      avatarUrl: 'https://i.pravatar.cc/150?img=4',
-      followers: 8700,
-      bio: 'Everyday chic style for the modern woman',
-    },
-  ];
-
-  const mockTrends: Trend[] = [
-    {
-      id: '1',
-      title: 'Oversized Blazers',
-      description: 'Relaxed fit blazers paired with casual items',
-      imageUrl: 'https://via.placeholder.com/300',
-      popularity: 95,
-    },
-    {
-      id: '2',
-      title: 'Statement Collars',
-      description: 'Bold, embellished collars that stand out',
-      imageUrl: 'https://via.placeholder.com/300',
-      popularity: 87,
-    },
-    {
-      id: '3',
-      title: 'Pastel Suits',
-      description: 'Soft-colored suits for a fresh office look',
-      imageUrl: 'https://via.placeholder.com/300',
-      popularity: 82,
-    },
-    {
-      id: '4',
-      title: 'Platform Boots',
-      description: 'Chunky platform boots with everything',
-      imageUrl: 'https://via.placeholder.com/300',
-      popularity: 79,
-    },
-  ];
-
   useEffect(() => {
-    // Fetch rising trends on tab change or component mount
-    if (activeTab === 'rising-trends') {
-      fetchRisingTrends();
+    // Fetch data based on active tab
+    switch(activeTab) {
+      case 'top-looks':
+        fetchTopLooks();
+        break;
+      case 'top-influencers':
+        fetchTopInfluencers();
+        break;
+      case 'top-wardrobes':
+        fetchTopWardrobes();
+        break;
+      case 'rising-trends':
+        fetchRisingTrends();
+        break;
     }
   }, [activeTab]);
 
-  // Simulate API call to fetch rising trends
-  const fetchRisingTrends = async () => {
+  // Fetch top looks based on likes and views
+  const fetchTopLooks = async () => {
     setLoading(true);
+    setError('');
+    
     try {
-      // In a real app, this would be an API call
-      // const response = await fetch('/api/trends/rising');
-      // const data = await response.json();
+      console.log('Fetching top looks...');
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Get looks - start with empty selection
+      let data = null;
       
-      // Use mock data for now
-      setRisingTrends(mockTrends);
+      // First try filtering by feature_in if it exists
+      try {
+        console.log('Trying to fetch featured looks...');
+        const { data: featuredData, error: featuredError } = await supabase
+          .from('looks')
+          .select(`
+            look_id,
+            image_url, 
+            description,
+            user_id,
+            likes,
+            views,
+            feature_in,
+            rating_count,
+            avg_rating,
+            user:users(username, avatar_url)
+          `)
+          .or('feature_in.cs.{trends},feature_in.cs.{top_rated}')
+          .order('avg_rating', { ascending: false })
+          .order('rating_count', { ascending: false })
+          .order('likes', { ascending: false })
+          .limit(6);
+          
+        if (!featuredError && featuredData && featuredData.length > 0) {
+          data = featuredData;
+          console.log('Successfully fetched featured looks:', featuredData.length);
+        } else if (featuredError) {
+          console.error('Error with feature_in filtering:', featuredError);
+          // Continue to fallbacks below
+        }
+      } catch (featuredErr) {
+        console.error('Exception with feature_in filtering:', featuredErr);
+        // Continue to fallbacks
+      }
+      
+      // If no top-rated looks found, fetch looks with the highest ratings
+      // Prioritize looks with multiple ratings (at least 5 ratings from different accounts)
+      if (!data || data.length === 0) {
+        console.log('No featured looks found, trying looks with multiple ratings...');
+        
+        try {
+          const { data: ratedLooks, error: ratedError } = await supabase
+            .from('looks')
+            .select(`
+              look_id,
+              image_url, 
+              description,
+              user_id,
+              likes,
+              views,
+              feature_in,
+              rating_count,
+              avg_rating,
+              user:users(username, avatar_url)
+            `)
+            .gt('rating_count', 4) // At least 5 ratings
+            .order('avg_rating', { ascending: false })
+            .order('rating_count', { ascending: false })
+            .order('likes', { ascending: false })
+            .limit(6);
+          
+          if (!ratedError && ratedLooks && ratedLooks.length > 0) {
+            data = ratedLooks;
+            console.log('Successfully fetched looks with multiple ratings:', ratedLooks.length);
+          } else if (ratedError) {
+            console.error('Error fetching rated looks:', ratedError);
+            // Continue to next fallback
+          }
+        } catch (ratedErr) {
+          console.error('Failed to fetch rated looks:', ratedErr);
+          // Continue to the next fallback rather than exiting
+        }
+      }
+      
+      // If still no results, try with any rated looks
+      if (!data || data.length === 0) {
+        console.log('No multi-rated looks found, trying any rated looks...');
+        
+        try {
+          const { data: anyRatedLooks, error: anyRatedError } = await supabase
+            .from('looks')
+            .select(`
+              look_id,
+              image_url, 
+              description,
+              user_id,
+              likes,
+              views,
+              feature_in,
+              rating_count,
+              avg_rating,
+              user:users(username, avatar_url)
+            `)
+            .gt('rating_count', 0) // Any number of ratings
+            .order('avg_rating', { ascending: false })
+            .order('rating_count', { ascending: false })
+            .order('likes', { ascending: false })
+            .limit(6);
+          
+          if (!anyRatedError && anyRatedLooks && anyRatedLooks.length > 0) {
+            data = anyRatedLooks;
+            console.log('Successfully fetched any rated looks:', anyRatedLooks.length);
+          } else if (anyRatedError) {
+            console.error('Error fetching any rated looks:', anyRatedError);
+            // Continue to final fallback
+          }
+        } catch (anyRatedErr) {
+          console.error('Failed to fetch any rated looks:', anyRatedErr);
+          // Continue to last fallback
+        }
+      }
+      
+      // Final fallback - just get any looks if all else fails
+      if (!data || data.length === 0) {
+        console.log('No rated looks found, getting any looks as fallback...');
+        
+        try {
+          const { data: anyLooks, error: anyLooksError } = await supabase
+            .from('looks')
+            .select(`
+              look_id,
+              image_url, 
+              description,
+              user_id,
+              likes,
+              views,
+              feature_in,
+              rating_count,
+              avg_rating,
+              user:users(username, avatar_url)
+            `)
+            .order('created_at', { ascending: false })
+            .limit(6);
+          
+          if (!anyLooksError && anyLooks && anyLooks.length > 0) {
+            data = anyLooks;
+            console.log('Successfully fetched fallback looks:', anyLooks.length);
+          } else if (anyLooksError) {
+            console.error('Error fetching fallback looks:', anyLooksError);
+            // Last attempt failed
+          }
+        } catch (anyLooksErr) {
+          console.error('Failed to fetch any looks:', anyLooksErr);
+          // This is the last attempt, if it fails we'll show empty state
+        }
+      }
+      
+      if (data && data.length > 0) {
+        // Ensure all required fields have default values to prevent rendering errors
+        const looks: TopLook[] = data.map(look => ({
+          look_id: look.look_id || '',
+          image_url: look.image_url || PLACEHOLDER_IMAGE,
+          description: look.description || '',
+          user_id: look.user_id || '',
+          username: look.user?.username || 'Anonymous',
+          avatar_url: look.user?.avatar_url || '',
+          likes: look.likes || 0,
+          views: look.views || 0,
+          rating_count: look.rating_count || 0,
+          avg_rating: look.avg_rating || 0
+        }));
+        
+        console.log('Setting top looks:', looks.length);
+        setTopLooks(looks);
+      } else {
+        console.log('No looks data found after all attempts');
+        setTopLooks([]);
+      }
     } catch (err) {
-      console.error('Error fetching rising trends:', err);
-      setError('Failed to load rising trends');
+      console.error('Error in fetchTopLooks:', err);
+      setError('Failed to load top looks');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="pb-16">
-      <h1 className="text-2xl font-bold p-4">Fashion Trends</h1>
+  // Fetch top influencers from the database
+  const fetchTopInfluencers = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      // Check if followers_count exists, otherwise use another metric
+      const { data: columnData } = await supabase.rpc('get_columns_for_table', { target_table: 'users' });
       
-      {/* Tabs */}
-      <div className="flex overflow-x-auto border-b">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            className={`px-4 py-2 ${
-              activeTab === tab.id
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500'
-            }`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.name}
-          </button>
-        ))}
+      const hasFollowersCount = columnData && columnData.some(col => col.column_name === 'followers_count');
+      
+      let query = supabase
+        .from('users')
+        .select('id, username, avatar_url, bio');
+        
+      if (hasFollowersCount) {
+        query = query.select('id, username, avatar_url, bio, followers_count')
+          .order('followers_count', { ascending: false });
+      } else {
+        // Alternative approach - order by user engagement metrics if available
+        // or just order by created_at to show newest users
+        query = query.order('created_at', { ascending: false });
+      }
+      
+      const { data, error } = await query.limit(4);
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        const influencers: Influencer[] = data.map(user => ({
+          id: user.id,
+          username: user.username,
+          avatarUrl: user.avatar_url || '/default-avatar.png',
+          followers: hasFollowersCount ? (user.followers_count || 0) : 0,
+          bio: user.bio || 'Fashion enthusiast'
+        }));
+        
+        setTopInfluencers(influencers);
+      } else {
+        // No fallback data
+        setTopInfluencers([]);
+      }
+    } catch (err) {
+      console.error('Error fetching top influencers:', err);
+      setError('Failed to load top influencers');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch top wardrobes
+  const fetchTopWardrobes = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      // Query top 50 wardrobes based on ranking
+      const { data, error } = await supabase
+        .from('wardrobes')
+        .select(`
+          id, 
+          user_id, 
+          item_count, 
+          ranking_position,
+          ranking_score,
+          top_count,
+          bottom_count,
+          dress_count,
+          shoes_count,
+          accessories_count,
+          outerwear_count,
+          bags_count,
+          other_count,
+          user:users(username)
+        `)
+        .order('ranking_position', { ascending: true })
+        .limit(50);
+      
+      if (error) throw error;
+      
+      // If no wardrobes with ranking, fetch wardrobes with most items
+      if (!data || data.length === 0) {
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('wardrobes')
+          .select(`
+            id, 
+            user_id, 
+            item_count, 
+            top_count,
+            bottom_count,
+            dress_count,
+            shoes_count,
+            accessories_count,
+            outerwear_count,
+            bags_count,
+            other_count,
+            user:users(username)
+          `)
+          .order('item_count', { ascending: false })
+          .limit(10);
+        
+        if (itemsError) throw itemsError;
+        
+        if (itemsData && itemsData.length > 0) {
+          // Get preview images for each wardrobe
+          const wardrobes: Wardrobe[] = await Promise.all(
+            itemsData.map(async (wardrobe, index) => {
+              // Optionally fetch preview images (limit to 8)
+              let previewImages: string[] = [];
+              
+              try {
+                const { data: items } = await supabase
+                  .from('wardrobe')
+                  .select('image_path')
+                  .eq('user_id', wardrobe.user_id)
+                  .not('image_path', 'is', null)
+                  .limit(8);
+                
+                if (items && items.length > 0) {
+                  previewImages = items
+                    .map(item => item.image_path)
+                    .filter(Boolean);
+                }
+              } catch (err) {
+                console.error('Error fetching preview images:', err);
+              }
+              
+              return {
+                id: wardrobe.id,
+                username: wardrobe.user?.username || 'Anonymous',
+                itemCount: wardrobe.item_count || 0,
+                rank: index + 1, // Assign rank based on item count
+                rankingScore: wardrobe.item_count || 0,
+                categoryBreakdown: {
+                  tops: wardrobe.top_count || 0,
+                  bottoms: wardrobe.bottom_count || 0,
+                  dresses: wardrobe.dress_count || 0,
+                  shoes: wardrobe.shoes_count || 0,
+                  accessories: wardrobe.accessories_count || 0,
+                  outerwear: wardrobe.outerwear_count || 0,
+                  bags: wardrobe.bags_count || 0,
+                  other: wardrobe.other_count || 0
+                },
+                previewImages
+              };
+            })
+          );
+          
+          setTopWardrobes(wardrobes);
+        } else {
+          setTopWardrobes([]);
+        }
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        // Get preview images for each wardrobe
+        const wardrobes: Wardrobe[] = await Promise.all(
+          data.map(async (wardrobe) => {
+            // Optionally fetch preview images (limit to 8)
+            let previewImages: string[] = [];
+            
+            try {
+              const { data: items } = await supabase
+                .from('wardrobe')
+                .select('image_path')
+                .eq('user_id', wardrobe.user_id)
+                .not('image_path', 'is', null)
+                .limit(8);
+                
+              if (items && items.length > 0) {
+                previewImages = items
+                  .map(item => item.image_path)
+                  .filter(Boolean);
+              }
+            } catch (err) {
+              console.error('Error fetching preview images:', err);
+            }
+            
+            return {
+              id: wardrobe.id,
+              username: wardrobe.user?.username || 'Anonymous',
+              itemCount: wardrobe.item_count || 0,
+              rank: wardrobe.ranking_position || 999,
+              rankingScore: wardrobe.ranking_score || 0,
+              categoryBreakdown: {
+                tops: wardrobe.top_count || 0,
+                bottoms: wardrobe.bottom_count || 0,
+                dresses: wardrobe.dress_count || 0,
+                shoes: wardrobe.shoes_count || 0,
+                accessories: wardrobe.accessories_count || 0,
+                outerwear: wardrobe.outerwear_count || 0,
+                bags: wardrobe.bags_count || 0,
+                other: wardrobe.other_count || 0
+              },
+              previewImages
+            };
+          })
+        );
+        
+        setTopWardrobes(wardrobes);
+      } else {
+        // No data
+        setTopWardrobes([]);
+      }
+    } catch (err) {
+      console.error('Error fetching top wardrobes:', err);
+      setError('Failed to load top wardrobes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch rising trends based on tags and categories
+  const fetchRisingTrends = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      // Use the API endpoint instead of direct database query
+      const response = await fetch('/api/trends/rising');
+      if (!response.ok) {
+        throw new Error('Failed to fetch rising trends');
+      }
+      
+      const data = await response.json();
+      
+      if (data && data.trends && data.trends.length > 0) {
+        const trends: Trend[] = data.trends.map((trend: any) => ({
+          id: trend.id,
+          title: trend.title,
+          description: trend.description,
+          imageUrl: trend.imageUrl,
+          popularity: trend.popularity || 0
+        }));
+        
+        setRisingTrends(trends);
+      } else {
+        // No fallback data
+        setRisingTrends([]);
+      }
+    } catch (err) {
+      console.error('Error fetching rising trends:', err);
+      setError('Failed to load trends');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Empty state component
+  const EmptyState = ({ message, actionText = "Refresh" }: { message: string, actionText?: string }) => (
+    <div className="col-span-full flex flex-col items-center justify-center py-16 px-4 border border-dashed rounded-lg">
+      <p className="text-muted-foreground mb-2 text-center">{message}</p>
+      <p className="text-xs text-muted-foreground mb-3 text-center">
+        This could happen if the database has no rated looks yet or there was a connection issue.
+      </p>
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={() => fetchTopLooks()}>
+          Try Again
+        </Button>
+        <Button variant="default" onClick={() => window.location.reload()}>
+          {actionText}
+        </Button>
       </div>
+    </div>
+  );
 
-      {/* Tab Content */}
-      <div className="p-4">
-        {/* Top Looks Tab */}
-        {activeTab === 'top-looks' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Top Trending Looks</h2>
-            <div className="grid grid-cols-2 gap-4">
-              {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div key={item} className="bg-white rounded-lg shadow-md overflow-hidden">
-                  <div className="h-40 bg-gray-200"></div>
-                  <div className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm font-medium">Look #{item}</div>
-                      <div className="text-xs text-blue-600 font-semibold">
-                        {Math.floor(Math.random() * 1000)} likes
-                      </div>
-                    </div>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <div className="h-5 w-5 bg-gray-300 rounded-full mr-1"></div>
-                      <span>@username{item}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+  return (
+    <div className="min-h-screen bg-background pb-16">
+      <header className="border-b">
+        <div className="container py-4">
+          <h1 className="text-2xl font-bold">Trends</h1>
+          <p className="text-muted-foreground">Discover what's popular in fashion right now</p>
+        </div>
+      </header>
+      
+      <div className="border-b overflow-x-auto">
+        <div className="container flex">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`py-2 px-4 font-medium whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'border-b-2 border-primary text-primary'
+                  : 'text-muted-foreground'
+              }`}
+            >
+              {tab.name}
+            </button>
+          ))}
+        </div>
+      </div>
+      
+      <main className="container py-6">
+        {/* Loading state */}
+        {loading && (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
+        
+        {/* Error state */}
+        {!loading && error && (
+          <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6">
+            <p className="font-semibold">Error</p>
+            <p>{error}</p>
+            <div className="flex gap-2 mt-3">
+              <Button
+                variant="outline"
+                className="text-red-700 border-red-300 hover:bg-red-100"
+                onClick={() => fetchTopLooks()}
+              >
+                Retry Top Looks
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+              >
+                Reload Page
+              </Button>
             </div>
           </div>
         )}
-
-        {/* Top Influencers Tab */}
-        {activeTab === 'top-influencers' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Top Fashion Influencers</h2>
-            <div className="space-y-4">
-              {mockInfluencers.map((influencer) => (
-                <div key={influencer.id} className="bg-white rounded-lg shadow-md p-3 flex items-center">
-                  <div className="flex-shrink-0 mr-3">
-                    <div className="h-14 w-14 rounded-full overflow-hidden">
+        
+        {/* Top Looks */}
+        {!loading && !error && activeTab === 'top-looks' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">Top Rated Looks</h2>
+            
+            <div className="bg-amber-50 dark:bg-amber-950/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800/30 mb-4">
+              <h3 className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1">How top looks are ranked</h3>
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Looks are ranked based on average rating, number of ratings, and engagement metrics.
+                Looks with at least 5 ratings from different accounts are prioritized in the rankings.
+              </p>
+            </div>
+            
+            {topLooks.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {topLooks.map((look) => (
+                  <div key={look.look_id} className="rounded-lg overflow-hidden border bg-card">
+                    <div className="aspect-square relative">
                       <img
-                        src={influencer.avatarUrl}
-                        alt={influencer.username}
-                        className="h-full w-full object-cover"
+                        src={look.image_url}
+                        alt={look.description || "Fashion look"}
+                        className="object-cover w-full h-full"
+                        onError={(e) => {
+                          // Replace with placeholder if image fails to load
+                          e.currentTarget.src = PLACEHOLDER_IMAGE;
+                        }}
                       />
-                    </div>
-                  </div>
-                  <div className="flex-grow">
-                    <div className="font-medium">@{influencer.username}</div>
-                    <div className="text-xs text-gray-500 line-clamp-2 mb-1">
-                      {influencer.bio}
-                    </div>
-                    <div className="text-xs text-blue-600 font-semibold">
-                      {influencer.followers.toLocaleString()} followers
-                    </div>
-                  </div>
-                  <button className="flex-shrink-0 bg-blue-600 text-white text-xs px-3 py-1 rounded-full">
-                    Follow
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Top Wardrobes Tab */}
-        {activeTab === 'top-wardrobes' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Top Virtual Wardrobes</h2>
-            <div className="space-y-4">
-              {[1, 2, 3, 4].map((item) => (
-                <div key={item} className="bg-white rounded-lg shadow-md overflow-hidden">
-                  <div className="h-8 bg-gray-100 border-b p-2 flex items-center justify-between">
-                    <div className="text-sm font-medium">Wardrobe #{item}</div>
-                    <div className="text-xs text-gray-500">@username{item}</div>
-                  </div>
-                  <div className="p-3">
-                    <div className="grid grid-cols-4 gap-1 mb-3">
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map((img) => (
-                        <div key={img} className="h-12 bg-gray-200 rounded-sm"></div>
-                      ))}
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <div className="text-gray-500">{20 + item * 10} items</div>
-                      <div className="text-blue-600">View All</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Rising Trends Tab */}
-        {activeTab === 'rising-trends' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Rising Fashion Trends</h2>
-            {loading ? (
-              <div className="text-center py-8">Loading trends...</div>
-            ) : error ? (
-              <div className="bg-red-100 text-red-700 p-3 rounded-lg">
-                {error}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {risingTrends.map((trend) => (
-                  <div key={trend.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                    <div className="h-40 bg-gray-200">
-                      <img
-                        src={trend.imageUrl}
-                        alt={trend.title}
-                        className="w-full h-full object-cover"
-                      />
+                      {look.rating_count > 0 && (
+                        <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                          <span className="inline-block">★</span> {Number(look.avg_rating).toFixed(1)}
+                          <span className="text-xs opacity-75">({look.rating_count})</span>
+                        </div>
+                      )}
                     </div>
                     <div className="p-3">
-                      <div className="font-medium">{trend.title}</div>
-                      <div className="text-xs text-gray-500 mb-2">
-                        {trend.description}
+                      <div className="flex items-center gap-2 mb-2">
+                        {look.avatar_url && (
+                          <img 
+                            src={look.avatar_url} 
+                            alt={look.username || "User"}
+                            className="w-6 h-6 rounded-full object-cover"
+                          />
+                        )}
+                        <span className="text-sm font-medium">@{look.username}</span>
                       </div>
-                      <div className="relative w-full h-2 bg-gray-200 rounded overflow-hidden">
-                        <div
-                          className="absolute top-0 left-0 h-full bg-blue-600"
-                          style={{ width: `${trend.popularity}%` }}
-                        ></div>
-                      </div>
-                      <div className="text-xs text-right mt-1">
-                        Popularity: {trend.popularity}%
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {look.description || "Trending fashion look"}
+                      </p>
+                      <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                          </svg>
+                          {look.likes || 0}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                          {look.views || 0}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill={look.avg_rating > 0 ? "currentColor" : "none"} />
+                          </svg>
+                          {look.rating_count || 0}
+                        </span>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
+            ) : (
+              <EmptyState 
+                message="No trending looks available yet" 
+                actionText="Reload Page" 
+              />
             )}
           </div>
         )}
-      </div>
-
+        
+        {/* Top Influencers */}
+        {!loading && !error && activeTab === 'top-influencers' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">Top Influencers</h2>
+            
+            {topInfluencers.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {topInfluencers.map((influencer) => (
+                  <div key={influencer.id} className="flex items-center gap-4 p-4 rounded-lg border bg-card">
+                    <div className="w-16 h-16 rounded-full overflow-hidden">
+                      <img
+                        src={influencer.avatarUrl}
+                        alt={influencer.username}
+                        className="object-cover w-full h-full"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-medium">@{influencer.username}</h3>
+                      <p className="text-sm text-muted-foreground mb-1">{influencer.followers.toLocaleString()} followers</p>
+                      <p className="text-sm line-clamp-2">{influencer.bio}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="No influencer data available yet" />
+            )}
+          </div>
+        )}
+        
+        {/* Top Wardrobes */}
+        {!loading && !error && activeTab === 'top-wardrobes' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">Top 50 Wardrobes</h2>
+            
+            {topWardrobes.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {topWardrobes.map((wardrobe) => (
+                  <div key={wardrobe.id} className="rounded-lg overflow-hidden border bg-card">
+                    <div className="p-4">
+                      <div className="flex justify-between items-start mb-1">
+                        <h3 className="font-medium">@{wardrobe.username}'s Wardrobe</h3>
+                        <div className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 text-sm font-bold rounded-full w-8 h-8 flex items-center justify-center">
+                          #{wardrobe.rank}
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {wardrobe.itemCount} items · Score: {wardrobe.rankingScore}
+                      </p>
+                      
+                      {/* Category breakdown */}
+                      <div className="mb-3">
+                        <h4 className="text-sm font-medium mb-2">Categories</h4>
+                        <div className="grid grid-cols-4 gap-2 text-xs">
+                          {Object.entries(wardrobe.categoryBreakdown).map(([category, count]) => (
+                            count > 0 && (
+                              <div key={category} className="bg-gray-50 dark:bg-gray-800 p-1 rounded text-center">
+                                <span className="font-medium">{count}</span> {category}
+                              </div>
+                            )
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {wardrobe.previewImages.length > 0 ? (
+                        <div className="grid grid-cols-4 gap-1">
+                          {wardrobe.previewImages.slice(0, 8).map((img, i) => (
+                            <div key={i} className="aspect-square">
+                              <img
+                                src={img}
+                                alt="Wardrobe item"
+                                className="object-cover w-full h-full"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No preview images available</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="No wardrobe data available yet" />
+            )}
+          </div>
+        )}
+        
+        {/* Rising Trends */}
+        {!loading && !error && activeTab === 'rising-trends' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">Rising Trends</h2>
+            
+            {risingTrends.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {risingTrends.map((trend) => (
+                  <div key={trend.id} className="rounded-lg overflow-hidden border bg-card">
+                    <div className="aspect-video relative">
+                      <img
+                        src={trend.imageUrl}
+                        alt={trend.title}
+                        className="object-cover w-full h-full"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+                        <div className="p-3 text-white">
+                          <h3 className="font-medium">{trend.title}</h3>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <p className="text-sm text-muted-foreground">{trend.description}</p>
+                      <div className="mt-2 flex items-center">
+                        <div className="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full">
+                          {trend.popularity}% trending
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="No trend data available yet" />
+            )}
+          </div>
+        )}
+      </main>
+      
       <BottomNav />
     </div>
   );

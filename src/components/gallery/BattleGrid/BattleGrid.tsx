@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trophy } from 'lucide-react';
+import { Trophy, ImageOff, Loader2 } from 'lucide-react';
+import SupabaseImage from '@/components/ui/supabase-image';
 
 interface BattleItem {
   look_id?: string;
@@ -28,12 +29,41 @@ interface BattleGridProps {
 
 const BattleGrid: React.FC<BattleGridProps> = ({ items }) => {
   const [winners, setWinners] = useState<Record<string, 'main' | 'option1' | 'option2'>>({});
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   const handleVote = (battleId: string, option: 'main' | 'option1' | 'option2') => {
     setWinners(prev => ({
       ...prev,
       [battleId]: option
     }));
+  };
+
+  const handleImageError = (imageKey: string, imageUrl: string) => {
+    console.error(`Failed to load image: ${imageUrl}`);
+    
+    setImageErrors(prev => ({
+      ...prev,
+      [imageKey]: true
+    }));
+  };
+
+  // Function to get proper URL for Supabase images with fallbacks
+  const getImageUrl = (url: string) => {
+    if (!url) return '';
+    
+    // Ensure URL is properly formatted
+    try {
+      // Try to create a URL object to validate it
+      new URL(url);
+      
+      // Fix any URL encoding issues that might occur with Supabase URLs
+      // Replace problematic characters in the URL if needed
+      return url.replace(/\s/g, '%20');
+    } catch (e) {
+      // If URL is invalid, log it and return empty string
+      console.error('Invalid image URL:', url);
+      return '';
+    }
   };
 
   if (!items || items.length === 0) {
@@ -58,129 +88,152 @@ const BattleGrid: React.FC<BattleGridProps> = ({ items }) => {
   }
 
   return (
-    <div className="space-y-12 py-6">
-      {items.map((item) => (
-        <Card key={item.id} className="overflow-hidden border rounded-lg shadow-md">
-          <CardContent className="p-6">
-            <h3 className="text-xl font-bold mb-3 text-center">
-              Review Your Battle
-            </h3>
-            <p className="text-gray-600 mb-6 text-center">
-              Confirm your outfit options and make a selection if you have a preference
-            </p>
-            
-            <div className="grid grid-cols-3 gap-4">
-              {/* Option 1 */}
-              {item.option1_url ? (
+    <div className="space-y-8 py-4">
+      {items.map((item) => {
+        const itemId = item.id || item.look_id || Math.random().toString();
+        const mainImageKey = `main-${itemId}`;
+        const option1Key = `option1-${itemId}`;
+        const option2Key = `option2-${itemId}`;
+        
+        // Get valid image URLs
+        const mainImageUrl = getImageUrl(item.image_url);
+        const option1ImageUrl = getImageUrl(item.option1_url || '');
+        const option2ImageUrl = getImageUrl(item.option2_url || '');
+        
+        return (
+          <Card key={itemId} className="overflow-hidden border rounded-lg shadow-md">
+            <CardContent className="p-4">
+              <h3 className="text-lg font-bold mb-2 text-center">
+                Review Your Battle
+              </h3>
+              <p className="text-gray-500 mb-4 text-center text-sm">
+                Confirm your outfit options and make a selection if you have a preference
+              </p>
+              
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {/* Option 1 */}
                 <div 
-                  className={`relative border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors ${winners[item.id || ''] === 'option1' ? 'border-blue-500 bg-blue-50' : ''}`}
-                  onClick={() => handleVote(item.id || '', 'option1')}
+                  className={`relative border rounded-lg p-2 cursor-pointer hover:border-blue-500 transition-colors ${winners[itemId] === 'option1' ? 'border-blue-500 bg-blue-50' : ''}`}
+                  onClick={() => option1ImageUrl ? handleVote(itemId, 'option1') : null}
                 >
-                  <h4 className="text-sm font-medium mb-2 text-center">Option 1</h4>
-                  <div className="relative rounded-lg overflow-hidden aspect-square">
-                    <img
-                      src={item.option1_url}
-                      alt="Option 1"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        console.error(`Failed to load image: ${item.option1_url}`);
-                        e.currentTarget.src = '/images/placeholder.jpg'; // Use a placeholder
-                        e.currentTarget.onerror = null; // Prevent infinite loops
-                      }}
-                    />
-                    {winners[item.id || ''] === 'option1' && (
-                      <div className="absolute top-2 right-2 bg-yellow-400 rounded-full p-1">
-                        <Trophy className="h-5 w-5 text-white" />
+                  <h4 className="text-xs font-medium mb-1 text-center">Option 1</h4>
+                  <div className="relative rounded-lg overflow-hidden aspect-square bg-gray-100">
+                    {option1ImageUrl ? (
+                      <>
+                        <div className="w-full h-full aspect-square">
+                          <SupabaseImage
+                            src={option1ImageUrl}
+                            alt="Option 1"
+                            className="aspect-square"
+                            fill
+                            sizes="(max-width: 640px) 50vw, 200px"
+                            priority
+                            onError={() => handleImageError(option1Key, option1ImageUrl)}
+                          />
+                        </div>
+                        
+                        {winners[itemId] === 'option1' && (
+                          <div className="absolute top-1 right-1 bg-yellow-400 rounded-full p-1 z-20">
+                            <Trophy className="h-4 w-4 text-white" />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="aspect-square rounded-lg flex items-center justify-center bg-gray-100">
+                        <p className="text-gray-400 text-xs text-center p-2">Not available</p>
                       </div>
                     )}
                   </div>
-                  <p className="text-center mt-2">Option 1</p>
                 </div>
-              ) : (
-                <div className="relative border rounded-lg p-4 bg-gray-50">
-                  <h4 className="text-sm font-medium mb-2 text-center text-gray-500">Option 1</h4>
-                  <div className="aspect-square rounded-lg flex items-center justify-center bg-gray-100">
-                    <p className="text-gray-400 text-sm text-center p-4">Option 1 not available</p>
+                
+                {/* Option 2 */}
+                <div 
+                  className={`relative border rounded-lg p-2 cursor-pointer hover:border-blue-500 transition-colors ${winners[itemId] === 'option2' ? 'border-blue-500 bg-blue-50' : ''}`}
+                  onClick={() => option2ImageUrl ? handleVote(itemId, 'option2') : null}
+                >
+                  <h4 className="text-xs font-medium mb-1 text-center">Option 2</h4>
+                  <div className="relative rounded-lg overflow-hidden aspect-square bg-gray-100">
+                    {option2ImageUrl ? (
+                      <>
+                        <div className="w-full h-full aspect-square">
+                          <SupabaseImage
+                            src={option2ImageUrl}
+                            alt="Option 2"
+                            className="aspect-square"
+                            fill
+                            sizes="(max-width: 640px) 50vw, 200px"
+                            priority
+                            onError={() => handleImageError(option2Key, option2ImageUrl)}
+                          />
+                        </div>
+                        
+                        {winners[itemId] === 'option2' && (
+                          <div className="absolute top-1 right-1 bg-yellow-400 rounded-full p-1 z-20">
+                            <Trophy className="h-4 w-4 text-white" />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="aspect-square rounded-lg flex items-center justify-center bg-gray-100">
+                        <p className="text-gray-400 text-xs text-center p-2">Not available</p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
-              
-              {/* Main Image */}
-              <div 
-                className={`relative border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors ${winners[item.id || ''] === 'main' ? 'border-blue-500 bg-blue-50' : ''}`}
-                onClick={() => handleVote(item.id || '', 'main')}
-              >
-                <h4 className="text-sm font-medium mb-2 text-center">Main Outfit</h4>
-                <div className="relative rounded-lg overflow-hidden aspect-square">
-                  <img
-                    src={item.image_url}
-                    alt="Main outfit"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      console.error(`Failed to load image: ${item.image_url}`);
-                      e.currentTarget.src = '/images/placeholder.jpg'; // Use a placeholder
-                      e.currentTarget.onerror = null; // Prevent infinite loops
-                    }}
-                  />
-                  {winners[item.id || ''] === 'main' && (
-                    <div className="absolute top-2 right-2 bg-yellow-400 rounded-full p-1">
-                      <Trophy className="h-5 w-5 text-white" />
-                    </div>
-                  )}
+                
+                {/* Main Image - shows in the second row on mobile, in the middle on larger screens */}
+                <div 
+                  className={`relative border rounded-lg p-2 cursor-pointer hover:border-blue-500 transition-colors col-span-2 sm:col-span-1 sm:col-start-2 sm:row-start-1 mt-3 sm:mt-0 ${winners[itemId] === 'main' ? 'border-blue-500 bg-blue-50' : ''}`}
+                  onClick={() => mainImageUrl ? handleVote(itemId, 'main') : null}
+                >
+                  <h4 className="text-xs font-medium mb-1 text-center">Main Outfit</h4>
+                  <div className="relative rounded-lg overflow-hidden aspect-square bg-gray-100">
+                    {mainImageUrl ? (
+                      <>
+                        <div className="w-full h-full aspect-square">
+                          <SupabaseImage
+                            src={mainImageUrl}
+                            alt="Main outfit"
+                            className="aspect-square"
+                            fill
+                            sizes="(max-width: 640px) 100vw, 300px"
+                            priority
+                            onError={() => handleImageError(mainImageKey, mainImageUrl)}
+                          />
+                        </div>
+                        
+                        {winners[itemId] === 'main' && (
+                          <div className="absolute top-1 right-1 bg-yellow-400 rounded-full p-1 z-20">
+                            <Trophy className="h-4 w-4 text-white" />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="aspect-square rounded-lg flex items-center justify-center bg-gray-100">
+                        <p className="text-gray-400 text-xs text-center p-2">Main image not available</p>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-center mt-1 text-xs">what is Looking better?</p>
                 </div>
-                <p className="text-center mt-2">what is Looking better?</p>
               </div>
               
-              {/* Option 2 */}
-              {item.option2_url ? (
-                <div 
-                  className={`relative border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors ${winners[item.id || ''] === 'option2' ? 'border-blue-500 bg-blue-50' : ''}`}
-                  onClick={() => handleVote(item.id || '', 'option2')}
+              <p className="text-center text-gray-500 my-3 text-xs">
+                Click on an option if you have a preference
+              </p>
+              
+              <div className="flex justify-center mt-3">
+                <Button 
+                  className="bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-md text-sm"
+                  size="sm"
                 >
-                  <h4 className="text-sm font-medium mb-2 text-center">Option 2</h4>
-                  <div className="relative rounded-lg overflow-hidden aspect-square">
-                    <img
-                      src={item.option2_url}
-                      alt="Option 2"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        console.error(`Failed to load image: ${item.option2_url}`);
-                        e.currentTarget.src = '/images/placeholder.jpg'; // Use a placeholder
-                        e.currentTarget.onerror = null; // Prevent infinite loops
-                      }}
-                    />
-                    {winners[item.id || ''] === 'option2' && (
-                      <div className="absolute top-2 right-2 bg-yellow-400 rounded-full p-1">
-                        <Trophy className="h-5 w-5 text-white" />
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-center mt-2">Option 2</p>
-                </div>
-              ) : (
-                <div className="relative border rounded-lg p-4 bg-gray-50">
-                  <h4 className="text-sm font-medium mb-2 text-center text-gray-500">Option 2</h4>
-                  <div className="aspect-square rounded-lg flex items-center justify-center bg-gray-100">
-                    <p className="text-gray-400 text-sm text-center p-4">Option 2 not available</p>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <p className="text-center text-gray-600 my-4">
-              Click on an option if you have a preference, or leave unselected to get neutral opinions
-            </p>
-            
-            <div className="flex justify-center mt-4">
-              <Button 
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md"
-              >
-                Continue to Audience Selection →
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+                  Continue →
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };

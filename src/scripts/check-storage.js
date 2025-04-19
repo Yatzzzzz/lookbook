@@ -1,0 +1,83 @@
+// Simple script to check contents of battle storage bucket
+// Run this with node src/scripts/check-storage.js
+
+const { createClient } = require('@supabase/supabase-js');
+
+// Initialize Supabase client using environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function checkStorage() {
+  console.log('Checking Supabase storage buckets...');
+
+  try {
+    // First check if the battle bucket exists
+    const { data: buckets, error: bucketsError } = await supabase
+      .storage
+      .listBuckets();
+
+    if (bucketsError) {
+      console.error('Error listing buckets:', bucketsError);
+      return;
+    }
+
+    console.log('Available buckets:', buckets.map(b => b.name));
+    
+    const battleBucket = buckets.find(b => b.name === 'battle');
+    if (!battleBucket) {
+      console.error('ERROR: No "battle" bucket found!');
+      return;
+    }
+    
+    console.log('Battle bucket exists:', battleBucket);
+    
+    // List contents of the battle bucket (root level)
+    console.log('\nListing root contents of battle bucket:');
+    const { data: rootContents, error: rootError } = await supabase
+      .storage
+      .from('battle')
+      .list('', { sortBy: { column: 'name', order: 'asc' } });
+      
+    if (rootError) {
+      console.error('Error listing battle bucket root:', rootError);
+    } else {
+      console.log(`Found ${rootContents?.length || 0} items:`, rootContents);
+      
+      // For each directory, list its contents
+      for (const item of rootContents || []) {
+        if (!item.name.includes('.')) {
+          console.log(`\nListing contents of directory "${item.name}":`)
+          const { data: folderContents, error: folderError } = await supabase
+            .storage
+            .from('battle')
+            .list(item.name, { sortBy: { column: 'name', order: 'asc' } });
+            
+          if (folderError) {
+            console.error(`Error listing folder "${item.name}":`, folderError);
+          } else {
+            console.log(`Found ${folderContents?.length || 0} items in ${item.name}:`, folderContents);
+            
+            // Try to get public URLs for a few files as a test
+            if (folderContents && folderContents.length > 0) {
+              for (const file of folderContents.slice(0, 3)) { // First 3 files
+                if (file.name.includes('.')) {
+                  const { data: urlData } = supabase
+                    .storage
+                    .from('battle')
+                    .getPublicUrl(`${item.name}/${file.name}`);
+                    
+                  console.log(`Public URL for ${item.name}/${file.name}:`, urlData.publicUrl);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Unexpected error:', error);
+  }
+}
+
+checkStorage().catch(console.error); 

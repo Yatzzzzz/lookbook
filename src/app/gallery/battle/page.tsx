@@ -814,77 +814,37 @@ function BattlePageContent() {
   const renderBattles = () => {
     if (isLoading) {
       return (
-        <div className="flex justify-center items-center p-12">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-          <span className="ml-2 text-gray-500">Loading battles...</span>
+        <div className="flex justify-center items-center p-6 min-h-[60vh]">
+          <Loader2 className="w-8 h-8 animate-spin" />
         </div>
       );
     }
 
     if (error) {
       return (
-        <div className="p-8 text-center">
-          <p className="text-red-500 mb-4">{error}</p>
-          <Button onClick={() => window.location.reload()}>
-            Try Again
-          </Button>
+        <div className="p-4 my-4 text-center text-red-500 border border-red-200 rounded-md">
+          <p className="mb-2">Error loading battle items</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       );
     }
 
-    if (battleItems.length === 0) {
+    if (!battleItems || battleItems.length === 0) {
       return (
-        <div className="p-8 text-center">
-          <p className="text-lg font-medium mb-4">No battle looks found</p>
-          <p className="text-gray-500 mb-6">Be the first to submit a battle look!</p>
-          <Link href="/upload?type=battle" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md">
-            Submit a Battle Look
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
+        <div className="p-4 my-4 text-center">
+          <p className="mb-2 text-lg">No battle items found</p>
+          <p className="text-sm text-gray-500">Try uploading a battle image with option 1 and option 2</p>
         </div>
       );
     }
 
-    // Format the items for the BattleGrid component
-    const formattedItems = formatBattleItems();
-    console.log('Final items sent to BattleGrid with all URLs:', formattedItems);
-    
-    return <BattleGrid items={formattedItems} />;
+    // Render the battles with BattleGrid component
+    return <BattleGrid items={battleItems} />;
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background pb-16">
-        <div className="flex justify-center items-center min-h-[300px] md:min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-        <BottomNav />
-      </div>
-    );
-  }
-  
-  if (error) {
-    return (
-      <div className="min-h-screen bg-background pb-16">
-        <div className="container px-4 py-6 md:py-8">
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md">
-            <p className="font-medium">Error</p>
-            <p>{error}</p>
-          </div>
-        </div>
-        <BottomNav />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background pb-16">
-      <div className="container py-6 px-4 md:py-8">
-        <h1 className="text-2xl font-bold mb-6 md:mb-8">Fashion Battles</h1>
-        
-        {renderBattles()}
-      </div>
-      <BottomNav />
+    <div className="w-full max-w-full px-2 sm:px-4 mx-auto">
+      {renderBattles()}
     </div>
   );
 }
@@ -892,7 +852,12 @@ function BattlePageContent() {
 export default function BattlePage() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BattlePageContent />
+      <div className="min-h-screen bg-white">
+        <div className="container max-w-full mx-auto pb-16">
+          <BattlePageContent />
+        </div>
+        <BottomNav activeTab="/gallery/battle" />
+      </div>
     </QueryClientProvider>
   );
 } 

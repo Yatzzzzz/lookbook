@@ -9,7 +9,7 @@ import { Loader2, ThumbsUp, ThumbsDown, Activity } from 'lucide-react';
 import styles from './styles.module.css';
 
 export default function YayOrNayPage() {
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     yayCount: 0,

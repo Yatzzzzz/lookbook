@@ -1,0 +1,9 @@
+<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="400" fill="#f3f4f6" />
+  <g>
+    <path d="M200,120 L260,220 L140,220 Z" fill="#d1d5db" />
+    <circle cx="240" cy="140" r="20" fill="#d1d5db" />
+    <path d="M120,260 C120,260 180,200 220,260 C260,320 320,260 320,260 L320,320 L120,320 Z" fill="#d1d5db" />
+  </g>
+  <text x="200" y="350" font-family="Arial" font-size="14" text-anchor="middle" fill="#6b7280">Image not available</text>
+</svg> 

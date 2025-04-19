@@ -45,7 +45,7 @@ export default function GalleryLayout({
     <GalleryContext.Provider value={{ activeSubTab, setActiveSubTab }}>
       <div className="flex flex-col min-h-screen">
         {/* Main tabs (Red square area) */}
-        <div className="sticky top-0 z-10 bg-white border-b">
+        <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <Tabs 
             value={activeMainTab} 
             className="w-full"
@@ -53,31 +53,31 @@ export default function GalleryLayout({
               setActiveMainTab(value);
             }}
           >
-            <TabsList className="w-full flex">
+            <TabsList className="w-full flex bg-gray-100 dark:bg-gray-800">
               <TabsTrigger 
                 value="gallery" 
-                className="flex-1"
+                className="flex-1 text-[#222222] dark:text-white data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
                 asChild
               >
                 <Link href="/gallery">Gallery</Link>
               </TabsTrigger>
               <TabsTrigger 
                 value="yayornay" 
-                className="flex-1"
+                className="flex-1 text-[#222222] dark:text-white data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
                 asChild
               >
                 <Link href="/gallery/yayornay">Yay or Nay</Link>
               </TabsTrigger>
               <TabsTrigger 
                 value="battle" 
-                className="flex-1"
+                className="flex-1 text-[#222222] dark:text-white data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
                 asChild
               >
                 <Link href="/gallery/battle">Battle</Link>
               </TabsTrigger>
               <TabsTrigger 
                 value="opinions" 
-                className="flex-1"
+                className="flex-1 text-[#222222] dark:text-white data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
                 asChild
               >
                 <Link href="/gallery/opinions">Opinions</Link>
@@ -88,16 +88,31 @@ export default function GalleryLayout({
 
         {/* Secondary tabs - only shown for Gallery tab (Green square area) */}
         {activeMainTab === 'gallery' && (
-          <div className="bg-white border-b">
+          <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
             <Tabs 
               value={activeSubTab} 
               className="w-full"
               onValueChange={setActiveSubTab}
             >
-              <TabsList className="w-full flex">
-                <TabsTrigger value="everyone" className="flex-1">Everyone</TabsTrigger>
-                <TabsTrigger value="following" className="flex-1">Following</TabsTrigger>
-                <TabsTrigger value="friends" className="flex-1">Friends</TabsTrigger>
+              <TabsList className="w-full flex bg-gray-100 dark:bg-gray-800">
+                <TabsTrigger 
+                  value="everyone" 
+                  className="flex-1 text-[#222222] dark:text-white data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+                >
+                  Everyone
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="following" 
+                  className="flex-1 text-[#222222] dark:text-white data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+                >
+                  Following
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="friends" 
+                  className="flex-1 text-[#222222] dark:text-white data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+                >
+                  Friends
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>

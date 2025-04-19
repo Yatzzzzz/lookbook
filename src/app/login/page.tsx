@@ -43,6 +43,11 @@ function LoginContent() {
       return;
     }
     
+    if (!supabase) {
+      setError('Could not initialize authentication client');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     

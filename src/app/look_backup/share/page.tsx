@@ -243,7 +243,7 @@ function ShareLookContent() {
       </div>
       
       {/* Native Share API Button (Mobile) */}
-      {navigator.share && (
+      {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
         <button
           onClick={handleNativeShare}
           className="w-full mb-6 px-4 py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center"
