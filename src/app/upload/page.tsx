@@ -203,6 +203,7 @@ export default function UploadPage() {
       // Prepare data to insert into the database
       const lookData = {
         user_id: user.id,
+        username: profiles?.username || null,
         image_url: publicUrl,
         description: description.trim() || null,
         upload_type: uploadType,

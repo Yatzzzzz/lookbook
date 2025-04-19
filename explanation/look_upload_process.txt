@@ -1,0 +1,243 @@
+# Look Upload Process - Technical Documentation
+
+## Overview
+This document explains the complete process flow for uploading fashion looks in the application, how they are stored in the database, retrieved for the gallery, and presented in the look details page. It also details the issues that were fixed related to username association and image accessibility.
+
+## 1. Upload Process
+
+### 1.1 User Interface
+The upload process begins in `src/app/upload/page.tsx` where users:
+- Select an image file
+- Add description (optional)
+- Add tags (optional)
+- Select upload type (Regular Look, Battle, Opinion, or Yay or Nay)
+- Choose audience visibility (Everyone, Followers, Friends)
+- Select category (Casual, Formal, Sport, etc.)
+- Choose feature destinations (Gallery, Lookbook, Trends)
+
+### 1.2 Upload Flow
+1. User submits the form
+2. Frontend validates required fields (image is mandatory)
+3. Frontend retrieves the current user from Supabase auth
+4. The username is fetched from the users table using the user_id
+5. A unique filename is generated with username directory structure: `{username}/{timestamp}.{extension}`
+6. The file is uploaded to Supabase Storage in the appropriate bucket
+7. A public URL is generated for the uploaded image
+8. Look metadata is prepared with all form data plus user_id, username, image_url, and storage_path
+9. The look data is inserted into the 'looks' table in the database
+10. User is redirected to the appropriate gallery based on upload type
+
+### 1.3 Key Code in Upload Process
+```typescript
+// Generate filename with username path
+const username = profiles?.username || user.id;
+const fileName = `${username}/${Date.now()}.${file.name.split('.').pop()}`;
+
+// Database insertion data
+const lookData = {
+  user_id: user.id,
+  username: profiles?.username || null,  // Store username directly with look
+  image_url: publicUrl,
+  description: description.trim() || null,
+  upload_type: uploadType,
+  feature_in: featureInArray,
+  audience: audience || null,
+  category: category || null,
+  tags: finalTags.length > 0 ? finalTags : null,
+  storage_bucket: uploadType === 'battle' ? 'battle' : 'looks',
+  storage_path: fileName  // Store path with username directory
+};
+```
+
+## 2. Database Storage
+
+### 2.1 Supabase Tables
+Looks are stored primarily in the 'looks' table with the following key fields:
+- look_id: Primary key and unique identifier
+- user_id: Foreign key to users table
+- username: Direct storage of username for faster retrieval
+- image_url: Public URL to access the image
+- storage_path: Path in storage bucket including username prefix
+- description: User-provided text about the look
+- tags: Array of descriptive tags
+- upload_type: Type of look (regular, battle, opinion, yayornay)
+- feature_in: Array of sections where the look should appear
+- audience: Privacy level for the look
+- category: Fashion category classification
+- created_at: Timestamp of upload
+
+### 2.2 Supabase Storage
+Images are stored in Supabase Storage buckets:
+- Regular looks go to the 'looks' bucket
+- Battle looks go to the 'battle' bucket
+- Files are organized using the pattern: `{username}/{timestamp}.{extension}`
+- This structure creates a natural organization by user
+
+### 2.3 Relation to User Data
+- The look record links to the user record via user_id foreign key
+- Username is stored directly in the look record for performance
+- The storage_path includes the username as the directory
+
+## 3. Gallery Retrieval
+
+### 3.1 Gallery Page Data Flow
+The main gallery page (`src/app/gallery/page.tsx`) retrieves looks through these steps:
+1. Fetches data from the 'looks' table with a join to the 'users' table
+2. Gets username either directly from the look record or from the joined user record
+3. Orders records by creation date (newest first)
+4. Filters based on the active tab (All, Following, Friends)
+5. Further filters to only show looks meant for the gallery
+6. Processes the looks to ensure usernames are properly extracted
+7. Renders a grid of look cards with image, username, and date
+
+### 3.2 Look Card Links
+Each look card in the gallery links to the details page using:
+```typescript
+<Link href={`/gallery/look/${encodeURIComponent(look.storage_path || look.image_url.split('/').pop() || '')}`}>
+```
+This creates a URL pattern that includes either:
+- The full storage path (preferred, includes username directory) OR
+- The filename extracted from the image URL (fallback)
+
+### 3.3 Key Code in Gallery Retrieval
+```typescript
+// Fetching looks with user data
+const { data: lookData } = await supabase
+  .from("looks")
+  .select(`
+    look_id,
+    user_id,
+    image_url,
+    description,
+    created_at,
+    audience,
+    upload_type,
+    feature_in,
+    category,
+    rating,
+    tags,
+    user:users(username),
+    storage_path
+  `)
+  .order("created_at", { ascending: false });
+
+// Processing username from different possible sources
+let username = "Anonymous";
+if (typedLook.username) {
+  username = typedLook.username;
+} else if (typedLook.user && typeof typedLook.user === 'object' && 'username' in typedLook.user) {
+  username = typedLook.user.username;
+}
+```
+
+## 4. Look Details Page
+
+### 4.1 Details Page Data Flow
+The look details page (`src/app/gallery/look/[name]/page.tsx`) retrieves and displays look information through:
+1. Extracting the filename or storage path from the URL parameters
+2. Using multiple lookup strategies to find the look:
+   a. Search by storage_path (preferred, includes username)
+   b. If not found, get the public URL and search by image_url
+   c. If still not found, try partial matching on image_url
+   d. As a last resort, try looking up by file_name
+3. Join with the users table to get username information
+4. Extract username from joined data or fetch directly if needed
+5. If tags exist, fetch related products from the products table
+6. Render the complete look details with user information, image, actions, and related products
+
+### 4.2 Username Display
+The username is displayed in multiple places:
+- User avatar with first initial
+- Username with @ prefix
+- Creation date
+- Links to user profile via username
+
+### 4.3 Key Code in Look Details
+```typescript
+// Multiple lookup strategies
+let { data: looksByPath, error: pathError } = await supabase
+  .from('looks')
+  .select('*, users:user_id(username)')
+  .ilike('storage_path', `%${fileName}%`)
+  .single();
+
+// Username extraction from joint data  
+if (looksByPath.users && looksByPath.users.username) {
+  looksByPath.username = looksByPath.users.username;
+}
+
+// Direct username lookup if needed
+if (!looksByPath.username && looksByPath.user_id) {
+  const { data: userData } = await supabase
+    .from('users')
+    .select('username')
+    .eq('id', looksByPath.user_id)
+    .single();
+    
+  if (userData && userData.username) {
+    looksByPath.username = userData.username;
+  }
+}
+```
+
+## 5. Issues Fixed
+
+### 5.1 Problem: Missing Username Association
+**Issue:** Images in the gallery were displaying as "@Anonymous" because the username wasn't properly associated with looks during upload and retrieval.
+
+**Root Causes:**
+1. Username was not being stored directly with the look data
+2. The path between look and username relied solely on user_id foreign key
+3. The join between looks and users tables was incomplete or missing
+4. The storage path didn't preserve the username directory structure
+
+**Fixes Implemented:**
+1. Modified upload process to store username directly with look data
+2. Updated storage path to include username directory: `{username}/{timestamp}.{extension}`
+3. Enhanced look details page to use multiple lookup strategies
+4. Improved username extraction from joined data
+5. Added fallback mechanisms to fetch username directly when needed
+
+### 5.2 Problem: Incorrect Image URL Construction
+**Issue:** Look details page showed 404 errors because the URL pattern `/gallery/look/1743470756053.jpg` contained only the filename without proper username context.
+
+**Root Causes:**
+1. Gallery links used only the filename from the image URL
+2. Storage path with username directory wasn't being preserved
+3. Look details page had limited lookup strategies
+
+**Fixes Implemented:**
+1. Updated gallery links to use `storage_path` when available
+2. Enhanced the look details page to find looks using multiple strategies
+3. Improved the API endpoint to include and properly process username data
+4. Added proper error handling and fallback mechanisms
+
+### 5.3 Technical Improvements
+1. **Database Schema Enhancement:**
+   - Added `storage_path` as a dedicated field to preserve username directory
+   - Added direct `username` field for performance and resilience
+
+2. **API Improvements:**
+   - Enhanced `/api/looks/route.ts` to include storage_path in the query
+   - Added username processing from joined data
+   - Improved error handling and data validation
+
+3. **UI Resilience:**
+   - Added multiple lookup strategies to find looks in different ways
+   - Implemented cascading fallbacks for username resolution
+   - Enhanced error states with informative messages
+
+## 6. Conclusion
+The look upload process now maintains a strong connection between users and their looks through:
+1. Direct username storage in the look record
+2. Username directory structure in storage paths
+3. Multiple lookup strategies in the look details page
+4. Improved joins and data processing in API endpoints
+
+These changes ensure that:
+- Usernames are consistently displayed with looks
+- Images are properly accessible in the look details page
+- The gallery correctly links to look details
+- The upload process preserves all user-look relationships
+
+The system is now more resilient to edge cases and provides a better user experience when browsing the fashion social network. 

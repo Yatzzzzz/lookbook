@@ -1,0 +1,48 @@
+# Battle & YayOrNay Fix Attempts
+
+## Initial Problem
+The Battle and YayOrNay pages were showing spinners but not displaying any content, despite the images existing in the storage buckets.
+
+## Fix Approaches Tried
+
+### 1. Code Improvements to Battle Page
+- Added additional logging for better debugging
+- Modified the storage bucket scanning to be more flexible with file naming patterns
+- Added support for multiple filename formats (timestamp-type.jpg, type-timestamp.jpg, type.jpg)
+- Made the code more resilient by allowing partial battles (just a main image without options)
+- Improved URL sanitization by replacing backslashes with forward slashes and handling spaces
+- Added detailed debug logging for URL construction
+- Fixed error handling to properly show user-friendly messages when buckets were empty
+
+### 2. Code Improvements to YayOrNay Page
+- Added multi-stage querying to try different fields (storage_bucket, feature_in)
+- Added relative path to full URL conversion for image paths
+- Added URL validation and extensive debug logging
+- Implemented fallback for fetching all looks and filtering for yaynay-related content
+
+### 3. SupabaseImage Component Improvements
+- Added more granular error handling stages
+- Enhanced logging for each stage of image loading
+- Added URL validation and sanitization
+- Implemented prefetching to validate image URLs
+- Fixed URL format issues (backslashes, spaces, etc.)
+- Added support for detecting and handling relative paths
+
+### 4. Failed Approaches
+- Debug pages: Created debug pages to inspect storage buckets, but this violated the "don't create anything" rule
+- UI/Image component: Updated the Image component, but the issues were with data retrieval and URL formatting, not the component itself
+- Path modifications: Tried adding forced URL transformations for different formats, but didn't fully solve the issue
+
+## Root Issues Identified
+1. The images in storage buckets were not being correctly located due to inflexible path handling
+2. The URL formats being stored in the database didn't match the expected formats
+3. The complex folder structure in the storage buckets wasn't being properly traversed
+4. The error handling was insufficient, causing loading spinners to continue indefinitely
+
+## Remaining Issues
+Despite our improvements to make the code more resilient and better at handling different file structures and URL formats, the pages still don't display content. Additional investigation would be needed to:
+
+1. Directly examine the Supabase storage structure at runtime to confirm path formats
+2. Check if there are permissions/RLS policy issues preventing access
+3. Verify if the database schema matches the expected structure in the code
+4. Check for network/CORS issues that might be blocking image loading 

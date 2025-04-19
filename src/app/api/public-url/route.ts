@@ -1,0 +1,33 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createApiSupabaseClient } from '@/lib/utils';
+
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createApiSupabaseClient();
+    
+    // Parse query parameters
+    const url = new URL(request.url);
+    const bucket = url.searchParams.get('bucket');
+    const path = url.searchParams.get('path');
+    
+    if (!bucket || !path) {
+      return NextResponse.json(
+        { error: 'Both bucket and path parameters are required' }, 
+        { status: 400 }
+      );
+    }
+    
+    const { data } = await supabase
+      .storage
+      .from(bucket)
+      .getPublicUrl(path);
+    
+    return NextResponse.json({ url: data.publicUrl });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    } else {
+      return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
+    }
+  }
+} 

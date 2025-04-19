@@ -107,6 +107,57 @@ async function debugUploadTypes() {
       });
     }
     
+    // 6. Test yayornay query with exact match
+    console.log('\nTesting yayornay query with eq:');
+    const { data: yayornayLooks, error: yayornayError } = await supabase
+      .from('looks')
+      .select('look_id, upload_type, feature_in, description')
+      .eq('upload_type', 'yayornay')
+      .order('created_at', { ascending: false });
+      
+    if (yayornayError) {
+      console.error('Error with yayornay query:', yayornayError);
+    } else {
+      console.log(`Found ${yayornayLooks.length} looks with upload_type = 'yayornay':`);
+      yayornayLooks.forEach((look, i) => {
+        console.log(`  ${i+1}: ${look.look_id} - ${look.upload_type} - ${look.description}`);
+      });
+    }
+    
+    // 7. Try alternative spellings
+    console.log('\nTesting alternative spelling "yaynay":');
+    const { data: yaynayLooks, error: yaynayError } = await supabase
+      .from('looks')
+      .select('look_id, upload_type, feature_in, description')
+      .eq('upload_type', 'yaynay')
+      .order('created_at', { ascending: false });
+      
+    if (yaynayError) {
+      console.error('Error with yaynay query:', yaynayError);
+    } else {
+      console.log(`Found ${yaynayLooks.length} looks with upload_type = 'yaynay':`);
+      yaynayLooks.forEach((look, i) => {
+        console.log(`  ${i+1}: ${look.look_id} - ${look.upload_type} - ${look.description}`);
+      });
+    }
+    
+    // 8. Check feature_in array for yayornay
+    console.log('\nTesting feature_in array for yayornay:');
+    const { data: featureInLooks, error: featureInError } = await supabase
+      .from('looks')
+      .select('look_id, upload_type, feature_in, description')
+      .contains('feature_in', ['yayornay'])
+      .order('created_at', { ascending: false });
+      
+    if (featureInError) {
+      console.error('Error with feature_in query:', featureInError);
+    } else {
+      console.log(`Found ${featureInLooks.length} looks with 'yayornay' in feature_in array:`);
+      featureInLooks.forEach((look, i) => {
+        console.log(`  ${i+1}: ${look.look_id} - ${look.upload_type} - feature_in: ${JSON.stringify(look.feature_in)}`);
+      });
+    }
+    
   } catch (err) {
     console.error('Error debugging upload types:', err);
   }

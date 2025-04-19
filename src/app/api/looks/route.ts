@@ -5,7 +5,8 @@ import { NextRequest, NextResponse } from 'next/server';
 // GET /api/looks - Get all looks or filter by parameters
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
     // Check if user is authenticated
     const { data: { session } } = await supabase.auth.getSession();
@@ -27,12 +28,20 @@ export async function GET(request: NextRequest) {
       .select(`
         look_id,
         user_id,
+        username,
         image_url,
         description,
+        title,
         created_at,
         ai_metadata,
         upload_type,
-        user:users(username)
+        feature_in,
+        category,
+        rating,
+        tags,
+        file_name,
+        storage_path,
+        users(username)
       `)
       .order(orderBy, { ascending: orderDirection === 'asc' })
       .range(offset, offset + limit - 1);
@@ -48,6 +57,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     
+    // Process data to ensure username is available
+    if (data) {
+      data.forEach(look => {
+        // Extract username from users relation if available
+        if (look.users && look.users.username) {
+          look.username = look.users.username;
+        }
+      });
+    }
+    
     return NextResponse.json({ looks: data });
   } catch (error: unknown) {
     if (error instanceof Error) {
@@ -61,13 +80,11 @@ export async function GET(request: NextRequest) {
 // POST /api/looks - Create a new look
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
     // Check if user is authenticated
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    
+    const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -77,32 +94,65 @@ export async function POST(request: NextRequest) {
     
     // Validate required fields
     if (!body.image_url) {
-      return NextResponse.json({ error: 'Image URL is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Image URL is required' },
+        { status: 400 }
+      );
     }
     
-    // Set defaults and prepare data
-    const lookData = {
-      user_id: session.user.id,
-      image_url: body.image_url,
-      description: body.description || null,
-      upload_type: body.upload_type || 'look',
-      ai_metadata: body.ai_metadata || null,
-      audience: body.audience || 'everyone',
-      excluded_users: body.excluded_users || null,
-    };
+    // Extract the file name from the URL if not provided
+    if (!body.file_name && body.image_url) {
+      const urlParts = body.image_url.split('/');
+      body.file_name = urlParts[urlParts.length - 1];
+    }
     
-    // Insert into database
+    // Add user ID to the look
+    body.user_id = session.user.id;
+    
+    // Fetch the username from the users table
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('username')
+      .eq('id', session.user.id)
+      .single();
+    
+    if (userError) {
+      console.error('Error fetching username:', userError);
+    } else if (userData && userData.username) {
+      // Add username to the look data
+      body.username = userData.username;
+    }
+    
+    // Add timestamp if not provided
+    if (!body.created_at) {
+      body.created_at = new Date().toISOString();
+    }
+    
+    // Ensure tags are in the correct format
+    if (body.tags && !Array.isArray(body.tags)) {
+      if (typeof body.tags === 'string') {
+        body.tags = body.tags.split(',').map((tag: string) => tag.trim());
+      } else {
+        body.tags = [];
+      }
+    }
+    
+    console.log('Creating look with data:', body);
+    
+    // Insert the look
     const { data, error } = await supabase
       .from('looks')
-      .insert(lookData)
+      .insert(body)
       .select();
     
     if (error) {
+      console.error('Error inserting look:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     
-    return NextResponse.json({ success: true, look: data[0] });
+    return NextResponse.json({ look: data[0] });
   } catch (error: unknown) {
+    console.error('Error in POST /api/looks:', error);
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     } else {

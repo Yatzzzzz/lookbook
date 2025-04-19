@@ -101,3 +101,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Next.js team for the framework
 - Tailwind CSS for styling
 - Vercel for inspiration and examples
+
+## Troubleshooting
+
+If you encounter any issues while using the application, please check the Supabase logs or contact the development team for assistance.

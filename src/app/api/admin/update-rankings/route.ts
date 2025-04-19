@@ -1,107 +1,145 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import adminSupabase from '@/lib/admin-supabase';
+import { createClient } from '@supabase/supabase-js';
 
-// POST /api/admin/update-rankings - Trigger wardrobe rankings update
-export async function POST(request: NextRequest) {
+// Admin API to update wardrobe rankings based on item counts
+// Uses direct DB connection with service role key to bypass RLS
+
+// Fixed endpoint that requires admin privileges
+export async function POST(req: NextRequest) {
   try {
-    // Verify authentication
-    const supabase = createServerComponentClient({ cookies });
+    // Check if requester is an admin
+    const cookieStore = cookies();
+    const supabase = createServerComponentClient({ cookies: () => cookieStore });
+    
     const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session?.user) {
+    
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    // Check if user has admin privileges
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
-
-    if (userError || !userData || userData.role !== 'admin') {
-      return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+    
+    // Check if user is admin - hardcoded admin emails for security
+    // In a production app, this would be fetched from a secure admin table
+    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
+    
+    if (!adminEmails.includes(session.user.email)) {
+      console.log(`Unauthorized admin access attempt: ${session.user.email}`);
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-
-    // Call the stored function to update rankings
-    const { error } = await adminSupabase.rpc('update_wardrobe_rankings');
-
-    if (error) {
-      console.error('Error updating rankings:', error);
-      return NextResponse.json({ error: 'Failed to update rankings' }, { status: 500 });
-    }
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Wardrobe rankings updated successfully' 
-    });
-  } catch (err: any) {
-    console.error('Error in update-rankings API:', err);
-    return NextResponse.json(
-      { error: 'Internal server error', details: err.message },
-      { status: 500 }
+    
+    // Admin supabase client with service role for unrestricted access
+    const adminSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
     );
+    
+    if (!adminSupabase) {
+      return NextResponse.json({ error: 'Admin credentials error' }, { status: 500 });
+    }
+    
+    // Get all wardrobes
+    const { data: wardrobes, error: fetchError } = await adminSupabase
+      .from('wardrobes')
+      .select('id, user_id, item_count');
+    
+    if (fetchError) {
+      console.error('Error fetching wardrobes:', fetchError);
+      return NextResponse.json({ error: 'Error fetching wardrobes' }, { status: 500 });
+    }
+    
+    // Calculate rankings based on item_count
+    const sortedWardrobes = [...wardrobes || []].sort((a, b) => 
+      (b.item_count || 0) - (a.item_count || 0)
+    );
+    
+    // Update each wardrobe with its ranking
+    const updatePromises = sortedWardrobes.map(async (wardrobe, index) => {
+      const rankingPosition = index + 1;
+      const rankingScore = 100 - (index / sortedWardrobes.length * 100);
+      
+      return adminSupabase
+        .from('wardrobes')
+        .update({
+          ranking_position: rankingPosition,
+          ranking_score: Math.round(rankingScore * 100) / 100,  // Round to 2 decimal places
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', wardrobe.id);
+    });
+    
+    await Promise.all(updatePromises);
+    
+    return NextResponse.json({
+      success: true,
+      message: `Updated rankings for ${sortedWardrobes.length} wardrobes`
+    });
+    
+  } catch (error) {
+    console.error('Error updating wardrobe rankings:', error);
+    return NextResponse.json({ 
+      error: 'Failed to update rankings',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 
-// GET /api/admin/update-rankings - Get current ranking stats
-export async function GET(request: NextRequest) {
+// GET endpoint to just get current rankings (also requires admin)
+export async function GET(req: NextRequest) {
   try {
-    // Verify authentication
-    const supabase = createServerComponentClient({ cookies });
+    // Check if requester is an admin
+    const cookieStore = cookies();
+    const supabase = createServerComponentClient({ cookies: () => cookieStore });
+    
     const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session?.user) {
+    
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    // Check if user has admin privileges
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
-
-    if (userError || !userData || userData.role !== 'admin') {
-      return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+    
+    // Check if user is admin
+    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
+    
+    if (!adminEmails.includes(session.user.email)) {
+      console.log(`Unauthorized admin access attempt: ${session.user.email}`);
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-
-    // Get statistics about rankings
-    const { data: rankingStats, error: statsError } = await adminSupabase
+    
+    // Admin supabase client
+    const adminSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    );
+    
+    // Get all wardrobes with rankings
+    const { data: wardrobes, error: fetchError } = await adminSupabase
       .from('wardrobes')
-      .select('id, ranking_position')
+      .select(`
+        id, 
+        user_id, 
+        item_count, 
+        ranking_position,
+        ranking_score,
+        users:user_id (username, email)
+      `)
       .order('ranking_position', { ascending: true });
-
-    if (statsError) {
-      console.error('Error fetching ranking stats:', statsError);
-      return NextResponse.json({ error: 'Failed to fetch ranking statistics' }, { status: 500 });
+    
+    if (fetchError) {
+      console.error('Error fetching wardrobe rankings:', fetchError);
+      return NextResponse.json({ error: 'Error fetching rankings' }, { status: 500 });
     }
-
-    // Get count of users with wardrobes
-    const { count, error: countError } = await adminSupabase
-      .from('wardrobes')
-      .select('*', { count: 'exact', head: true });
-
-    if (countError) {
-      console.error('Error counting wardrobes:', countError);
-      return NextResponse.json({ error: 'Failed to count wardrobes' }, { status: 500 });
-    }
-
+    
     return NextResponse.json({
       success: true,
-      stats: {
-        totalWardrobes: count,
-        rankedWardrobes: rankingStats.filter(w => w.ranking_position !== null).length,
-        topRanked: rankingStats.slice(0, 10).map(w => w.id)
-      }
+      count: wardrobes?.length || 0,
+      rankings: wardrobes
     });
-  } catch (err: any) {
-    console.error('Error in fetch ranking stats API:', err);
-    return NextResponse.json(
-      { error: 'Internal server error', details: err.message },
-      { status: 500 }
-    );
+    
+  } catch (error) {
+    console.error('Error fetching wardrobe rankings:', error);
+    return NextResponse.json({ 
+      error: 'Failed to fetch rankings',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 } 

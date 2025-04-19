@@ -116,7 +116,13 @@ export default function YayOrNayPage() {
         .from('yaynay')
         .upload(fileName, file, {
           cacheControl: '3600',
-          upsert: true
+          upsert: true,
+          metadata: {
+            description: `Can I wear this to ${occasion.trim()}?`,
+            userId: user.id,
+            username: username,
+            timestamp: Date.now().toString()
+          }
         });
       
       if (uploadError) {
@@ -133,7 +139,16 @@ export default function YayOrNayPage() {
       console.log('File uploaded successfully, public URL:', publicUrl);
       
       // Insert record into looks table
-      const lookData = {
+      const lookData: {
+        user_id: string;
+        image_url: string;
+        description: string;
+        upload_type: string;
+        feature_in: string[];
+        audience: AudienceType;
+        storage_bucket?: string;
+        storage_path?: string;
+      } = {
         user_id: user.id,
         image_url: publicUrl,
         description: `Can I wear this to ${occasion.trim()}?`,
@@ -149,7 +164,7 @@ export default function YayOrNayPage() {
         });
         
         if (columnsData && !columnsError) {
-          const columns = columnsData.map(col => col.column_name);
+          const columns = columnsData.map((col: { column_name: string }) => col.column_name);
           if (columns.includes('storage_bucket')) {
             lookData.storage_bucket = 'yaynay';
           }

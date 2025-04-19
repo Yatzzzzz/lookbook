@@ -46,6 +46,7 @@ interface Look {
   upload_type?: string;
   category?: string;
   tags?: string[];
+  storage_path?: string;
 }
 
 // Add export const dynamic to prevent prerendering during build
@@ -203,7 +204,8 @@ export default function GalleryPage() {
             category,
             rating,
             tags,
-            user:users(username)
+            user:users(username),
+            storage_path
           `)
           .order("created_at", { ascending: false });
           
@@ -233,18 +235,33 @@ export default function GalleryPage() {
                 continue;
               }
               
-              // Try to get user info
-              const { data: userData } = await supabase
-                .from("users")
-                .select("username")
-                .eq("id", look.user_id)
-                .single();
+              // Log the structure of the look data to see how username is stored
+              console.log("Look data structure:", JSON.stringify(look, null, 2));
+              
+              // Get username from different possible sources
+              let username = "Anonymous";
+              
+              // Use type assertion for safety with TypeScript
+              const typedLook = look as any;
+              
+              // Check direct username property
+              if (typedLook.username) {
+                username = typedLook.username;
+              }
+              // Check if username is in user[0] (join result)
+              else if (typedLook.user && Array.isArray(typedLook.user) && typedLook.user[0] && typedLook.user[0].username) {
+                username = typedLook.user[0].username;
+              }
+              // Check if username is in user directly (non-array format)
+              else if (typedLook.user && typeof typedLook.user === 'object' && 'username' in typedLook.user) {
+                username = typedLook.user.username;
+              }
               
               // Make sure the look has all required fields
               const processedLook = {
                 ...look,
                 look_id: look.look_id.trim(), // Ensure no whitespace
-                username: userData?.username || "Anonymous",
+                username: username,
                 audience: look.audience || 'everyone' as 'everyone',
                 feature_in: look.feature_in || ['gallery'],
                 upload_type: look.upload_type || 'regular'
@@ -252,26 +269,15 @@ export default function GalleryPage() {
                 
               processedLooks.push(processedLook);
               
-              // Initialize rating if it exists
+              // Initialize rating if available
               if (look.rating) {
-                const ratingValue = parseInt(look.rating, 10);
-                if (!isNaN(ratingValue) && ratingValue >= 1 && ratingValue <= 5) {
-                  initialRatings[look.look_id] = ratingValue;
+                const rating = parseFloat(look.rating);
+                if (!isNaN(rating)) {
+                  initialRatings[look.look_id] = rating;
                 }
               }
             } catch (err) {
-              console.warn("Error processing look:", err);
-              // If user fetch fails, still add the look without username
-              if (look.look_id) {
-                processedLooks.push({
-                  ...look,
-                  look_id: look.look_id.trim(), // Ensure no whitespace
-                  username: "Anonymous",
-                  audience: look.audience || 'everyone' as 'everyone',
-                  feature_in: look.feature_in || ['gallery'],
-                  upload_type: look.upload_type || 'regular'
-                });
-              }
+              console.error("Error processing look:", err, look);
             }
           }
           
@@ -298,7 +304,8 @@ export default function GalleryPage() {
                 created_at: file.created_at,
                 audience: 'everyone' as 'everyone',
                 feature_in: ['gallery'],
-                upload_type: 'regular'
+                upload_type: 'regular',
+                storage_path: file.name
               });
             }
           }
@@ -327,7 +334,8 @@ export default function GalleryPage() {
               created_at: file.created_at,
               audience: 'everyone' as 'everyone',
               feature_in: ['gallery'],
-              upload_type: 'regular'
+              upload_type: 'regular',
+              storage_path: file.name
             }));
             
             setAllLooks(processedLooks);
@@ -610,7 +618,7 @@ export default function GalleryPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredLooks.map((look) => (
             <div key={look.look_id} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md border border-gray-200 dark:border-gray-700">
-              <Link href={`/gallery/${look.look_id}`}>
+              <Link href={`/gallery/look/${encodeURIComponent(look.storage_path || look.image_url.split('/').pop() || '')}`}>
                 <div className="relative pb-[100%]">
                   <img 
                     src={look.image_url} 
@@ -622,7 +630,7 @@ export default function GalleryPage() {
               
               <div className="p-3">
                 <div className="flex justify-between items-center mb-2">
-                  <Link href={`/lookbook/${look.user_id}`} className="text-sm font-medium text-[#222222] dark:text-white hover:underline">
+                  <Link href={`/lookbook/${look.username || look.user_id}`} className="text-sm font-medium text-[#222222] dark:text-white hover:underline">
                     @{look.username || 'Anonymous'}
                   </Link>
                   <span className="text-xs text-[#444444] dark:text-gray-300">

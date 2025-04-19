@@ -1,10 +1,11 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { ThumbsUp, ThumbsDown, Loader2 } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Loader2, ImageOff } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import BottomNav from "@/components/BottomNav";
+import { toast } from "sonner";
 
 // Define types
 interface Look {
@@ -17,7 +18,10 @@ interface Look {
   upload_type?: string;
   feature_in?: string[];
   category?: string;
-  user?: { username: string };
+  user?: { username: string } | null;
+  folderPath?: string;
+  storage_path?: string;
+  storage_bucket?: string;
 }
 
 export default function Page() {
@@ -27,53 +31,254 @@ export default function Page() {
   const [currentLookIndex, setCurrentLookIndex] = useState(0);
   const [vote, setVote] = useState<'yay' | 'nay' | null>(null);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+  const [imageRetries, setImageRetries] = useState<Record<string, number>>({});
   const cardRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef<number | null>(null);
   const supabase = createClientComponentClient();
+  
+  // Handle image loading errors with retry mechanism
+  const handleImageError = (lookId: string) => {
+    console.error(`Failed to load image for look ${lookId}`);
+    const currentRetry = imageRetries[lookId] || 0;
+    const newRetryCount = currentRetry + 1;
+    
+    // Update retry count
+    setImageRetries(prev => ({
+      ...prev,
+      [lookId]: newRetryCount
+    }));
+    
+    // Force a re-render of the image with a new timestamp
+    if (newRetryCount <= 3) {
+      console.log(`Retrying image for look ${lookId}, attempt ${newRetryCount}/3`);
+    }
+  };
   
   // Fetch real yayornay looks from the database
   useEffect(() => {
     async function fetchLooks() {
       try {
         setLoading(true);
+        setError(null); // Reset error state at the start
+        console.log('Fetching yayornay looks from database first...');
         
-        const { data, error } = await supabase
+        // Diagnostic logging: Check what's being queried
+        console.log('DIAGNOSTIC: About to query with upload_type=yayornay');
+        
+        // First query: upload_type = 'yayornay'
+        const { data: yayornayTypeData, error: typeError } = await supabase
           .from('looks')
-          .select(`
-            look_id,
-            image_url,
-            description,
-            user_id,
-            created_at,
-            upload_type,
-            feature_in,
-            category,
-            storage_bucket,
-            user:users(username)
-          `)
-          .eq('storage_bucket', 'yaynay')
+          .select('look_id, description, user_id, created_at, image_url, storage_path, storage_bucket, user:users(username)')
+          .eq('upload_type', 'yayornay')
           .order('created_at', { ascending: false });
-        
-        if (error) {
-          console.error('Error fetching yayornay looks:', error);
-          throw error;
+
+        // Log the raw response to see what's being returned
+        console.log('DIAGNOSTIC: Raw response for yayornay query:', {
+          data: yayornayTypeData,
+          error: typeError,
+          errorMessage: typeError ? typeError.message : 'No error',
+          errorDetails: typeError ? typeError.details : 'No details'
+        });
+
+        if (typeError) {
+          console.error('Error querying by upload_type yayornay:', typeError);
+          // Track error in state but continue with next query
+          setError(`Error querying by upload_type yayornay: ${typeError.message}`);
         }
         
-        if (data && data.length > 0) {
-          // Process the looks to ensure they have all required fields
-          const processedLooks = data.map((look: any) => ({
-            ...look,
-            username: look.user?.username || 'Anonymous'
-          })) as Look[];
+        // Diagnostic logging for second query
+        console.log('DIAGNOSTIC: About to query with upload_type=yaynay');
+        
+        // Second query: upload_type = 'yaynay'
+        const { data: yaynayTypeData, error: altTypeError } = await supabase
+          .from('looks')
+          .select('look_id, description, user_id, created_at, image_url, storage_path, storage_bucket, user:users(username)')
+          .eq('upload_type', 'yaynay')
+          .order('created_at', { ascending: false });
+
+        // Log the raw response
+        console.log('DIAGNOSTIC: Raw response for yaynay query:', {
+          data: yaynayTypeData,
+          error: altTypeError,
+          errorMessage: altTypeError ? altTypeError.message : 'No error',
+          errorDetails: altTypeError ? altTypeError.details : 'No details'
+        });
+
+        if (altTypeError) {
+          console.error('Error querying by upload_type yaynay:', altTypeError);
+          // Only override previous error if there wasn't one
+          if (!error) {
+            setError(`Error querying by upload_type yaynay: ${altTypeError.message}`);
+          } else {
+            // Both queries failed - set a combined error
+            setError(`Both queries failed. Yayornay error: ${typeError?.message}. Yaynay error: ${altTypeError.message}`);
+          }
+        }
+        
+        // Combine results, removing duplicates by look_id
+        const yayNayLooksData = [
+          ...(yayornayTypeData || []), 
+          ...(yaynayTypeData || [])
+        ];
+        
+        // Diagnostic: Log raw combined data
+        console.log('DIAGNOSTIC: Combined raw data:', yayNayLooksData);
+        
+        // Remove duplicates if any
+        const uniqueIds = new Set();
+        const uniqueLooks = yayNayLooksData.filter(look => {
+          if (uniqueIds.has(look.look_id)) return false;
+          uniqueIds.add(look.look_id);
+          return true;
+        });
+        
+        console.log(`Found ${uniqueLooks.length} total yayornay looks in database:`, uniqueLooks);
+        
+        if (uniqueLooks.length > 0) {
+          console.log(`Found ${uniqueLooks.length} yayornay looks in database`);
           
+          // Process to ensure valid image URLs
+          const processedLooks: Look[] = [];
+          
+          for (const lookData of uniqueLooks) {
+            // Debug each look data
+            console.log('Processing look data:', lookData);
+            
+            // Ensure we have a valid image URL
+            let imageUrl = lookData.image_url;
+            
+            if (lookData.storage_path && (!imageUrl || !imageUrl.startsWith('http'))) {
+              const storageBucket = lookData.storage_bucket || 'yaynay';
+              console.log(`Getting public URL for ${lookData.storage_path} from bucket ${storageBucket}`);
+              
+              try {
+                // Use any type to handle potential error property
+                const result: any = supabase.storage
+                  .from(storageBucket)
+                  .getPublicUrl(lookData.storage_path);
+                
+                const { data } = result;
+                
+                // Check if there's an error property even though TypeScript doesn't expect it
+                if (result.error) {
+                  console.error(`Error getting URL for ${lookData.storage_path}:`, result.error);
+                }
+                
+                if (data?.publicUrl) {
+                  imageUrl = data.publicUrl;
+                  console.log(`Generated public URL: ${imageUrl}`);
+                } else {
+                  console.log('Failed to get public URL, data:', data);
+                }
+              } catch (urlErr) {
+                console.error('Exception getting public URL:', urlErr);
+              }
+            }
+            
+            // Get username from user object only
+            let username = 'User';
+            if (lookData.user) {
+              // Handle potentially different user object structures
+              const userObj = lookData.user;
+              if (typeof userObj === 'object' && userObj !== null) {
+                // Try to access username safely
+                if ('username' in userObj && typeof userObj.username === 'string') {
+                  username = userObj.username;
+                }
+              }
+            }
+            
+            // Create properly typed Look object
+            const newLook = {
+              look_id: lookData.look_id,
+              image_url: imageUrl,
+              description: lookData.description,
+              user_id: lookData.user_id,
+              username: username,
+              created_at: lookData.created_at,
+              folderPath: lookData.storage_path ? lookData.storage_path.split('/')[0] : undefined,
+              storage_path: lookData.storage_path,
+              storage_bucket: lookData.storage_bucket
+            };
+            
+            console.log('Created look object:', newLook);
+            processedLooks.push(newLook);
+          }
+          
+          console.log('Processed looks with validated image URLs:', processedLooks.length);
           setLooks(processedLooks);
-        } else {
-          // No looks found
-          setLooks([]);
+          setLoading(false);
+          return; // Exit early, no need to check storage
         }
-      } catch (err) {
-        console.error('Error fetching looks:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load looks');
+        
+        // If no looks found in database, fall back to storage approach
+        console.log('No yayornay looks found in database, checking storage...');
+        
+        // Get files from yaynay storage
+        const { data: files, error: listError } = await supabase.storage
+          .from('yaynay')
+          .list('', {
+            limit: 100,
+            sortBy: { column: 'created_at', order: 'desc' }
+          });
+          
+        if (listError) {
+          console.error('Error listing files:', listError);
+          throw listError;
+        }
+        
+        if (!files || files.length === 0) {
+          console.log('No files found in yaynay storage');
+          setLooks([]);
+          setLoading(false);
+          return;
+        }
+        
+        // Process image files
+        const imageFiles = files.filter(file => 
+          file.name.includes('.') && 
+          (file.name.endsWith('.jpg') || file.name.endsWith('.jpeg') || 
+           file.name.endsWith('.png') || file.name.endsWith('.gif'))
+        );
+        
+        console.log(`Found ${imageFiles.length} image files in storage but without database records`);
+        
+        // Fetch metadata and create look objects without descriptions
+        const processedLooks = [];
+        
+        for (const file of imageFiles) {
+          try {
+            // Get public URL
+            const { data: urlData } = supabase.storage
+              .from('yaynay')
+              .getPublicUrl(file.name);
+              
+            if (!urlData || !urlData.publicUrl) {
+              console.error(`Failed to get public URL for ${file.name}`);
+              continue;
+            }
+            
+            // Create look object without description
+            processedLooks.push({
+              look_id: file.id || file.name,
+              image_url: urlData.publicUrl,
+              created_at: new Date(file.created_at || Date.now()).toISOString(),
+              description: null,
+              user_id: 'anonymous',
+              username: file.name.split('/')[0] || 'User'
+            });
+          } catch (e) {
+            console.error(`Error processing file ${file.name}:`, e);
+          }
+        }
+        
+        console.log(`Created ${processedLooks.length} look objects from storage without descriptions`);
+        setLooks(processedLooks);
+      } catch (error: any) {
+        console.error('Error fetching looks:', error);
+        // Update error state with detailed message
+        setError(`Error fetching looks: ${error.message || 'Unknown error'}`);
+        setLooks([]);
       } finally {
         setLoading(false);
       }
@@ -82,228 +287,296 @@ export default function Page() {
     fetchLooks();
   }, [supabase]);
   
+  // Handle voting action
   const handleVote = (result: 'yay' | 'nay') => {
-    if (looks.length === 0) return;
-    
-    const currentLook = looks[currentLookIndex];
     setVote(result);
-    setSwipeDirection(result === 'yay' ? 'right' : 'left');
     
-    // Save vote to database
-    try {
-      // In a production app, you would store this vote in a votes table
-      console.log(`Voted ${result} for look ${currentLook.look_id}`);
-      
-      // Update the look's ratings count if needed
-      // supabase.from('looks').update({...})
-    } catch (error) {
-      console.error('Error saving vote:', error);
-    }
+    // Show toast notification
+    toast(result === 'yay' ? 'Liked!' : 'Passed!', {
+      description: result === 'yay' ? 'You liked this look' : 'You passed on this look',
+      action: {
+        label: 'Undo',
+        onClick: () => setVote(null)
+      }
+    });
     
     // Move to next look after a short delay
     setTimeout(() => {
       if (currentLookIndex < looks.length - 1) {
-        setCurrentLookIndex(currentLookIndex + 1);
-        setVote(null);
-        setSwipeDirection(null);
+        setCurrentLookIndex(prev => prev + 1);
       } else {
-        // End of items, could redirect to a thank you page or back to main gallery
-        setSwipeDirection(null);
+        // End of looks
+        toast('All done!', {
+          description: 'You\'ve seen all the looks'
+        });
       }
+      setVote(null);
+      setSwipeDirection(null);
     }, 500);
   };
-
-  // Handle touch/mouse events for swipe
+  
+  // Handle touch/swipe interactions
   const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
-    if (vote !== null) return;
-    
-    const clientX = 'touches' in e 
-      ? e.touches[0].clientX 
-      : (e as React.MouseEvent).clientX;
-    
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     startXRef.current = clientX;
   };
-
+  
   const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
-    if (vote !== null || startXRef.current === null || !cardRef.current) return;
+    if (startXRef.current === null) return;
     
-    const clientX = 'touches' in e 
-      ? e.touches[0].clientX 
-      : (e as React.MouseEvent).clientX;
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const diffX = clientX - startXRef.current;
     
-    const deltaX = clientX - startXRef.current;
-    
-    // Apply transformation during swipe
-    if (Math.abs(deltaX) > 5) {
-      const rotation = deltaX * 0.05; // Reduced rotation for more subtle effect
-      cardRef.current.style.transform = `translateX(${deltaX}px) rotate(${rotation}deg)`;
-      
-      // Show hint overlay based on swipe direction
-      if (deltaX > 50) {
-        cardRef.current.setAttribute('data-swipe', 'right');
-      } else if (deltaX < -50) {
-        cardRef.current.setAttribute('data-swipe', 'left');
+    if (Math.abs(diffX) > 50) {
+      if (diffX > 0) {
+        setSwipeDirection('right');
       } else {
-        cardRef.current.removeAttribute('data-swipe');
+        setSwipeDirection('left');
       }
+    } else {
+      setSwipeDirection(null);
+    }
+    
+    if (cardRef.current) {
+      cardRef.current.style.transform = `translateX(${diffX * 0.5}px) rotate(${diffX * 0.1}deg)`;
     }
   };
-
+  
   const handleTouchEnd = (e: React.TouchEvent | React.MouseEvent) => {
-    if (vote !== null || startXRef.current === null || !cardRef.current) return;
+    if (startXRef.current === null) return;
     
-    const clientX = 'changedTouches' in e 
-      ? e.changedTouches[0].clientX 
-      : (e as React.MouseEvent).clientX;
+    const clientX = 'changedTouches' in e ? 
+      e.changedTouches[0].clientX : 
+      (e as React.MouseEvent).clientX;
     
-    const deltaX = clientX - startXRef.current;
+    const diffX = clientX - startXRef.current;
     
-    // Reset card position if swipe wasn't far enough
-    if (Math.abs(deltaX) < 100) {
-      cardRef.current.style.transform = '';
-      cardRef.current.removeAttribute('data-swipe');
+    if (Math.abs(diffX) > 100) {
+      // Swipe was decisive enough to count as a vote
+      if (diffX > 0) {
+        handleVote('yay');
+      } else {
+        handleVote('nay');
+      }
     } else {
-      // Swipe right = Yay, Swipe left = Nay
-      handleVote(deltaX > 0 ? 'yay' : 'nay');
+      // Reset position if swipe wasn't decisive
+      if (cardRef.current) {
+        cardRef.current.style.transform = 'translateX(0) rotate(0)';
+      }
+      setSwipeDirection(null);
     }
     
     startXRef.current = null;
   };
-
-  // Reset transform when current look changes
-  useEffect(() => {
-    if (cardRef.current) {
-      cardRef.current.style.transform = '';
-      cardRef.current.removeAttribute('data-swipe');
-    }
-  }, [currentLookIndex]);
-
+  
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center pb-16">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-4" />
-        <p className="text-gray-500">Loading fashion looks...</p>
-        <BottomNav />
+      <div className="min-h-screen bg-background flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+            <p className="mt-4 text-muted-foreground">Loading looks...</p>
+          </div>
+        </div>
+        <BottomNav activeTab="/gallery/yayornay" />
       </div>
     );
   }
-
+  
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center pb-16">
-        <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-4">
-          <p className="font-bold">Error loading looks</p>
-          <p>{error}</p>
+      <div className="min-h-screen bg-background flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto px-4">
+            <div className="text-red-500 mb-4">
+              <p className="font-bold mb-2">Error loading looks:</p>
+              <p className="text-sm mb-4">{error}</p>
+              <details className="text-xs text-left bg-gray-100 dark:bg-gray-800 p-2 rounded">
+                <summary>Debug Information</summary>
+                <pre className="whitespace-pre-wrap mt-2">
+                  {JSON.stringify({ 
+                    errorMessage: error,
+                    timestamp: new Date().toISOString(),
+                    looksCount: looks.length,
+                    loadingState: loading
+                  }, null, 2)}
+                </pre>
+              </details>
+            </div>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
+          </div>
         </div>
-        <Button onClick={() => window.location.reload()}>Try Again</Button>
-        <BottomNav />
+        <BottomNav activeTab="/gallery/yayornay" />
       </div>
     );
   }
-
-  if (looks.length === 0) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center pb-16">
-        <div className="text-center mb-6">
-          <h2 className="text-xl font-semibold mb-2">No Yay or Nay Looks</h2>
-          <p className="text-muted-foreground mb-4">
-            Looks marked as yay or nay will appear here
-          </p>
-          <Button>
-            <a href="/upload">Upload Look</a>
-          </Button>
-        </div>
-        <BottomNav />
-      </div>
-    );
-  }
-
+  
   if (currentLookIndex >= looks.length) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center pb-16">
-        <div className="text-center mb-6">
-          <h2 className="text-xl font-semibold mb-2">You've seen all the looks!</h2>
-          <p className="text-gray-500 mb-4">Check back later for more fashion to rate</p>
-          <Button onClick={() => setCurrentLookIndex(0)}>Start Over</Button>
+      <div className="min-h-screen bg-background flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto px-4">
+            <p className="text-xl font-semibold mb-2">You've seen all the looks!</p>
+            <p className="text-muted-foreground mb-4">Check back later for more.</p>
+            <Button onClick={() => setCurrentLookIndex(0)}>Start Over</Button>
+          </div>
         </div>
-        <BottomNav />
+        <BottomNav activeTab="/gallery/yayornay" />
       </div>
     );
   }
-
+  
   const currentLook = looks[currentLookIndex];
-
+  
+  // Add debugging for description field
+  console.log("Current look object:", currentLook);
+  console.log("Description field:", currentLook.description);
+  
   return (
-    <div className="h-screen max-h-[812px] w-full max-w-[375px] mx-auto overflow-hidden flex flex-col bg-white">
-      {/* Card with image that can be swiped */}
-      <div 
-        ref={cardRef}
-        className={`relative flex-1 flex flex-col transition-transform ${
-          swipeDirection === 'left' ? 'animate-swipe-left' : 
-          swipeDirection === 'right' ? 'animate-swipe-right' : ''
-        }`}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onMouseDown={handleTouchStart}
-        onMouseMove={handleTouchMove}
-        onMouseUp={handleTouchEnd}
-        onMouseLeave={handleTouchEnd}
-      >
-        {/* Image container */}
-        <div className="relative flex-1 overflow-hidden">
-          <img
-            src={currentLook.image_url}
-            alt={currentLook.description || "Fashion look"}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          
-          {/* Swipe overlays */}
-          <div className="absolute inset-0 pointer-events-none">
-            {/* YAY overlay - visible on right swipe */}
-            <div className="absolute top-4 right-4 bg-green-500 text-white py-2 px-4 rounded-full font-bold rotate-12 opacity-0 card-yay">
-              YAY
-            </div>
-            
-            {/* NAY overlay - visible on left swipe */}
-            <div className="absolute top-4 left-4 bg-red-500 text-white py-2 px-4 rounded-full font-bold -rotate-12 opacity-0 card-nay">
-              NAY
-            </div>
-          </div>
-        </div>
-        
-        {/* Description text - positioned at bottom of card */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-          <div className="flex items-center mb-2">
-            <span className="text-white text-sm mr-2">@{currentLook.username || 'Anonymous'}</span>
-          </div>
-          <h2 className="text-lg font-medium text-white">
-            {currentLook.description || "What do you think of this look?"}
-          </h2>
+    <div className="min-h-screen pb-16">
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+        <div className="container flex items-center h-14">
+          <div className="text-lg md:text-xl font-semibold">Yay or Nay</div>
         </div>
       </div>
+
+      <main className="container p-4 md:p-8">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center p-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+            <p className="text-muted-foreground">Loading looks...</p>
+          </div>
+        ) : looks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-12 text-center">
+            <ImageOff className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground mb-4">No looks available for Yay or Nay right now.</p>
+            <p className="text-sm text-muted-foreground">Debug info: {error || 'No error'}</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => window.location.reload()}
+            >
+              Refresh
+            </Button>
+          </div>
+        ) : currentLookIndex >= looks.length ? (
+          <div className="flex flex-col items-center justify-center p-12 text-center">
+            <p className="mb-4">You've seen all the looks!</p>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setCurrentLookIndex(0);
+                setVote(null);
+                setSwipeDirection(null);
+              }}
+            >
+              Start Over
+            </Button>
+          </div>
+        ) : (
+          <div className="flex-1 relative px-4 py-6">
+            <div className="max-w-md mx-auto">
+              <div className="mb-4 text-center">
+                <p className="text-muted-foreground text-sm">
+                  {currentLookIndex + 1} of {looks.length}
+                </p>
+              </div>
+              
+              {/* Look Card */}
+              <div
+                ref={cardRef}
+                className={`relative bg-card rounded-lg overflow-hidden shadow-md transition-transform duration-200 border
+                  ${swipeDirection === 'right' ? 'border-green-500' : ''}
+                  ${swipeDirection === 'left' ? 'border-red-500' : ''}
+                  ${vote === 'yay' ? 'translate-x-[100vw] rotate-12' : ''}
+                  ${vote === 'nay' ? 'translate-x-[-100vw] rotate-[-12deg]' : ''}`}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onMouseDown={handleTouchStart}
+                onMouseMove={handleTouchMove}
+                onMouseUp={handleTouchEnd}
+                onMouseLeave={handleTouchEnd}
+              >
+                <div className="relative h-[60vh]">
+                  {/* Replace SupabaseImage with direct img tag */}
+                  {imageRetries[currentLook.look_id] >= 3 ? (
+                    <div className="w-full h-full flex items-center justify-center bg-muted">
+                      <ImageOff className="h-12 w-12 text-muted-foreground" />
+                      <p className="ml-2 text-muted-foreground">Image not available</p>
+                    </div>
+                  ) : (
+                    <img
+                      src={`${currentLook.image_url}${imageRetries[currentLook.look_id] ? `?retry=${Date.now()}` : ''}`}
+                      alt={currentLook.description || 'Fashion look'}
+                      className="w-full h-full object-cover"
+                      onError={() => handleImageError(currentLook.look_id)}
+                    />
+                  )}
+                  
+                  {/* Overlay for vote indication */}
+                  {swipeDirection === 'right' && (
+                    <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
+                      <div className="bg-green-500 text-white px-4 py-2 rounded-full text-lg font-bold transform rotate-[-12deg]">
+                        YAY
+                      </div>
+                    </div>
+                  )}
+                  
+                  {swipeDirection === 'left' && (
+                    <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
+                      <div className="bg-red-500 text-white px-4 py-2 rounded-full text-lg font-bold transform rotate-12">
+                        NAY
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="p-4">
+                  <p className="font-medium">@{currentLook.username}</p>
+                  {/* Display question only if description exists */}
+                  {currentLook.description && (
+                    <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mt-4 mb-2 text-center shadow-sm">
+                      <p className="font-medium text-lg">
+                        {currentLook.description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Vote Buttons with text labels */}
+              <div className="flex justify-center gap-8 mt-6">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="bg-red-100 hover:bg-red-200 border-red-300 text-red-700 rounded-full flex flex-col items-center h-20 w-20 p-2"
+                  onClick={() => handleVote('nay')}
+                >
+                  <ThumbsDown className="h-8 w-8 mb-1" />
+                  <span className="text-sm font-medium">NAY</span>
+                </Button>
+                
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="bg-green-100 hover:bg-green-200 border-green-300 text-green-700 rounded-full flex flex-col items-center h-20 w-20 p-2"
+                  onClick={() => handleVote('yay')}
+                >
+                  <ThumbsUp className="h-8 w-8 mb-1" />
+                  <span className="text-sm font-medium">YAY</span>
+                </Button>
+              </div>
+              
+              <p className="text-center text-sm text-muted-foreground mt-4">
+                Swipe right for YAY, left for NAY
+              </p>
+            </div>
+          </div>
+        )}
+      </main>
       
-      {/* Footer with buttons */}
-      <div className="p-4 flex justify-between items-center">
-        <Button 
-          onClick={() => handleVote('nay')}
-          className="bg-red-500 hover:bg-red-600 text-white rounded-full w-14 h-14 p-0"
-        >
-          <ThumbsDown className="h-5 w-5" />
-        </Button>
-        
-        <div className="text-sm text-center text-gray-500">
-          {currentLookIndex + 1} of {looks.length}
-        </div>
-        
-        <Button 
-          onClick={() => handleVote('yay')}
-          className="bg-green-500 hover:bg-green-600 text-white rounded-full w-14 h-14 p-0"
-        >
-          <ThumbsUp className="h-5 w-5" />
-        </Button>
-      </div>
-      <BottomNav />
+      <BottomNav activeTab="/gallery/yayornay" />
     </div>
   );
 } 

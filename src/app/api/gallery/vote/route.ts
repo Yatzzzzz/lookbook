@@ -5,7 +5,8 @@ import { NextRequest, NextResponse } from 'next/server';
 // POST /api/gallery/vote - Record vote for a fashion battle or look rating
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
     // Check if user is authenticated
     const {

@@ -1,35 +1,83 @@
 "use client"
 
-import NextImage, { ImageProps as NextImageProps } from "next/image"
-import * as React from "react"
+import React, { useState } from 'react';
+import NextImage from 'next/image';
+import { Loader2, ImageOff } from 'lucide-react';
 
-import { cn } from "@/lib/utils"
-
-interface ImageProps extends NextImageProps {
-  aspectRatio?: string
+interface ImageProps {
+  src: string;
+  alt: string;
+  fill?: boolean;
+  className?: string;
+  width?: number;
+  height?: number;
+  priority?: boolean;
 }
 
-const Image = React.forwardRef<HTMLImageElement, ImageProps>(
-  ({ className, aspectRatio, alt, ...props }, ref) => {
+export function Image({
+  src,
+  alt,
+  fill = false,
+  className = '',
+  width,
+  height,
+  priority = false,
+}: ImageProps) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  // Create a safe URL - handle URL encoding issues
+  const safeUrl = typeof src === 'string' ? src.replace(/\s/g, '%20').replace(/\\/g, '/') : '';
+
+  // Log attempted image load
+  console.log('Image component attempting to load:', safeUrl.substring(0, 100) + (safeUrl.length > 100 ? '...' : ''));
+
+  if (hasError) {
+    console.error('Image failed to load:', safeUrl.substring(0, 100) + (safeUrl.length > 100 ? '...' : ''));
     return (
-      <div
-        className={cn(
-          "overflow-hidden",
-          aspectRatio ? `aspect-${aspectRatio}` : "aspect-square",
-          className
-        )}
+      <div 
+        className={`flex flex-col items-center justify-center bg-gray-100 ${className}`}
+        style={fill ? undefined : { width, height }}
       >
-        <NextImage
-          ref={ref as any}
-          alt={alt}
-          className="h-full w-full object-cover"
-          {...props}
-        />
+        <ImageOff className="h-6 w-6 text-gray-400 mb-1" />
+        <p className="text-xs text-gray-500">Image not available</p>
       </div>
-    )
+    );
   }
-)
 
-Image.displayName = "Image"
+  const handleLoad = () => {
+    console.log('Image loaded successfully:', safeUrl.substring(0, 100) + (safeUrl.length > 100 ? '...' : ''));
+    setIsLoading(false);
+  };
 
-export { Image } 
+  const handleError = () => {
+    console.error('Image error occurred:', safeUrl.substring(0, 100) + (safeUrl.length > 100 ? '...' : ''));
+    setHasError(true);
+  };
+
+  return (
+    <div className={`relative ${className}`} style={fill ? undefined : { width, height }}>
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
+        </div>
+      )}
+      {!hasError && (
+        <NextImage
+          src={safeUrl}
+          alt={alt}
+          fill={fill}
+          width={!fill ? width : undefined}
+          height={!fill ? height : undefined}
+          className="object-cover"
+          priority={priority}
+          onLoad={handleLoad}
+          onError={handleError}
+          unoptimized
+        />
+      )}
+    </div>
+  );
+}
+
+export default Image; 

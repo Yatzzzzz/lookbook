@@ -21,7 +21,8 @@ export async function POST(request: NextRequest) {
     console.log('File upload API called');
     
     // Verify the user is authenticated
-    const supabase = createServerComponentClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createServerComponentClient({ cookies: () => cookieStore });
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session?.user) {

@@ -138,8 +138,8 @@ const syncAllRatings = async (supabase: any) => {
 // GET /api/admin/update-ratings - Get current rating stats
 export async function GET(request: NextRequest) {
   try {
-    // Initialize Supabase client
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
     // Verify authentication
     const { data: { session } } = await supabase.auth.getSession();
@@ -196,8 +196,8 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/update-ratings - Run rating synchronization
 export async function POST(request: NextRequest) {
   try {
-    // Initialize Supabase client
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
     // Verify authentication
     const { data: { session } } = await supabase.auth.getSession();

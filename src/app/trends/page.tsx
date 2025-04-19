@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import BottomNav from '@/components/BottomNav';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 type Trend = {
@@ -67,6 +67,7 @@ export default function TrendsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const supabase = createClientComponentClient();
+  const [isFixing, setIsFixing] = useState(false);
 
   // Verify database connection on mount
   useEffect(() => {
@@ -79,7 +80,9 @@ export default function TrendsPage() {
           .limit(1);
           
         if (error) {
-          console.error('Supabase connection error:', error);
+          console.error('Supabase connection error:', JSON.stringify(error));
+          // Connection error - try to fix
+          await fixTrendsData();
         } else {
           console.log('Supabase connection verified!', data);
         }
@@ -92,24 +95,16 @@ export default function TrendsPage() {
           .limit(1);
           
         if (ratingsError) {
-          console.error('Error accessing ratings table:', ratingsError);
-          // Try initializing the database via API
-          try {
-            console.log('Attempting to initialize database...');
-            const initResponse = await fetch('/api/init-database');
-            if (initResponse.ok) {
-              console.log('Database initialization successful');
-            } else {
-              console.error('Database initialization failed');
-            }
-          } catch (initErr) {
-            console.error('Failed to initialize database:', initErr);
-          }
+          console.error('Error accessing ratings table:', JSON.stringify(ratingsError));
+          // Ratings table error - try to fix
+          await fixTrendsData();
         } else {
           console.log('Ratings table access verified!', ratingsData);
         }
       } catch (err) {
-        console.error('Failed to verify Supabase connection:', err);
+        console.error('Failed to verify Supabase connection:', err instanceof Error ? err.message : String(err));
+        // Try to fix the trends data as a last resort
+        await fixTrendsData();
       }
     };
     
@@ -179,16 +174,15 @@ export default function TrendsPage() {
           data = featuredData;
           console.log('Successfully fetched featured looks:', featuredData.length);
         } else if (featuredError) {
-          console.error('Error with feature_in filtering:', featuredError);
+          console.error('Error with feature_in filtering:', JSON.stringify(featuredError));
           // Continue to fallbacks below
         }
       } catch (featuredErr) {
-        console.error('Exception with feature_in filtering:', featuredErr);
+        console.error('Exception with feature_in filtering:', featuredErr instanceof Error ? featuredErr.message : String(featuredErr));
         // Continue to fallbacks
       }
       
       // If no top-rated looks found, fetch looks with the highest ratings
-      // Prioritize looks with multiple ratings (at least 5 ratings from different accounts)
       if (!data || data.length === 0) {
         console.log('No featured looks found, trying looks with multiple ratings...');
         
@@ -217,11 +211,11 @@ export default function TrendsPage() {
             data = ratedLooks;
             console.log('Successfully fetched looks with multiple ratings:', ratedLooks.length);
           } else if (ratedError) {
-            console.error('Error fetching rated looks:', ratedError);
+            console.error('Error fetching rated looks:', JSON.stringify(ratedError));
             // Continue to next fallback
           }
         } catch (ratedErr) {
-          console.error('Failed to fetch rated looks:', ratedErr);
+          console.error('Failed to fetch rated looks:', ratedErr instanceof Error ? ratedErr.message : String(ratedErr));
           // Continue to the next fallback rather than exiting
         }
       }
@@ -255,11 +249,11 @@ export default function TrendsPage() {
             data = anyRatedLooks;
             console.log('Successfully fetched any rated looks:', anyRatedLooks.length);
           } else if (anyRatedError) {
-            console.error('Error fetching any rated looks:', anyRatedError);
+            console.error('Error fetching any rated looks:', JSON.stringify(anyRatedError));
             // Continue to final fallback
           }
         } catch (anyRatedErr) {
-          console.error('Failed to fetch any rated looks:', anyRatedErr);
+          console.error('Failed to fetch any rated looks:', anyRatedErr instanceof Error ? anyRatedErr.message : String(anyRatedErr));
           // Continue to last fallback
         }
       }
@@ -290,11 +284,11 @@ export default function TrendsPage() {
             data = anyLooks;
             console.log('Successfully fetched fallback looks:', anyLooks.length);
           } else if (anyLooksError) {
-            console.error('Error fetching fallback looks:', anyLooksError);
+            console.error('Error fetching fallback looks:', JSON.stringify(anyLooksError));
             // Last attempt failed
           }
         } catch (anyLooksErr) {
-          console.error('Failed to fetch any looks:', anyLooksErr);
+          console.error('Failed to fetch any looks:', anyLooksErr instanceof Error ? anyLooksErr.message : String(anyLooksErr));
           // This is the last attempt, if it fails we'll show empty state
         }
       }
@@ -321,7 +315,7 @@ export default function TrendsPage() {
         setTopLooks([]);
       }
     } catch (err) {
-      console.error('Error in fetchTopLooks:', err);
+      console.error('Error in fetchTopLooks:', err instanceof Error ? err.message : String(err));
       setError('Failed to load top looks');
     } finally {
       setLoading(false);
@@ -574,6 +568,33 @@ export default function TrendsPage() {
       setError('Failed to load trends');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Helper function to fix trends data
+  const fixTrendsData = async () => {
+    try {
+      console.log('Attempting to fix trends data...');
+      setIsFixing(true);
+      
+      // Use the direct method
+      const fixResponse = await fetch('/api/fix-trends-direct');
+      if (fixResponse.ok) {
+        console.log('Trends data fixed successfully');
+        // Reload the page to apply the changes
+        setTimeout(() => window.location.reload(), 500);
+        return;
+      }
+      
+      console.error('Failed to fix trends data:', await fixResponse.text());
+      setError('Failed to fix trends data. Please try again.');
+    } catch (err) {
+      console.error('Error fixing trends data:', err instanceof Error ? err.message : String(err));
+      setError('An error occurred while fixing trends data.');
+    } finally {
+      setTimeout(() => {
+        setIsFixing(false);
+      }, 1000);
     }
   };
 
@@ -862,6 +883,45 @@ export default function TrendsPage() {
           </div>
         )}
       </main>
+      
+      {/* Command Bar for Admins/Developers */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-16 left-0 right-0 z-50 bg-slate-100 dark:bg-slate-900 border-t p-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-amber-500" />
+            <span className="text-xs text-slate-600 dark:text-slate-400">Developer Tools</span>
+            
+            {/* Status Indicator */}
+            <div className="ml-2 px-2 py-0.5 rounded text-xs flex items-center gap-1">
+              {topLooks.length > 0 ? (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <span className="text-green-600 dark:text-green-400">{topLooks.length} top rated looks</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                  <span className="text-red-600 dark:text-red-400">No top rated looks</span>
+                </>
+              )}
+            </div>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-xs flex items-center gap-1"
+            onClick={fixTrendsData}
+            disabled={isFixing}
+          >
+            {isFixing ? (
+              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+            ) : (
+              <RefreshCw className="h-3 w-3 mr-1" />
+            )}
+            {isFixing ? 'Fixing...' : 'Fix Top Rated Looks'}
+          </Button>
+        </div>
+      )}
       
       <BottomNav />
     </div>

@@ -2,10 +2,19 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
+async function initSupabase() {
+  // This is the correct way to use cookies() in Next.js 15+
+  // We need to await cookies() as it's a dynamic API
+  const cookieStore = await cookies();
+  return createRouteHandlerClient({ 
+    cookies: () => cookieStore 
+  });
+}
+
 // POST /api/user-record - Create a user record if it doesn't exist
 export async function POST(_: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = await initSupabase();
     
     // Check if user is authenticated
     const { data: { session } } = await supabase.auth.getSession();
@@ -69,7 +78,7 @@ export async function POST(_: NextRequest) {
 
 export async function GET(_: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = await initSupabase();
     
     // Check if user is authenticated
     const { data: { session } } = await supabase.auth.getSession();

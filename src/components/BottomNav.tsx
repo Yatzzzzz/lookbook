@@ -1,8 +1,20 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from 'react';
+import {
+  Home,
+  Search,
+  Upload,
+  Sparkles,
+  User,
+  PanelTop,
+  Layers,
+  Crown,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface BottomNavProps {
   activeTab?: string;
@@ -28,7 +40,6 @@ export default function BottomNav({ activeTab: propActiveTab }: BottomNavProps =
     { name: 'Look', path: '/look', icon: '📸' },
     { name: 'Trends', path: '/trends', icon: '📈' },
     { name: 'Lookbook', path: '/lookbook', icon: '👤' },
-    { name: 'AI', path: '/ai-assistant', icon: '🤖' },
   ];
 
   return (

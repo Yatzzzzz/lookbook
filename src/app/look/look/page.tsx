@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Tag, X, ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import { Tag, X, ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import CameraUpload from '../components/camera-upload';
 import AudienceSelector, { AudienceType } from '../components/audience-selector';
+import SupabaseImage from '@/components/ui/supabase-image';
 
 interface Person {
   id: string;
@@ -111,22 +112,92 @@ export default function LookPage() {
   };
 
   // Handle audience selection complete
-  const handleAudienceComplete = (selectedAudience: AudienceType, selectedExcludedPeople: Person[]) => {
+  const handleAudienceComplete = async (selectedAudience: AudienceType, selectedExcludedPeople: Person[]) => {
     setAudience(selectedAudience);
     setExcludedPeople(selectedExcludedPeople);
+    setLoading(true);
     
-    // In a real application, save the look data to a database
-    const lookData: LookData = {
-      imageData: imageData!,
-      tags,
-      audience: selectedAudience,
-      excludedPeople: selectedExcludedPeople
-    };
-    
-    console.log('Look data saved:', lookData);
-    
-    // Return to the main options page
-    router.push('/look');
+    try {
+      // First, upload the image to Supabase storage
+      const base64Data = imageData!.split(',')[1];
+      const byteArray = Buffer.from(base64Data, 'base64');
+      
+      // Generate a unique file name
+      const fileName = `look_${Date.now()}.jpg`;
+      
+      // Upload to Supabase storage
+      const { data: storageData, error: storageError } = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileName,
+          fileData: imageData,
+        }),
+      }).then(res => res.json());
+      
+      if (storageError) {
+        throw new Error(`Storage error: ${storageError.message}`);
+      }
+      
+      // Now save the look data to the database
+      const { data: { publicUrl } } = await fetch('/api/public-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filePath: storageData.path,
+        }),
+      }).then(res => res.json());
+      
+      // Get current user information including username
+      const { data: userData, error: userError } = await fetch('/api/user/me', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }).then(res => res.json());
+      
+      if (userError) {
+        console.error("Error fetching user data:", userError);
+      }
+      
+      // Save look metadata to the database
+      const lookData = {
+        image_url: publicUrl,
+        tags: tags,
+        audience: selectedAudience,
+        // Store the file name separately to make it retrievable by the details page
+        file_name: fileName,
+        feature_in: ['gallery'], // Explicitly mark this look to appear in the gallery
+        // Include username directly with the look if available
+        username: userData?.username || null,
+      };
+      
+      const { data: dbData, error: dbError } = await fetch('/api/looks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(lookData),
+      }).then(res => res.json());
+      
+      if (dbError) {
+        throw new Error(`Database error: ${dbError.message}`);
+      }
+      
+      console.log('Look data saved successfully:', dbData);
+      
+      // Return to the main options page
+      router.push('/look');
+    } catch (err) {
+      console.error('Error saving look:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save your look');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Handle back button
@@ -141,135 +212,116 @@ export default function LookPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Share Your Look</h1>
-      
-      {/* Step 1: Upload/Camera */}
-      {step === 'upload' && (
-        <div>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Take a photo of your outfit or upload an existing image
-          </p>
-          <CameraUpload onImageCapture={handleImageCapture} />
-        </div>
-      )}
-      
-      {/* Step 2: Tags */}
-      {step === 'tags' && imageData && (
-        <div>
-          <button 
-            onClick={handleBack}
-            className="mb-4 flex items-center text-blue-500 hover:text-blue-600"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back
-          </button>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Image preview */}
-            <div>
-              <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
-                <img 
-                  src={imageData} 
-                  alt="Your look" 
-                  className="w-full h-full object-cover"
-                />
-              </div>
+    <div className="min-h-screen bg-background">
+      <div className="container pb-16">
+        {/* Handle different steps */}
+        {step === 'upload' && (
+          <div className="pt-4">
+            <h1 className="text-2xl font-bold mb-4">Upload a Look</h1>
+            <CameraUpload onImageCapture={handleImageCapture} />
+          </div>
+        )}
+
+        {step === 'tags' && (
+          <div className="pt-4">
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-2xl font-bold">Add Tags</h1>
+              <button 
+                onClick={goToAudienceStep}
+                className="px-4 py-2 bg-primary text-white rounded-lg flex items-center"
+              >
+                <span>Next</span>
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </button>
             </div>
             
-            {/* Tags section */}
-            <div>
-              <h2 className="text-lg font-medium mb-2">Add Tags</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Tags help people find your look
-              </p>
+            {imageData && (
+              <div className="relative mb-4 h-64 md:h-96 rounded-lg overflow-hidden">
+                <img src={imageData} alt="Your look" className="object-cover h-full w-full" />
+              </div>
+            )}
+            
+            {loading && (
+              <div className="flex items-center space-x-2 mb-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <p>Analyzing your look...</p>
+              </div>
+            )}
+            
+            {error && (
+              <div className="bg-red-100 text-red-600 p-3 rounded mb-4">
+                {error}
+              </div>
+            )}
+            
+            <div className="mb-4">
+              <div className="flex space-x-2 mb-2">
+                <input
+                  type="text"
+                  className="flex-1 p-2 border rounded-lg"
+                  placeholder="Add a tag (e.g., casual, summer)"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleTagInputKeyDown}
+                />
+                <button 
+                  onClick={addTag}
+                  className="p-2 bg-primary text-white rounded-lg"
+                >
+                  <Tag className="h-5 w-5" />
+                </button>
+              </div>
               
-              {loading ? (
-                <div className="text-center py-4">
-                  <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mb-2"></div>
-                  <p>Analyzing your image...</p>
-                </div>
-              ) : (
-                <>
-                  {error && (
-                    <div className="text-sm text-red-500 mb-4">
-                      {error}
-                    </div>
-                  )}
-                  
-                  {/* Tag input */}
-                  <div className="flex mb-3">
-                    <input
-                      type="text"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={handleTagInputKeyDown}
-                      placeholder="Add a tag..."
-                      className="flex-1 px-3 py-2 border border-green-500 dark:border-green-500 rounded-l-md bg-green-50 dark:bg-green-900/20 focus:outline-none focus:ring-1 focus:ring-green-500"
-                    />
-                    <button
-                      onClick={addTag}
-                      className="px-3 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 flex items-center"
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag, index) => (
+                  <div 
+                    key={index} 
+                    className="bg-muted px-3 py-1 rounded-full flex items-center"
+                  >
+                    <span>{tag}</span>
+                    <button 
+                      onClick={() => removeTag(index)}
+                      className="ml-1 p-1"
                     >
-                      <Tag className="w-4 h-4 mr-1" />
-                      Add
+                      <X className="h-3 w-3" />
                     </button>
                   </div>
-                  
-                  {/* Tag list */}
-                  <div className="mb-6">
-                    <div className="flex flex-wrap gap-2">
-                      {tags.map((tag, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full text-sm"
-                        >
-                          <span>#{tag}</span>
-                          <button
-                            onClick={() => removeTag(index)}
-                            className="ml-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                      {tags.length === 0 && (
-                        <div className="text-sm text-gray-500 italic">
-                          No tags added yet
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Next button */}
-                  <button
-                    onClick={goToAudienceStep}
-                    className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center"
-                  >
-                    Next 
-                    <ArrowRight className="w-4 h-4 ml-1" />
-                  </button>
-                </>
-              )}
+                ))}
+                {tags.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No tags yet. Add some to describe your look.</p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      
-      {/* Step 3: Audience Selection */}
-      {step === 'audience' && (
-        <div>
-          <button 
-            onClick={handleBack}
-            className="mb-4 flex items-center text-blue-500 hover:text-blue-600"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back
-          </button>
-          
-          <AudienceSelector onComplete={handleAudienceComplete} />
-        </div>
-      )}
+        )}
+
+        {step === 'audience' && (
+          <div className="pt-4">
+            <div className="flex items-center justify-between mb-4">
+              <button 
+                onClick={() => setStep('tags')}
+                className="flex items-center text-primary"
+              >
+                <ArrowLeft className="mr-1 h-4 w-4" />
+                <span>Back</span>
+              </button>
+              <h1 className="text-2xl font-bold">Choose Audience</h1>
+              <div className="w-16"></div> {/* Placeholder for balance */}
+            </div>
+            
+            {imageData && (
+              <div className="relative mb-4 h-48 md:h-64 rounded-lg overflow-hidden">
+                <img src={imageData} alt="Your look" className="object-cover h-full w-full" />
+              </div>
+            )}
+            
+            <AudienceSelector 
+              onComplete={handleAudienceComplete} 
+              loading={loading}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 } 

@@ -11,6 +11,8 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   signIn: (session: Session) => void;
   refreshSession: () => Promise<Session | null>;
+  updateUserAvatar: (avatarUrl: string) => Promise<void>;
+  updateUserMetadata: (metadata: Record<string, any>) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,6 +22,8 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
   signIn: () => {},
   refreshSession: async () => null,
+  updateUserAvatar: async () => {},
+  updateUserMetadata: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -188,6 +192,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ensureUserRecord(session.user);
   };
 
+  // Update user avatar
+  const updateUserAvatar = async (avatarUrl: string) => {
+    try {
+      setError(null);
+      
+      if (!supabase) {
+        setError("Supabase client is not initialized");
+        return;
+      }
+      
+      if (!user) {
+        setError("No authenticated user");
+        return;
+      }
+      
+      // Update user metadata with the new avatar URL
+      const { data, error: updateError } = await supabase.auth.updateUser({
+        data: {
+          avatar_url: avatarUrl,
+        }
+      });
+      
+      if (updateError) {
+        console.error('Error updating user avatar:', updateError);
+        setError(updateError.message);
+        return;
+      }
+      
+      // Update local user state
+      if (data.user) {
+        setUser(data.user);
+      }
+    } catch (err) {
+      console.error('Unexpected error updating avatar:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error updating avatar';
+      setError(errorMessage);
+    }
+  };
+  
+  // Update user metadata
+  const updateUserMetadata = async (metadata: Record<string, any>) => {
+    try {
+      setError(null);
+      
+      if (!supabase) {
+        setError("Supabase client is not initialized");
+        return;
+      }
+      
+      if (!user) {
+        setError("No authenticated user");
+        return;
+      }
+      
+      // Get current metadata and merge with new metadata
+      const currentMetadata = user.user_metadata || {};
+      const updatedMetadata = { ...currentMetadata, ...metadata };
+      
+      // Update user metadata
+      const { data, error: updateError } = await supabase.auth.updateUser({
+        data: updatedMetadata
+      });
+      
+      if (updateError) {
+        console.error('Error updating user metadata:', updateError);
+        setError(updateError.message);
+        return;
+      }
+      
+      // Update local user state
+      if (data.user) {
+        setUser(data.user);
+      }
+    } catch (err) {
+      console.error('Unexpected error updating metadata:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error updating metadata';
+      setError(errorMessage);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -195,7 +279,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error, 
       signOut, 
       signIn, 
-      refreshSession 
+      refreshSession,
+      updateUserAvatar,
+      updateUserMetadata 
     }}>
       {children}
     </AuthContext.Provider>

@@ -1,0 +1,539 @@
+# Analysis of Battle Page Image Display Issues
+
+## Overview
+The battle page (`src/app/gallery/battle/page.tsx`) is not displaying images from the Supabase storage bucket "battle" despite the bucket having anonymous select permissions and containing the proper battle look images.
+
+## Potential Issues
+
+### 1. Image Path Construction
+- The page uses a custom approach to retrieve images via `/api/direct-image` endpoint with a structure like: 
+  `${origin}/api/direct-image?bucket=battle&file=1745091293435-option2.jpg`
+- The image filenames used in the code (e.g., 1745091275702-main.jpg, 1745091287949-option1.jpg, 1745091293435-option2.jpg) might not match the actual filenames in the Supabase bucket.
+
+### 2. Supabase Storage List Operation
+- The code attempts to list files from the "battle" bucket to find available images with specific naming patterns.
+- If this list operation fails (e.g., due to permissions, service issues), it falls back to hardcoded filenames.
+- The console logging of files (`console.log("Files in battle bucket:", files);`) might show an empty list or an error.
+
+### 3. Direct-Image API Route Implementation
+- The `/api/direct-image/route.ts` endpoint handles image retrieval from Supabase storage.
+- This endpoint might be encountering errors when trying to download files from the "battle" bucket.
+- The path construction in this API could be incorrect, especially when handling folder structures.
+
+### 4. Authentication Issues
+- The battle page component creates a Supabase client with:
+  ```javascript
+  const supabase = createClientComponentClient({
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  });
+  ```
+- If these environment variables are not correctly set, the Supabase client might not have proper authentication.
+
+### 5. Error Handling in Image Component
+- The page implements error handling with retry mechanisms for image loading.
+- The error state might be triggering but not being properly displayed in the UI.
+- Check the `imageErrors` and `imageTries` state variables to see if they're incrementing.
+
+### 6. RLS Policies
+- The "battle" bucket should have a public read policy: 
+  ```sql
+  CREATE POLICY "Public can read from battle bucket"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'battle');
+  ```
+- If this policy is not applied correctly, anonymous reads might fail.
+
+### 7. Bucket Configuration
+- The "battle" bucket needs to be set as a public bucket (`public = true`).
+- If this setting is not correctly applied, public access might be restricted.
+
+### 8. File Organization
+- The images might be stored in a subfolder structure within the "battle" bucket.
+- The code might not be correctly handling folder paths when constructing URLs.
+
+### 9. Network/CORS Issues
+- Cross-Origin Resource Sharing (CORS) settings might be preventing client-side requests to the Supabase storage API.
+- Network errors might be occurring but not being properly logged or handled.
+
+### 10. Environment Configuration
+- The `.env.local` file might not have the correct Supabase URL and ANON key.
+- Production vs. development environment settings might differ.
+
+## Recommended Troubleshooting Steps
+
+1. Verify image file existence in Supabase storage using the Supabase dashboard
+2. Check console logs for any errors related to file listing or image loading
+3. Confirm that the direct-image API route is working by testing with a known valid file
+4. Verify that the RLS policies are correctly applied using the Supabase dashboard
+5. Test the bucket permissions by trying to access an image via the Supabase storage URL directly
+6. Review the environment variables to ensure they match the expected Supabase project
+7. Check for any network errors in the browser developer tools
+
+This comprehensive analysis should help identify the root cause of the image display issue on the battle page.
+
+## Investigation Findings
+
+### Issue 1: Image Path Construction Investigation
+Upon reviewing the battle page code, I found that the page constructs image URLs in two ways:
+
+1. **Dynamic detection**: The code attempts to find images by listing files in the "battle" bucket and looking for specific patterns:
+   ```javascript
+   const mainImage = files?.find(file => file.name.includes('main.jpg') || file.name.includes('-main'));
+   const option1Image = files?.find(file => file.name.includes('option1.jpg') || file.name.includes('-option1'));
+   const option2Image = files?.find(file => file.name.includes('option2.jpg') || file.name.includes('-option2'));
+   ```
+
+2. **Fallback hardcoded paths**: If the dynamic detection fails, it falls back to hardcoded filenames:
+   ```javascript
+   battleItem.image_url = `${origin}/api/direct-image?bucket=battle&file=1745091275702-main.jpg`;
+   battleItem.option1_url = `${origin}/api/direct-image?bucket=battle&file=1745091287949-option1.jpg`;
+   battleItem.option2_url = `${origin}/api/direct-image?bucket=battle&file=1745091293435-option2.jpg`;
+   ```
+
+From the screenshot provided, I can see that the filenames in the storage bucket include:
+- 1745091275702-main.jpg
+- 1745091287949-option1.jpg
+- 1745091293435-option2.jpg
+
+These match the hardcoded fallback paths in the code. However, the broken image icons in the UI suggest these paths aren't resolving correctly. This could be because:
+
+1. The files exist in a subfolder within the battle bucket, but the code is requesting them at the root level.
+2. The filenames in the code might have typos or differ slightly from the actual files.
+3. The direct-image API endpoint might not be correctly parsing these file paths.
+
+### Issue 2: Supabase Storage List Operation Investigation
+From the battle page code, I can see that it's attempting to list files in the battle bucket with the following code:
+
+```javascript
+const { data: files, error: listError } = await supabase.storage
+  .from('battle')
+  .list();
+
+if (listError) {
+  console.error("Error listing files:", listError);
+  throw new Error("Failed to retrieve battle images");
+}
+
+console.log("Files in battle bucket:", files);
+```
+
+The fact that we see broken image icons in the UI suggests one of two scenarios:
+
+1. **List operation failing**: If the list operation is failing, it would fall back to hardcoded filenames. But since the images still aren't loading, there's likely an issue with the direct-image API endpoint or the paths being used.
+
+2. **List operation succeeding but with unexpected results**: The operation might be succeeding, but returning files in a different format or structure than expected. For example:
+   - Files might be in a subfolder
+   - Files might have different naming conventions
+   - The list might be empty (if permissions aren't correctly set up)
+
+Based on the screenshots, I can see the files do exist in the Supabase storage UI, but the browser can't load them. This suggests the storage list operation might be working correctly, but there's a disconnect between how the files are being requested and how they're actually stored.
+
+### Issue 3: Direct-Image API Route Implementation Investigation
+The direct-image API route is a critical component in this system. After reviewing the code in `src/app/api/direct-image/route.ts`, I've identified several potential issues:
+
+1. **Authentication Handling**: The route creates a Supabase client using `createRouteHandlerClient({ cookies })`. This approach might be creating a client that doesn't have the correct permissions to access the storage bucket, especially if the user isn't authenticated.
+
+2. **Path Construction**: The API handles file paths in this way:
+   ```javascript
+   // Construct the path
+   const path = folder ? `${folder}/${file}` : file;
+   
+   // Download the image from Supabase storage
+   const { data, error } = await supabase.storage
+     .from(bucket)
+     .download(path);
+   ```
+
+   If the images are stored in a folder structure different from what's expected, this could cause failures. For example, if the images are in a subfolder like "user_battles" but the API is trying to access them at the root level.
+
+3. **Error Handling**: While the API has error handling, it only retries once with a different path structure if a folder was provided. If the images are in a different structure than expected, this retry logic might not be sufficient.
+
+4. **Response Formatting**: The API uses a helper function `handleImageResponse` to format the response, but if there's any issue with the content type detection or the blob conversion, it could result in broken images.
+
+Based on the screenshot where we can see the image in the Supabase Storage UI but broken images in the application, it's highly likely that the direct-image API is encountering one of these issues when trying to download the files from Supabase storage.
+
+### Issue 4: Authentication Issues Investigation
+The battle page uses client-side authentication with Supabase through the `createClientComponentClient` function:
+
+```javascript
+const supabase = createClientComponentClient({
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+});
+```
+
+Meanwhile, the direct-image API route uses server-side authentication with:
+
+```javascript
+const supabase = createRouteHandlerClient({ cookies });
+```
+
+This divergence in authentication methods could be causing issues:
+
+1. **Client-side vs. Server-side Authentication**: 
+   - The client-side authentication depends on the NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.
+   - The server-side authentication in the API route uses cookies to maintain session state.
+   - If the session cookie isn't being properly passed or if it's expired, the API route might not have the proper authentication to access the storage bucket.
+
+2. **User Authentication Check**:
+   The battle page has a user authentication check:
+   ```javascript
+   // Get the current user
+   const { data: { user } } = await supabase.auth.getUser();
+   
+   if (!user) {
+     setError("Please sign in to view battle looks");
+     setIsLoading(false);
+     return;
+   }
+   ```
+   Based on the screenshot, the user appears to be authenticated (we see "itzitczbarsly" at the top), so this check should be passing. However, this doesn't guarantee that the API route has the same authentication context.
+
+3. **Environment Variables**:
+   If the environment variables for Supabase authentication aren't correctly set, both the client-side and server-side authentication could fail. The project rules mention not to touch the `.env.local` file, which suggests these sensitive values are stored there.
+
+4. **Token Refresh**:
+   If there's an issue with token refreshing, authenticated requests might start failing after the initial token expires.
+
+Since the issue seems to be with fetching images through the API route rather than listing files (as the frontend code can detect file existence), it's possible that there's a mismatch between the authentication context in the client component and the API route.
+
+### Issue 5: Error Handling in Image Component Investigation
+The battle page implements a sophisticated error handling mechanism for image loading, which includes:
+
+1. **Error State Tracking**:
+   ```javascript
+   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+   const [imageTries, setImageTries] = useState<Record<string, number>>({});
+   const maxRetries = 2;
+   ```
+
+2. **Error Handler Function**:
+   ```javascript
+   const handleImageError = (imageId: string) => {
+     console.error(`Image failed to load: ${imageId}`);
+     
+     // Increment try count
+     const currentTry = imageTries[imageId] || 0;
+     const newTries = currentTry + 1;
+     
+     setImageTries(prev => ({
+       ...prev,
+       [imageId]: newTries
+     }));
+     
+     // If we haven't exceeded max retries, retry with timestamp to avoid cache
+     if (newTries <= maxRetries) {
+       console.log(`Retrying image ${imageId}, attempt ${newTries}/${maxRetries}`);
+       
+       // Wait a short time and force a retry
+       setTimeout(() => {
+         // Mark as not errored to trigger a re-render with a fresh URL
+         setImageErrors(prev => ({
+           ...prev,
+           [imageId]: false
+         }));
+       }, 1000 * newTries); // Increasing backoff
+     } else {
+       // Mark as errored after all retries
+       setImageErrors(prev => ({
+         ...prev,
+         [imageId]: true
+       }));
+     }
+   };
+   ```
+
+3. **Image Rendering with Error Handling**:
+   ```javascript
+   {!imageErrors[`${battle.id}-option1`] ? (
+     <img
+       src={`${battle.option1_url}${imageTries[`${battle.id}-option1`] ? `&retry=${imageTries[`${battle.id}-option1`]}` : ''}`}
+       alt="Option 1"
+       className="w-full h-full object-cover"
+       onError={() => handleImageError(`${battle.id}-option1`)}
+     />
+   ) : (
+     <div className="w-full h-full flex items-center justify-center bg-muted">
+       <ImageOff className="h-8 w-8 text-muted-foreground" />
+     </div>
+   )}
+   ```
+
+From analyzing this code, I can identify a few potential issues:
+
+1. **Error State Display**: Looking at the screenshots, we can see broken image icons, which suggests that either:
+   - The error handling is not triggering correctly (the onError event might not be firing as expected)
+   - The error state is being set, but the fallback display (`<ImageOff />`) isn't rendering correctly
+
+2. **Retry Mechanism**: The code adds a `&retry=${retry_count}` parameter to the URL when retrying to bust cache, but this might not be effective if:
+   - The direct-image API route isn't correctly processing the URL parameters
+   - The underlying issue is with authentication or path construction, not with caching
+
+3. **Console Logging**: The error handler logs detailed information about the failures, but we don't see these logs in the provided information.
+   ```javascript
+   console.error(`Image failed to load: ${imageId}`);
+   console.log(`Retrying image ${imageId}, attempt ${newTries}/${maxRetries}`);
+   ```
+   
+   If these logs were available, they would likely indicate whether the error handling is being triggered and what specific images are failing to load.
+
+4. **Timing and Race Conditions**: The retry mechanism uses setTimeout with increasing backoff (1s, 2s), which could introduce race conditions if the component is unmounted or re-rendered during this time.
+
+The behavior shown in the screenshots (broken image icons) suggests that either:
+- The initial image load is failing, and the error handling is kicking in but still failing to load the images after retries
+- The error handling is successfully detecting failures, but the fallback UI (ImageOff icon) isn't displaying properly
+
+Since we can see the broken image icons (which are browser default indicators), it seems the onError event might not be firing correctly or the UI isn't updating as expected after the errors are detected.
+
+### Issue 6: RLS Policies Investigation
+Supabase uses Row Level Security (RLS) policies to control access to data, including storage objects. From the code in `supabase/create-battle-bucket.sql`, I can see that the battle bucket should have the following RLS policy for public read access:
+
+```sql
+CREATE POLICY "Public can read from battle bucket"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'battle');
+```
+
+This policy should allow anyone, including unauthenticated users, to read files from the battle bucket. However, there are several potential issues that could occur with RLS policies:
+
+1. **Policy Not Applied**: If this policy was never applied to the storage.objects table in Supabase, or if it was later removed, public read access would be denied.
+
+2. **Policy Precedence**: If there are multiple conflicting policies for the battle bucket, a more restrictive policy might take precedence over the public read policy.
+
+3. **RLS Enforcement**: RLS policies are only enforced when using the standard Supabase client. If the direct-image API is using a different authentication method or bypassing RLS, it might not benefit from these policies.
+
+4. **Bucket Configuration vs. RLS**: The public read policy won't work if the bucket itself isn't marked as public. In the SQL file, the bucket is created with `public = true`, but if this was changed later, it could affect access.
+
+5. **Object Ownership**: The other RLS policies in the create-battle-bucket.sql file include:
+   ```sql
+   -- Allow authenticated users to insert their own files
+   CREATE POLICY "Authenticated users can upload to battle bucket"
+   ON storage.objects FOR INSERT
+   WITH CHECK (
+     bucket_id = 'battle' AND
+     auth.uid() IS NOT NULL
+   );
+
+   -- Allow users to update their own files
+   CREATE POLICY "Users can update their own files in battle bucket"
+   ON storage.objects FOR UPDATE
+   USING (
+     bucket_id = 'battle' AND
+     auth.uid() = owner
+   );
+
+   -- Allow users to delete their own files
+   CREATE POLICY "Users can delete their own files in battle bucket"
+   ON storage.objects FOR DELETE
+   USING (
+     bucket_id = 'battle' AND
+     auth.uid() = owner
+   );
+   ```
+   
+   These policies restrict update and delete operations to the file owner, but they shouldn't affect read access for public users. However, if there's an issue with how file ownership is being set when files are uploaded, it could potentially impact access.
+
+The fact that the images are visible in the Supabase Storage UI but not in the application suggests that:
+1. The RLS policies might be correctly set for the bucket
+2. The issue is more likely with how the application is trying to access these files, either in the direct-image API route or in the authentication mechanism being used.
+
+### Issue 7: Bucket Configuration Investigation
+In addition to RLS policies, Supabase storage buckets have their own configuration settings that can affect accessibility. From the `create-battle-bucket.sql` script, I can see that the battle bucket should be created with these settings:
+
+```sql
+-- Create storage bucket for battle looks if it doesn't exist
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('battle', 'battle', true)
+ON CONFLICT (id) DO NOTHING;
+```
+
+The key setting here is `public = true`, which marks the bucket as publicly accessible. While this setting works in conjunction with RLS policies, it's a separate configuration that can impact access in several ways:
+
+1. **Public Flag Overridden**: If the bucket was created correctly but later modified to set `public = false`, it would restrict public access regardless of RLS policies.
+
+2. **Bucket Existence**: If the bucket doesn't exist at all (perhaps it was deleted or never created), none of the storage operations would work. However, this seems unlikely based on the screenshots showing the files exist in storage.
+
+3. **Bucket Type**: Supabase recently introduced different bucket types (standard, private, custom). If the bucket was created with a type that restricts access, it could override the public flag.
+
+4. **File Upload Settings**: When files are uploaded to the bucket, metadata and permissions can be set. If these were set incorrectly during upload, it could affect access to specific files.
+
+5. **Storage Integration**: The bucket configuration must also be properly integrated with the Supabase Edge Functions and API, which is what the direct-image API route uses to access the files.
+
+From the screenshot, it appears the bucket exists and contains the files, which suggests that:
+1. The bucket is configured in Supabase
+2. Files have been successfully uploaded to it
+3. The Supabase UI can access these files (suggesting bucket and RLS are likely configured correctly)
+
+The issue then is more likely related to how the application is attempting to access these files through the direct-image API route, potentially due to:
+1. Authentication issues in the API route
+2. Path construction problems
+3. Environment variable misconfigurations affecting how the API connects to Supabase
+
+### Issue 8: File Organization Investigation
+The organization of files within a storage bucket can significantly impact how they are accessed. From the screenshots and code analysis, I've identified several aspects of file organization that could be causing issues:
+
+1. **Root vs Subfolder Storage**: In the Supabase storage UI screenshot, we can see files like:
+   - 1745091275702-main.jpg
+   - 1745091287949-option1.jpg
+   - 1745091293435-option2.jpg
+   
+   These appear to be stored at the root level of the "user_a41c86ee" bucket, but the code is trying to access them from the "battle" bucket. This mismatch in bucket names could be causing the issue.
+
+2. **Folder Hierarchy**: The direct-image API handles folder structure with this code:
+   ```javascript
+   const path = folder ? `${folder}/${file}` : file;
+   ```
+   
+   If the files are actually in a folder structure like `battle/user_a41c86ee/1745091275702-main.jpg` but the API is trying to access them directly at `battle/1745091275702-main.jpg`, this would cause 404 errors.
+
+3. **User-specific Folders**: The bucket structure appears to include user-specific folders (`user_a41c86ee`). If the code doesn't include this user-specific part in the path construction, it won't find the files.
+
+4. **File Naming Conventions**: The code looks for files with specific patterns:
+   ```javascript
+   const mainImage = files?.find(file => file.name.includes('main.jpg') || file.name.includes('-main'));
+   ```
+   
+   While the actual filenames like `1745091275702-main.jpg` do match these patterns, there could be issues with case sensitivity or exact pattern matching.
+
+5. **Multi-bucket Storage**: The application might be configured to use multiple storage buckets (looks, battle, etc.). If files were uploaded to a different bucket than expected, the code would fail to find them.
+
+Looking at the first screenshot specifically:
+- We see a folder/bucket named "user_a41c86ee"
+- Within it are files with timestamps as prefixes (1745091275702-main.jpg, etc.)
+- The code is trying to access these from the "battle" bucket
+
+This suggests that the files might be in a different location than what the code expects. The most likely scenario is:
+
+1. The files are stored in a user-specific folder within a bucket
+2. The code is trying to access them directly at the root level of a different bucket
+3. This mismatch in paths is causing the direct-image API to return 404 errors
+
+The correct path construction would need to include the user-specific folder if that's where the files are actually stored.
+
+### Issue 9: Network/CORS Issues Investigation
+Cross-Origin Resource Sharing (CORS) and other network-related issues can prevent applications from successfully loading images from external services like Supabase storage. After analyzing the code and screenshots, here are the potential CORS/network issues that might be affecting the battle page:
+
+1. **CORS Configuration**: Supabase requires proper CORS configuration to allow web applications to access its resources. If the Supabase project's CORS settings are not correctly configured to allow requests from the application's domain, the browser would block these requests. Specifically:
+   - The CORS settings need to allow the domain the application is running on (localhost during development, and the production domain in production)
+   - The allowed HTTP methods must include GET for image retrieval
+   - If credentials are being sent with requests, the CORS configuration must specifically allow credentials
+
+2. **API Route vs. Direct Storage URL**: The application uses a custom API route (`/api/direct-image`) to proxy requests to Supabase storage rather than accessing the storage URLs directly. This approach bypasses potential CORS issues with direct Supabase storage access, but introduces its own potential points of failure:
+   - The API route might be encountering network errors when trying to fetch from Supabase
+   - Response headers might not be properly set for the images being served
+
+3. **Network Errors**: Looking at the browser's behavior (showing broken image icons), it suggests that requests to the direct-image API are either:
+   - Failing with a network error (e.g., connection refused)
+   - Returning non-200 status codes (e.g., 404 Not Found, 403 Forbidden)
+   - Returning an invalid content type or malformed image data
+
+4. **Mixed Content Issues**: If the application is served over HTTPS but trying to load images over HTTP, modern browsers would block these requests. This is unlikely given the use of a relative path for the API endpoint, but worth checking.
+
+5. **Firewall or Proxy Issues**: If the application is being used in an environment with strict firewall rules or proxy settings, requests to Supabase might be blocked or modified.
+
+6. **Rate Limiting**: Supabase might have rate limits that the application is hitting, causing some requests to fail.
+
+7. **Browser Developer Tools**: The network tab in browser developer tools would show:
+   - The exact requests being made
+   - Response status codes
+   - Any CORS or other security errors
+   - Response headers that might indicate the issue
+
+Based on the evidence available, the most likely network/CORS issues are:
+1. The direct-image API route is failing to retrieve the images from Supabase (returning 404 or 500 errors)
+2. There might be authentication issues with the API route's requests to Supabase
+3. The browser is receiving proper error responses (not CORS errors) which is why it's showing broken image icons rather than completely failing to load
+
+The fact that we see broken image icons rather than no images at all suggests that the requests to the direct-image API route are being made and receiving responses, but those responses are error statuses rather than successful image data.
+
+### Issue 10: Environment Configuration Investigation
+Environment variables play a crucial role in connecting the application to Supabase. From the code analysis, I can see that environment variables are extensively used for Supabase authentication and API connections. Let's investigate the potential environment configuration issues:
+
+1. **Required Environment Variables**: The application requires several environment variables to connect to Supabase:
+   ```javascript
+   // Client-side variables (typically in .env.local)
+   NEXT_PUBLIC_SUPABASE_URL
+   NEXT_PUBLIC_SUPABASE_ANON_KEY
+   
+   // Server-side variables (also typically in .env.local)
+   SUPABASE_SERVICE_ROLE_KEY
+   ```
+
+2. **Client vs Server Environment Variables**: Next.js treats environment variables differently depending on their prefix:
+   - Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser
+   - Variables without this prefix are only available on the server
+   
+   This separation can sometimes lead to issues where the client-side code cannot access server-side variables or vice versa.
+
+3. **Multiple Environment Files**: Next.js supports multiple environment files (`.env`, `.env.local`, `.env.development`, `.env.production`), which can sometimes lead to confusion about which variables are being used in which environment.
+
+4. **Environment Variable Reference**: From the project rules, it's mentioned that environment variables are stored in `.env.local` and shouldn't be modified. This suggests that the configuration itself might be correct, but there could be issues with how these variables are being accessed or used.
+
+5. **Client Component vs. Server Component**: In Next.js 13+, there's a distinction between client and server components. The battle page is marked with `'use client';` at the top, making it a client component. If the environment variables aren't properly set up for client components, this could cause issues.
+
+6. **Verification in Supabase Library Initialization**: The `src/lib/supabase.ts` file contains validation checks for environment variables:
+   ```javascript
+   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+     throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_URL');
+   }
+   
+   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+     throw new Error('Missing env.SUPABASE_SERVICE_ROLE_KEY');
+   }
+   ```
+   
+   If these checks are passing, it suggests that the environment variables are at least defined, though they might still have incorrect values.
+
+7. **Different Usage in Different Components**: The battle page and the direct-image API route use different methods to initialize the Supabase client:
+   - Battle page: `createClientComponentClient({ ... })`
+   - API route: `createRouteHandlerClient({ cookies })`
+   
+   This divergence could lead to different behavior if the environment variables aren't correctly configured for both approaches.
+
+8. **Production vs. Development**: Environment variable values might differ between production and development environments. If the application works in one environment but not the other, it could indicate environment-specific configuration issues.
+
+Based on the evidence available and the project rules mentioning not to touch the `.env.local` file, it seems the environment variables themselves might be correctly configured. The issue is more likely with how they're being used in the direct-image API route or in the battle page component.
+
+Specifically, the direct-image API route's use of `createRouteHandlerClient` doesn't explicitly specify the Supabase URL or anon key, which means it's relying on environment variables being correctly set up for the server-side context. If there's any issue with these variables in the server context, it could cause the API route to fail when trying to access Supabase storage.
+
+## Conclusion and Most Likely Issues
+
+After investigating all ten potential areas of concern, the most likely causes of the battle page image display issue are:
+
+### Primary Issue: File Organization and Path Construction Mismatch
+From the screenshots, it's clear that the images exist in what appears to be a user-specific folder/bucket (`user_a41c86ee`), but the code is trying to access them from the "battle" bucket. This fundamental mismatch in path construction is the most likely cause of the issue:
+
+1. The files are visible in the Supabase Storage UI, suggesting they exist and have proper permissions
+2. The hardcoded filenames in the code match the actual file names, but the bucket or folder structure doesn't match
+3. The direct-image API is likely returning 404 errors because it can't find the files at the specified paths
+
+### Contributing Factors:
+1. **Authentication Context in API Route**: The direct-image API route uses a different authentication method (`createRouteHandlerClient`) than the battle page component, which could lead to authentication issues when trying to access the files.
+
+2. **Error Handling Implementation**: The error handling in the image component might not be triggering correctly, causing the browser to display broken image icons instead of the fallback UI.
+
+3. **Environment Configuration**: While the environment variables might be correctly set up, how they're being used in different parts of the application could be causing issues, especially in the server-side API route.
+
+### Recommended Fix:
+The most likely solution would be to modify the battle page code to correctly reference the user-specific folder when constructing image paths:
+
+```javascript
+// Instead of
+battleItem.image_url = `${origin}/api/direct-image?bucket=battle&file=1745091275702-main.jpg`;
+
+// Use
+battleItem.image_url = `${origin}/api/direct-image?bucket=battle&folder=user_a41c86ee&file=1745091275702-main.jpg`;
+```
+
+Or, if "user_a41c86ee" is actually a separate bucket (not a folder):
+
+```javascript
+// Instead of
+battleItem.image_url = `${origin}/api/direct-image?bucket=battle&file=1745091275702-main.jpg`;
+
+// Use
+battleItem.image_url = `${origin}/api/direct-image?bucket=user_a41c86ee&file=1745091275702-main.jpg`;
+```
+
+Before making this change, the browser's developer tools should be checked to confirm the exact error status codes being returned for the image requests, which would further validate this hypothesis. 

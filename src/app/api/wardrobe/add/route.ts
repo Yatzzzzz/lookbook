@@ -7,7 +7,8 @@ import adminSupabase from '../../../../lib/admin-supabase';
 export async function POST(request: NextRequest) {
   try {
     // Verify the user is authenticated
-    const supabase = createServerComponentClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createServerComponentClient({ cookies: () => cookieStore });
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session?.user) {

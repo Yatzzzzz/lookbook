@@ -4,3 +4,17 @@ import { twMerge } from "tailwind-merge"
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
+
+/**
+ * Creates a Supabase client for use in API routes, properly awaiting the cookies()
+ * call to fix the "cookies() should be awaited" warning in Next.js 15+.
+ */
+export async function createApiSupabaseClient() {
+  const { createRouteHandlerClient } = await import('@supabase/auth-helpers-nextjs');
+  const { cookies } = await import('next/headers');
+  
+  const cookieStore = await cookies();
+  return createRouteHandlerClient({ 
+    cookies: () => cookieStore 
+  });
+}
