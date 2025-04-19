@@ -5,7 +5,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Loader2, RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 interface RatingStats {
   total_looks: number;
@@ -23,7 +23,6 @@ export default function RatingsAdminPage() {
   const [authorized, setAuthorized] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClientComponentClient();
-  const { toast } = useToast();
 
   useEffect(() => {
     checkAuth();

@@ -7,6 +7,7 @@ import BottomNav from '@/components/BottomNav';
 import { WardrobeProvider } from './context/WardrobeContext';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import DbInitializer from '@/components/DbInitializer';
+import { Toaster } from 'sonner';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,7 @@ export default function RootLayout({
               <NavBar />
               <main className="max-w-7xl mx-auto p-4 pb-28">{children}</main>
               <BottomNav />
+              <Toaster position="bottom-right" />
             </WardrobeProvider>
           </AuthProvider>
         </ThemeProvider>
