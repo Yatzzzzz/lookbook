@@ -39,6 +39,7 @@ export default function BottomNav({ activeTab: propActiveTab }: BottomNavProps =
     { name: 'Search', path: '/search', icon: '🔍' },
     { name: 'Look', path: '/look', icon: '📸' },
     { name: 'Trends', path: '/trends', icon: '📈' },
+    { name: 'AI', path: '/ai-assistant', icon: '🤖' },
     { name: 'Lookbook', path: '/lookbook', icon: '👤' },
   ];
 
