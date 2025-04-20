@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useGalleryContext } from './layout';
 import { useAuth } from '@/contexts/AuthContext';
+import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -615,66 +616,71 @@ export default function GalleryPage() {
           <p className="text-[#444444] dark:text-gray-300 mt-2">Try a different filter or upload some looks!</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredLooks.map((look) => (
-            <div key={look.look_id} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md border border-gray-200 dark:border-gray-700">
-              <Link href={`/gallery/look/${encodeURIComponent(look.storage_path || look.image_url.split('/').pop() || '')}`}>
-                <div className="relative pb-[100%]">
-                  <img 
-                    src={look.image_url} 
-                    alt={look.title || "Fashion look"} 
-                    className="absolute top-0 left-0 w-full h-full object-cover"
-                  />
-                </div>
-              </Link>
-              
-              <div className="p-3">
-                <div className="flex justify-between items-center mb-2">
-                  <Link href={`/lookbook/${look.username || look.user_id}`} className="text-sm font-medium text-[#222222] dark:text-white hover:underline">
-                    @{look.username || 'Anonymous'}
-                  </Link>
-                  <span className="text-xs text-[#444444] dark:text-gray-300">
-                    {new Date(look.created_at).toLocaleDateString()}
-                  </span>
-                </div>
+        <ResponsiveMasonry
+          columnsCountBreakPoints={{ 350: 2, 700: 3, 900: 4, 1200: 5 }}
+          className="mx-auto"
+        >
+          <Masonry gutter="16px">
+            {filteredLooks.map((look) => (
+              <div key={look.look_id} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md border border-gray-200 dark:border-gray-700 mb-4">
+                <Link href={`/gallery/look/${encodeURIComponent(look.storage_path || look.image_url.split('/').pop() || '')}`}>
+                  <div className="relative">
+                    <img 
+                      src={look.image_url} 
+                      alt={look.title || "Fashion look"} 
+                      className="w-full h-auto object-cover"
+                    />
+                  </div>
+                </Link>
                 
-                {/* Rating UI */}
-                <div 
-                  ref={(el) => { sliderRefs.current[look.look_id] = el; }}
-                  className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full cursor-pointer overflow-hidden relative mt-2"
-                  onMouseMove={(e) => handleSliderMove(e, look.look_id)}
-                  onClick={() => handleSliderClick(look.look_id)}
-                >
-                  <div 
-                    className={`h-full ${
-                      savingRating[look.look_id] ? 'bg-gray-400 animate-pulse' :
-                      activeRating[look.look_id] >= 4.5 ? 'bg-green-500' :
-                      activeRating[look.look_id] >= 3.5 ? 'bg-blue-500' :
-                      activeRating[look.look_id] >= 2.5 ? 'bg-yellow-500' :
-                      'bg-red-500'
-                    }`}
-                    style={{ width: `${(activeRating[look.look_id] || 0) * 20}%` }}
-                  ></div>
+                <div className="p-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <Link href={`/lookbook/${look.username || look.user_id}`} className="text-sm font-medium text-[#222222] dark:text-white hover:underline">
+                      @{look.username || 'Anonymous'}
+                    </Link>
+                    <span className="text-xs text-[#444444] dark:text-gray-300">
+                      {new Date(look.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
                   
-                  <div className="absolute inset-0 flex items-center justify-between px-2">
-                    {[1, 2, 3, 4, 5].map(num => (
-                      <span 
-                        key={num}
-                        className={`text-xs font-bold z-10 ${
-                          (activeRating[look.look_id] || 0) >= num 
-                            ? 'text-white' 
-                            : 'text-[#222222] dark:text-white'
-                        }`}
-                      >
-                        {num}
-                      </span>
-                    ))}
+                  {/* Rating UI */}
+                  <div 
+                    ref={(el) => { sliderRefs.current[look.look_id] = el; }}
+                    className="h-6 bg-gray-200 dark:bg-gray-700 rounded-full cursor-pointer overflow-hidden relative mt-2"
+                    onMouseMove={(e) => handleSliderMove(e, look.look_id)}
+                    onClick={() => handleSliderClick(look.look_id)}
+                  >
+                    <div 
+                      className={`h-full ${
+                        savingRating[look.look_id] ? 'bg-gray-400 animate-pulse' :
+                        activeRating[look.look_id] >= 4.5 ? 'bg-green-500' :
+                        activeRating[look.look_id] >= 3.5 ? 'bg-blue-500' :
+                        activeRating[look.look_id] >= 2.5 ? 'bg-yellow-500' :
+                        'bg-red-500'
+                      }`}
+                      style={{ width: `${(activeRating[look.look_id] || 0) * 20}%` }}
+                    ></div>
+                    
+                    <div className="absolute inset-0 flex items-center justify-between px-2">
+                      {[1, 2, 3, 4, 5].map(num => (
+                        <span 
+                          key={num}
+                          className={`text-xs font-bold z-10 ${
+                            (activeRating[look.look_id] || 0) >= num 
+                              ? 'text-white' 
+                              : 'text-[#222222] dark:text-white'
+                          }`}
+                        >
+                          {num}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </Masonry>
+        </ResponsiveMasonry>
       )}
     </div>
   );
