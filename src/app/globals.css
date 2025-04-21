@@ -181,15 +181,86 @@ button {
 /* Override any dark elements with light versions */
 .bg-black,
 .bg-gray-900,
-.bg-gray-800 {
+.bg-gray-800,
+.bg-gray-700,
+.dark\:bg-gray-900,
+.dark\:bg-gray-800,
+.dark\:bg-gray-700,
+.dark\:bg-black {
   background-color: white !important;
   color: black !important;
   border: 1px solid #e2e8f0;
 }
 
+/* Target bg-black with opacity modifiers - more comprehensive patterns */
+.bg-black\/50,
+.bg-black\/60,
+.bg-black\/70,
+.bg-black\/75,
+.bg-black\/80,
+.bg-black\.opacity-50,
+.bg-black\.opacity-60,
+.bg-black\.opacity-70,
+.bg-black\.opacity-75,
+.bg-black\.opacity-80,
+[class*="bg-black/"],
+[class*="bg-black bg-opacity"],
+[class*="fixed inset-0 bg-black"],
+[class*="absolute inset-0 bg-black"] {
+  background-color: rgba(236, 242, 248, 0.85) !important;
+  color: black !important;
+  border: 1px solid #e2e8f0;
+}
+
+/* Handle child elements in dark backgrounds */
 .bg-black *,
 .bg-gray-900 *,
-.bg-gray-800 * {
+.bg-gray-800 *,
+.bg-gray-700 *,
+.bg-black\/50 *,
+.bg-black\/60 *,
+.bg-black\/70 *,
+.bg-black\/75 *,
+.dark\:bg-gray-900 *,
+.dark\:bg-gray-800 *,
+.dark\:bg-gray-700 * {
+  color: black !important;
+}
+
+/* Target all camera backgrounds and video elements with dark backgrounds */
+.camera-container,
+.video-container,
+[class*="relative w-full h-[300px] bg-black"],
+[class*="relative w-full bg-black"],
+[class*="bg-black rounded-md"],
+[class*="overflow-hidden bg-black"] {
+  background-color: white !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+/* Fix for camera preview and video elements specifically */
+video {
+  background-color: white !important;
+}
+
+/* Special components that might still have dark themes - camera and overlay positions */
+.absolute.top-4.right-4,
+.absolute.bottom-4.right-4,
+.absolute.bottom-4.left-0,
+.absolute.bottom-0.left-0.right-0,
+.absolute.top-2.right-2,
+.absolute.top-2.left-2 {
+  background-color: rgba(236, 242, 248, 0.85) !important;
+  color: black !important;
+  border: 1px solid #e2e8f0;
+}
+
+/* Darker grays used for backgrounds */
+.bg-gray-600,
+.bg-gray-500,
+.dark\:bg-gray-600,
+.dark\:bg-gray-500 {
+  background-color: #f7fafc !important;
   color: black !important;
 }
 
@@ -199,14 +270,15 @@ button {
   color: black !important;
 }
 
-.dark\:bg-gray-900 {
-  background-color: white !important;
-}
-
+/* Force override dark text classes */
 .dark\:text-gray-100,
 .dark\:text-gray-200,
 .dark\:text-gray-300,
-.dark\:text-gray-400 {
+.dark\:text-gray-400,
+.dark\:text-white,
+.dark\:text-blue-200,
+.dark\:text-blue-300,
+.dark\:text-blue-400 {
   color: black !important;
 }
 
@@ -220,4 +292,30 @@ button {
   * {
     color-scheme: light !important;
   }
+  
+  /* Force light theme for all elements */
+  div, span, p, h1, h2, h3, h4, h5, h6, button, input, textarea, select, a {
+    background-color: inherit !important;
+    color: black !important;
+  }
+  
+  /* Exception for elements that need white text (e.g., buttons with dark backgrounds) */
+  .bg-blue-600 *, .bg-blue-500 *, .bg-red-500 *, .bg-green-500 * {
+    color: white !important;
+  }
+}
+
+/* Additional override for any component-specific dark bg classes that might be used */
+[class*="dark:bg-"] {
+  background-color: white !important;
+}
+
+/* Force light theme for any modals or overlays */
+[role="dialog"],
+[role="alertdialog"],
+.dialog-content,
+.modal-content,
+.popup-content {
+  background-color: white !important;
+  color: black !important;
 }
