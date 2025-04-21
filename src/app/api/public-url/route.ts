@@ -30,4 +30,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
     }
   }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createApiSupabaseClient();
+    
+    // Get request body
+    const { filePath, bucket = 'looks' } = await request.json();
+    
+    if (!filePath) {
+      return NextResponse.json(
+        { error: 'File path is required' }, 
+        { status: 400 }
+      );
+    }
+    
+    const { data } = await supabase
+      .storage
+      .from(bucket)
+      .getPublicUrl(filePath);
+    
+    return NextResponse.json({ data: { publicUrl: data.publicUrl } });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    } else {
+      return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
+    }
+  }
 } 

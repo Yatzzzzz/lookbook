@@ -7,18 +7,18 @@ export default function InlineNavbar() {
   const pathname = usePathname();
   
   return (
-    <nav className="bg-white dark:bg-gray-900 shadow-sm">
+    <nav className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link href="/" className="text-xl font-bold text-blue-600 dark:text-blue-400">
+            <Link href="/" className="text-xl font-bold text-blue-600">
               FashionNet
             </Link>
             <div className="ml-6 flex space-x-4">
               <Link
                 href="/"
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  pathname === '/' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+                  pathname === '/' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
                 Home
@@ -26,7 +26,7 @@ export default function InlineNavbar() {
               <Link
                 href="/explore"
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  pathname === '/explore' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+                  pathname === '/explore' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
                 Explore
@@ -34,7 +34,7 @@ export default function InlineNavbar() {
               <Link
                 href="/look"
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  pathname === '/look' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+                  pathname === '/look' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
                 Share Look
@@ -44,7 +44,7 @@ export default function InlineNavbar() {
           <div className="flex items-center">
             <Link
               href="/profile"
-              className="p-2 rounded-full text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300"
+              className="p-2 rounded-full text-gray-500 hover:text-gray-600"
             >
               <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
                 👤

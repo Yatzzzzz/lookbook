@@ -51,13 +51,13 @@ body {
   font-family: var(--font-sans, Arial, Helvetica, sans-serif);
 }
 
-/* Enforce light mode text contrast */
-html.light {
+/* Force light mode */
+html {
   background-color: white;
   color-scheme: light;
 }
 
-html.light body {
+html body {
   background-color: white;
   color: black;
 }
@@ -178,16 +178,46 @@ button {
   background-color: #ffffff;
 }
 
-/* Override any dark background elements in light mode */
-.high-contrast.light .bg-black,
-.high-contrast.light .bg-gray-900,
-.high-contrast.light .bg-gray-800 {
+/* Override any dark elements with light versions */
+.bg-black,
+.bg-gray-900,
+.bg-gray-800 {
+  background-color: white !important;
+  color: black !important;
+  border: 1px solid #e2e8f0;
+}
+
+.bg-black *,
+.bg-gray-900 *,
+.bg-gray-800 * {
+  color: black !important;
+}
+
+/* Explicitly handle any dark classes that might be applied */
+.dark {
   background-color: white !important;
   color: black !important;
 }
 
-.high-contrast.light .bg-black *,
-.high-contrast.light .bg-gray-900 *,
-.high-contrast.light .bg-gray-800 * {
+.dark\:bg-gray-900 {
+  background-color: white !important;
+}
+
+.dark\:text-gray-100,
+.dark\:text-gray-200,
+.dark\:text-gray-300,
+.dark\:text-gray-400 {
   color: black !important;
+}
+
+/* Force override any dark theme classes with light equivalents */
+@media (prefers-color-scheme: dark) {
+  html, body {
+    background-color: white !important;
+    color: black !important;
+  }
+  
+  * {
+    color-scheme: light !important;
+  }
 }

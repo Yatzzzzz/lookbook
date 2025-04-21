@@ -12,12 +12,20 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
     setMounted(true);
   }, []);
 
-  // Apply high contrast class to HTML element for global styling
+  // Force light mode and prevent any theme switching
   useEffect(() => {
-    // Add high contrast to enhance text visibility
+    // Add light and high contrast classes to HTML element for global styling
+    document.documentElement.classList.add('light');
     document.documentElement.classList.add('high-contrast');
     
+    // Remove any dark classes if they exist
+    document.documentElement.classList.remove('dark');
+    
+    // Set data attribute for any components that might check it
+    document.documentElement.setAttribute('data-theme', 'light');
+    
     return () => {
+      // Don't remove the light class on cleanup
       document.documentElement.classList.remove('high-contrast');
     };
   }, []);
@@ -27,6 +35,7 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
       attribute="class"
       defaultTheme="light"
       enableSystem={false}
+      forcedTheme="light"
       disableTransitionOnChange
       {...props}
     >

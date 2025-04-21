@@ -561,10 +561,12 @@ const ChatInterface: React.FC = () => {
                                     e.stopPropagation();
                                     clearConversation();
                                 }}
-                                className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                className="p-1.5 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                 aria-label="Clear conversation"
                             >
-                                <Image src="/clear-chat.svg" alt="Clear Chat" width={18} height={18} />
+                                <div className="flex items-center justify-center w-10 h-10 translate-y-1">
+                                    <Image src="/svg icons/clear chat.svg" alt="Clear Chat" width={30} height={30} className="object-contain" />
+                                </div>
                             </button>
                             
                             {/* Microphone button - more prominent */}
@@ -577,13 +579,15 @@ const ChatInterface: React.FC = () => {
                                 }`}
                                 aria-label={isRecording ? 'Stop recording' : 'Start recording'}
                             >
-                                <Image 
-                                    src={isRecording ? "/microphone-on.svg" : "/microphone.svg"} 
-                                    alt={isRecording ? "Microphone On" : "Microphone"} 
-                                    width={22} 
-                                    height={22} 
-                                    priority
-                                />
+                                <div className="flex items-center justify-center w-6 h-6">
+                                    <Image 
+                                        src={isRecording ? "/svg icons/microphone is on.svg" : "/svg icons/microphone.svg"} 
+                                        alt={isRecording ? "Microphone On" : "Microphone"} 
+                                        width={20} height={20}
+                                        className="object-contain translate-y-0.5" 
+                                        priority
+                                    />
+                                </div>
                             </button>
                             
                             {/* Small Send Text button - now to the right of microphone */}
@@ -604,7 +608,9 @@ const ChatInterface: React.FC = () => {
                                 aria-label="Send message"
                             >
                                 <span>Send</span>
-                                <Image src="/send.svg" alt="Send" width={12} height={12} priority />
+                                <div className="flex items-center justify-center w-4 h-4">
+                                    <Image src="/svg icons/send.svg" alt="Send" width={16} height={16} className="object-contain" priority />
+                                </div>
                             </button>
                         </div>
                         
@@ -720,7 +726,9 @@ const ChatInterface: React.FC = () => {
                             className="p-2 rounded-full bg-white hover:bg-gray-100 border border-gray-300 dark:bg-gray-600 dark:border-gray-500 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                             aria-label="Send message"
                         >
-                            <Image src="/send.svg" alt="Send" width={24} height={24} priority />
+                            <div className="flex items-center justify-center w-6 h-6">
+                                <Image src="/svg icons/send.svg" alt="Send" width={22} height={22} className="object-contain" priority />
+                            </div>
                         </button>
                     </div>
                     

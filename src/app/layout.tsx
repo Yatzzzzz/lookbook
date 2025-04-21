@@ -8,6 +8,7 @@ import { WardrobeProvider } from './context/WardrobeContext';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import DbInitializer from '@/components/DbInitializer';
 import { Toaster } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,6 +24,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Lookbook",
   description: "Share your fashion looks",
+  themeColor: "#FFFFFF",
 };
 
 export default function RootLayout({
@@ -31,12 +33,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="h-full high-contrast light">
+    <html
+      lang="en"
+      suppressHydrationWarning={true}
+      className={cn(
+        'light h-full',
+        geistSans.variable,
+        geistMono.variable,
+        'antialiased bg-white text-black min-h-screen font-normal'
+      )}
+    >
       <head>
-        {/* Remove masonry.css link */}
+        {/* Force light mode */}
         <meta name="color-scheme" content="light" />
+        <meta name="theme-color" content="#FFFFFF" />
+        <style dangerouslySetInnerHTML={{ __html: `
+          html, body { 
+            background-color: white !important; 
+            color-scheme: light !important;
+          }
+        `}} />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-black min-h-screen font-normal`}>
+      <body className="bg-white text-black">
         <ThemeProvider>
           <AuthProvider>
             <WardrobeProvider>

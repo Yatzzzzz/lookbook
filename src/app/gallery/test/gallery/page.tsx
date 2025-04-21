@@ -5,13 +5,14 @@ import { useSearchParams } from 'next/navigation';
 import NavBar from '@/components/NavBar';
 import BottomNav from '@/components/BottomNav';
 import CustomTabs from '@/components/gallery/CustomTabs';
-import MasonryGrid from '@/components/gallery/MasonryGrid/MasonryGrid';
 import YayOrNayGrid from '@/components/gallery/YayOrNayGrid/YayOrNayGrid';
 import BattleGrid from '@/components/gallery/BattleGrid/BattleGrid';
 import OpinionsGrid from '@/components/gallery/OpinionsGrid/OpinionsGrid';
 import { getLooks, rateLook, saveLook, shareLook } from '@/lib/gallery-api';
 import styles from './Gallery.module.css';
 import { Loader2 } from 'lucide-react';
+import Masonry, { ResponsiveMasonry } from 'react-responsive-masonry';
+import Link from 'next/link';
 
 function GalleryContent() {
   const searchParams = useSearchParams();
@@ -110,12 +111,8 @@ function GalleryContent() {
   };
   
   const renderContent = () => {
-    if (loading && page === 1) {
-      return (
-        <div className="flex justify-center items-center min-h-[300px]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      );
+    if (loading) {
+      return <div className={styles.loading}>Loading...</div>;
     }
 
     switch (activeTab) {
@@ -143,12 +140,36 @@ function GalleryContent() {
               </button>
             </div>
 
-            <MasonryGrid
-              looks={looks}
-              onRate={handleRate}
-              onSave={handleSave}
-              onShare={handleShare}
-            />
+            <ResponsiveMasonry
+              columnsCountBreakPoints={{ 350: 2, 640: 2, 768: 3, 1024: 4, 1280: 4 }}
+            >
+              <Masonry gutter="2">
+                {looks.map((look) => (
+                  <div 
+                    key={look.look_id} 
+                    className="bg-white dark:bg-gray-800 overflow-hidden mb-[2px]"
+                  >
+                    <Link href={`/look/${look.look_id}`}>
+                      <div className="relative">
+                        <img
+                          src={look.image_url}
+                          alt={look.caption || "Fashion look"}
+                          className="w-full h-auto object-cover"
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1 text-xs text-white">
+                          <div className="font-medium truncate">
+                            {look.caption || "Untitled Look"}
+                          </div>
+                          <div className="opacity-80">
+                            By {look.username || "Anonymous"}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </div>
+                ))}
+              </Masonry>
+            </ResponsiveMasonry>
           </>
         );
 

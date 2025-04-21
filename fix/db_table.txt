@@ -1,0 +1,166 @@
+# Database Structure Analysis - Lookbook Fashion Social Network
+
+## Purpose of the Application
+Lookbook is a fashion social network that allows users to share their fashion looks, get feedback through ratings and votes, save looks they like, and participate in fashion battles and trends. The application supports various social features including user profiles, wardrobes, and engagement metrics.
+
+## Core Tables Analysis
+
+### 1. Users Table
+- **Purpose**: Stores core user information
+- **Structure**:
+  ```sql
+  CREATE TABLE users (
+    id UUID PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  )
+  ```
+- **Issues Identified**:
+  - CRITICAL: Missing avatar_url column despite it being referenced in code
+  - No bio or additional profile information stored directly
+
+### 2. Profiles Table
+- **Purpose**: Extends user information with profile-specific data
+- **Structure**: 
+  ```sql
+  CREATE TABLE profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
+    username TEXT,
+    avatar_url TEXT,
+    bio TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE
+  )
+  ```
+- **Issues Identified**:
+  - Appears to be a parallel structure to users table with overlapping fields
+  - Ambiguity between profiles and users tables could lead to data inconsistency
+  - SQL inconsistency: In some parts of the code, user_id field is referenced instead of id
+
+### 3. Looks Table
+- **Purpose**: Stores fashion posts uploaded by users
+- **Structure**:
+  ```sql
+  CREATE TABLE looks (
+    look_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    image_url TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    audience VARCHAR(50) DEFAULT 'everyone',
+    upload_type VARCHAR(50) DEFAULT 'regular',
+    tags TEXT[],
+    likes INTEGER DEFAULT 0,
+    views INTEGER DEFAULT 0,
+    category VARCHAR(50),
+    excluded_users UUID[],
+    feature_in TEXT[] DEFAULT ARRAY['gallery'],
+    rating_count INTEGER DEFAULT 0,
+    avg_rating NUMERIC(3,2) DEFAULT 0,
+    storage_bucket TEXT,
+    storage_path TEXT
+  )
+  ```
+- **Issues Identified**:
+  - Inconsistent primary key naming: some files refer to 'id', others to 'look_id'
+  - No consistent join relationship established with users table
+  - The code tries to query user data via join syntax using users table but fails to find avatar_url
+
+### 4. Look_Ratings Table
+- **Purpose**: Stores user ratings for specific looks
+- **Structure**:
+  ```sql
+  CREATE TABLE look_ratings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    look_id UUID NOT NULL REFERENCES looks(look_id) ON DELETE CASCADE,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (user_id, look_id)
+  )
+  ```
+- **Issues Identified**:
+  - Well structured with proper foreign key relationships
+  - Trigger functions properly update the aggregate statistics in the looks table
+
+### 5. Saved_Looks Table
+- **Purpose**: Allows users to save/bookmark looks they like
+- **Structure**:
+  ```sql
+  CREATE TABLE saved_looks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    look_id UUID NOT NULL REFERENCES looks(look_id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (user_id, look_id)
+  )
+  ```
+- **Issues Identified**:
+  - Table is referenced in code but no explicit creation script was found
+  - Assumed structure based on references in the code
+
+### 6. Wardrobes Table
+- **Purpose**: Tracks user wardrobe statistics and rankings
+- **Structure**: Complex table with numerous item count fields and ranking metrics
+- **Issues Identified**:
+  - References to a separate 'wardrobe' table for the actual items
+  - Inconsistent join relationships with users table
+
+## Critical Issues and Root Causes
+
+### 1. Avatar URL Resolution Issue
+- **Root Cause**: There's a discrepancy between database schema and code expectations. The code attempts to join the looks and users tables and access the avatar_url column from users, but this column doesn't exist in the users table—it exists in the profiles table instead.
+
+- **Evidence**:
+  - Error message: `column users_1.avatar_url does not exist`
+  - In the trends page, the join query attempts: `users(username, avatar_url)`
+  - The users table schema doesn't include avatar_url field
+  - The profiles table does include avatar_url field
+
+- **Impact**: This prevents the application from displaying user avatars in various parts of the application, particularly in the trends page.
+
+### 2. Dual User Information Storage
+- **Root Issue**: User information is split across two tables (users and profiles) without clear delineation, causing confusion about where to fetch specific data.
+
+- **Evidence**:
+  - Some components fetch from users table, others from profiles
+  - Overlapping fields between tables (username appears in both)
+  - Some queries attempt to join these tables, others assume all data is in one table
+
+### 3. Inconsistent Table Relationships
+- **Root Issue**: No consistent approach to defining join relationships between tables, leading to confusion in query construction.
+
+- **Evidence**:
+  - Various join syntaxes attempted: 
+    - `users(username, avatar_url)`
+    - `users!looks_user_id_fkey(username, avatar_url)`
+    - `users:user_id(username, avatar_url)`
+  - None work because of the fundamental mismatch in table structure
+
+## Recommendations
+
+1. **Short-term Fix**: Modify the trends page query to use the correct join syntax that works with the existing database structure:
+   - Either join with the profiles table instead of users to get avatar_url
+   - Or don't query avatar_url at all if not essential for the display
+
+2. **Mid-term Solution**: Add avatar_url to the users table for consistency:
+   ```sql
+   ALTER TABLE users ADD COLUMN avatar_url TEXT;
+   ```
+
+3. **Long-term Strategy**: Consolidate user profile information into a single source of truth:
+   - Decide whether users or profiles is the primary table for storing user information
+   - Create clear migration path for data
+   - Update all queries to use the same consistent join pattern
+   - Document the data model for future development
+
+4. **Database Architecture Improvement**:
+   - Clearly define the purpose of each table
+   - Create a consistent naming convention for primary keys (all 'id' or all '[table]_id')
+   - Establish and document proper join relationships between tables
+   - Create a database diagram to visualize relationships
+
+## Documentation Gaps
+The current codebase lacks clear documentation of the intended database schema. Creating a comprehensive ERD (Entity Relationship Diagram) would help developers understand the intended relationships between tables and prevent future issues. 
