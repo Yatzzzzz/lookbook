@@ -2,7 +2,29 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { getSupabaseClient } from '@/lib/supabaseClient';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+
+// Create a client-side Supabase client
+const getSupabaseClient = () => {
+  try {
+    return createClientComponentClient();
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+    // Return a dummy client during static build
+    if (typeof window === 'undefined') {
+      return {
+        auth: {
+          signOut: () => ({ error: null }),
+          getSession: () => ({ data: { session: null }, error: null }),
+          refreshSession: () => ({ data: { session: null }, error: null }),
+          updateUser: () => ({ data: { user: null }, error: null }),
+          onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
+        }
+      } as any;
+    }
+    throw error; // Re-throw if we're in the browser
+  }
+};
 
 type AuthContextType = {
   user: User | null;
@@ -266,16 +288,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        loading, 
-        error, 
-        signOut, 
-        signIn, 
-        refreshSession, 
-        updateUserAvatar, 
-        updateUserMetadata 
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        error,
+        signOut,
+        signIn,
+        refreshSession,
+        updateUserAvatar,
+        updateUserMetadata,
       }}
     >
       {children}

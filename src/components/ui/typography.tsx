@@ -1,1 +1,88 @@
-import React from 'react'; import { cn } from '@/lib/utils'; interface TypographyProps { children: React.ReactNode; className?: string; } export function H1({ children, className }: TypographyProps) { return ( <h1 className={cn("text-2xl font-bold tracking-tight text-foreground", className)}> {children} </h1> ); } export function H2({ children, className }: TypographyProps) { return ( <h2 className={cn("text-xl font-semibold tracking-tight text-foreground", className)}> {children} </h2> ); } export function H3({ children, className }: TypographyProps) { return ( <h3 className={cn("text-lg font-semibold tracking-tight text-foreground", className)}> {children} </h3> ); } export function H4({ children, className }: TypographyProps) { return ( <h4 className={cn("text-base font-semibold tracking-tight text-foreground", className)}> {children} </h4> ); } export function Paragraph({ children, className }: TypographyProps) { return ( <p className={cn("leading-7 text-foreground", className)}> {children} </p> ); } export function Lead({ children, className }: TypographyProps) { return ( <p className={cn("text-lg", className)}> {children} </p> ); } export function Muted({ children, className }: TypographyProps) { return ( <p className={cn("text-sm text-gray-700", className)}> {children} </p> ); } export function Label({ children, className }: TypographyProps) { return ( <label className={cn("font-medium text-foreground", className)}> {children} </label> ); } // Additional high contrast components export function HighContrastText({ children, className }: TypographyProps) { return ( <p className={cn("text-black ", className)}> {children} </p> ); } export function Highlight({ children, className }: TypographyProps) { return ( <span className={cn("bg-primary-foreground px-1 py-0.5 rounded text-primary ", className)}> {children} </span> ); } 
+import React from 'react';
+import { cn } from '@/lib/utils';
+
+interface TypographyProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function H1({ children, className }: TypographyProps) {
+  return (
+    <h1 className={cn("text-2xl font-bold tracking-tight text-foreground", className)}>
+      {children}
+    </h1>
+  );
+}
+
+export function H2({ children, className }: TypographyProps) {
+  return (
+    <h2 className={cn("text-xl font-semibold tracking-tight text-foreground", className)}>
+      {children}
+    </h2>
+  );
+}
+
+export function H3({ children, className }: TypographyProps) {
+  return (
+    <h3 className={cn("text-lg font-semibold tracking-tight text-foreground", className)}>
+      {children}
+    </h3>
+  );
+}
+
+export function H4({ children, className }: TypographyProps) {
+  return (
+    <h4 className={cn("text-base font-semibold tracking-tight text-foreground", className)}>
+      {children}
+    </h4>
+  );
+}
+
+export function Paragraph({ children, className }: TypographyProps) {
+  return (
+    <p className={cn("leading-7 text-foreground", className)}>
+      {children}
+    </p>
+  );
+}
+
+export function Lead({ children, className }: TypographyProps) {
+  return (
+    <p className={cn("text-lg", className)}>
+      {children}
+    </p>
+  );
+}
+
+export function Muted({ children, className }: TypographyProps) {
+  return (
+    <p className={cn("text-sm text-gray-700", className)}>
+      {children}
+    </p>
+  );
+}
+
+export function Label({ children, className }: TypographyProps) {
+  return (
+    <label className={cn("font-medium text-foreground", className)}>
+      {children}
+    </label>
+  );
+}
+
+// Additional high contrast components
+export function HighContrastText({ children, className }: TypographyProps) {
+  return (
+    <p className={cn("text-black ", className)}>
+      {children}
+    </p>
+  );
+}
+
+export function Highlight({ children, className }: TypographyProps) {
+  return (
+    <span className={cn("bg-primary-foreground px-1 py-0.5 rounded text-primary ", className)}>
+      {children}
+    </span>
+  );
+} 

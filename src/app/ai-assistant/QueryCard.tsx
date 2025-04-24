@@ -1,1 +1,175 @@
-'use client'; import React, { useState, useEffect } from 'react'; import * as Dialog from '@radix-ui/react-dialog'; import { X, ArrowRight } from 'lucide-react'; import { usePathname } from 'next/navigation'; interface QueryCardProps { title: string; description: string; icon: string; initialPrompt?: string; fields?: { name: string; label: string; placeholder: string; type?: string; }[]; onSubmit?: (formData: Record<string, string>) => void; isLoading?: boolean; customAction?: () => void; isCustomCard?: boolean; } export default function QueryCard({ title, description, icon, fields = [], onSubmit = () => {}, isLoading = false, customAction, isCustomCard = false }: QueryCardProps) { const [open, setOpen] = useState(false); const [formValues, setFormValues] = useState<Record<string, string>>({}); const pathname = usePathname(); // Close dialog when the pathname changes (user navigates away) useEffect(() => { setOpen(false); }, [pathname]); // Listen for visibility change to close dialog when user changes tabs or windows useEffect(() => { const handleVisibilityChange = () => { if (document.visibilityState === 'hidden') { setOpen(false); } }; document.addEventListener('visibilitychange', handleVisibilityChange); return () => { document.removeEventListener('visibilitychange', handleVisibilityChange); }; }, []); const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setFormValues({ ...formValues, [e.target.name]: e.target.value, }); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSubmit(formValues); // Close the dialog after submission setOpen(false); }; const handleCardClick = () => { if (isCustomCard && customAction) { customAction(); } else { setOpen(true); } }; // Determine classes based on card type const cardClasses = isCustomCard ? "block w-full h-full bg-gradient-to-br from-blue-50 to-purple-50 p-4 sm:p-6 rounded-lg shadow-md hover:shadow-lg transition-all border border-blue-200 text-left hover:scale-[1.02]" : "block w-full h-full bg-white p-3 sm:p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 text-left"; const titleClasses = isCustomCard ? "font-bold text-lg sm:text-xl mb-2 text-blue-700 flex items-center" : "font-bold text-sm sm:text-lg mb-1 sm:mb-2"; return ( <> <button onClick={handleCardClick} className={cardClasses} > <h3 className={titleClasses}> {title} {isCustomCard && <ArrowRight className="ml-2 h-4 w-4" />} </h3> <p className={`text-xs sm:text-sm md:text-base text-gray-600 ${isCustomCard ? '' : 'line-clamp-2 sm:line-clamp-3'}`}> {description} </p> </button> {!isCustomCard && ( <Dialog.Root open={open} onOpenChange={setOpen}> <Dialog.Portal> <Dialog.Overlay className="fixed inset-0 bg-gray-100/80 data-[state=open]:animate-overlayShow" /> <Dialog.Content className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-lg bg-white p-4 sm:p-6 shadow-lg focus:outline-none data-[state=open]:animate-contentShow overflow-y-auto"> <Dialog.Title className="text-xl font-bold mb-2">{title}</Dialog.Title> <Dialog.Description className="text-gray-600 mb-5"> {description} </Dialog.Description> <form className="space-y-4" onSubmit={handleSubmit}> {fields.map((field) => ( <div key={field.name} className="grid gap-2"> <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between"> <label className="font-medium text-sm"> {field.label} </label> <p className="text-xs text-red-500"> Please enter {field.label.toLowerCase()} </p> </div> {field.type === 'textarea' ? ( <textarea name={field.name} className="border border-gray-300 rounded-md p-2 w-full bg-white text-black " placeholder={field.placeholder} onChange={handleInputChange} required rows={4} /> ) : ( <input type={field.type || 'text'} name={field.name} className="border border-gray-300 rounded-md p-2 w-full bg-white text-black " placeholder={field.placeholder} onChange={handleInputChange} required /> )} </div> ))} <div className="flex justify-end space-x-2 pt-4"> <button type="button" onClick={() => setOpen(false)} className="px-3 sm:px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 " > Cancel </button> <button type="submit" className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none" disabled={isLoading} > {isLoading ? 'Processing...' : 'Submit'} </button> </div> </form> <Dialog.Close asChild> <button className="absolute top-4 right-4 inline-flex h-6 w-6 items-center justify-center rounded-full text-gray-500 hover:text-gray-800 " aria-label="Close" > <X size={18} /> </button> </Dialog.Close> </Dialog.Content> </Dialog.Portal> </Dialog.Root> )} </> ); } 
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { X, ArrowRight } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+
+interface QueryCardProps {
+  title: string;
+  description: string;
+  icon: string;
+  initialPrompt?: string;
+  fields?: {
+    name: string;
+    label: string;
+    placeholder: string;
+    type?: string;
+  }[];
+  onSubmit?: (formData: Record<string, string>) => void;
+  isLoading?: boolean;
+  customAction?: () => void;
+  isCustomCard?: boolean;
+}
+
+export default function QueryCard({
+  title,
+  description,
+  icon,
+  fields = [],
+  onSubmit = () => {},
+  isLoading = false,
+  customAction,
+  isCustomCard = false
+}: QueryCardProps) {
+  const [open, setOpen] = useState(false);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const pathname = usePathname();
+
+  // Close dialog when the pathname changes (user navigates away)
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // Listen for visibility change to close dialog when user changes tabs or windows
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormValues({
+      ...formValues,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formValues);
+    // Close the dialog after submission
+    setOpen(false);
+  };
+
+  const handleCardClick = () => {
+    if (isCustomCard && customAction) {
+      customAction();
+    } else {
+      setOpen(true);
+    }
+  };
+
+  // Determine classes based on card type
+  const cardClasses = isCustomCard
+    ? "block w-full h-full bg-gradient-to-br from-blue-50 to-purple-50 p-4 sm:p-6 rounded-lg shadow-md hover:shadow-lg transition-all border border-blue-200 text-left hover:scale-[1.02]"
+    : "block w-full h-full bg-white p-3 sm:p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 text-left";
+
+  const titleClasses = isCustomCard
+    ? "font-bold text-lg sm:text-xl mb-2 text-blue-700 flex items-center"
+    : "font-bold text-sm sm:text-lg mb-1 sm:mb-2";
+
+  return (
+    <>
+      <button onClick={handleCardClick} className={cardClasses}>
+        <h3 className={titleClasses}>
+          {title}
+          {isCustomCard && <ArrowRight className="ml-2 h-4 w-4" />}
+        </h3>
+        <p className={`text-xs sm:text-sm md:text-base text-gray-600 ${isCustomCard ? '' : 'line-clamp-2 sm:line-clamp-3'}`}>
+          {description}
+        </p>
+      </button>
+
+      {!isCustomCard && (
+        <Dialog.Root open={open} onOpenChange={setOpen}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 bg-gray-100/80 data-[state=open]:animate-overlayShow" />
+            <Dialog.Content className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-lg bg-white p-4 sm:p-6 shadow-lg focus:outline-none data-[state=open]:animate-contentShow overflow-y-auto">
+              <Dialog.Title className="text-xl font-bold mb-2">{title}</Dialog.Title>
+              <Dialog.Description className="text-gray-600 mb-5">
+                {description}
+              </Dialog.Description>
+
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                {fields.map((field) => (
+                  <div key={field.name} className="grid gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between">
+                      <label className="font-medium text-sm">
+                        {field.label}
+                      </label>
+                      <p className="text-xs text-red-500">
+                        Please enter {field.label.toLowerCase()}
+                      </p>
+                    </div>
+                    {field.type === 'textarea' ? (
+                      <textarea
+                        name={field.name}
+                        className="border border-gray-300 rounded-md p-2 w-full bg-white text-black"
+                        placeholder={field.placeholder}
+                        onChange={handleInputChange}
+                        required
+                        rows={4}
+                      />
+                    ) : (
+                      <input
+                        type={field.type || 'text'}
+                        name={field.name}
+                        className="border border-gray-300 rounded-md p-2 w-full bg-white text-black"
+                        placeholder={field.placeholder}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    )}
+                  </div>
+                ))}
+
+                <div className="flex justify-end space-x-2 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="px-3 sm:px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Processing...' : 'Submit'}
+                  </button>
+                </div>
+              </form>
+
+              <Dialog.Close asChild>
+                <button
+                  className="absolute top-4 right-4 inline-flex h-6 w-6 items-center justify-center rounded-full text-gray-500 hover:text-gray-800"
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+              </Dialog.Close>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
+      )}
+    </>
+  );
+} 

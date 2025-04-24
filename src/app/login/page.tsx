@@ -1,1 +1,181 @@
-'use client'; import { useState, useEffect, Suspense } from 'react'; import { useRouter, useSearchParams } from 'next/navigation'; import Link from 'next/link'; import { useAuth } from '@/contexts/AuthContext'; import { getSupabaseClient } from '@/lib/supabaseClient'; // Add export const dynamic to prevent prerendering during build export const dynamic = 'force-dynamic'; function LoginContent() { const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [error, setError] = useState<string | null>(null); const [loading, setLoading] = useState(false); const router = useRouter(); const searchParams = useSearchParams(); const redirectTo = searchParams.get('redirectTo') || '/gallery'; const supabase = getSupabaseClient(); const { signIn, user, error: authError } = useAuth(); // If already logged in, redirect to the gallery useEffect(() => { if (user) { console.log('User already logged in, redirecting to', redirectTo); router.push(redirectTo); } }, [user, router, redirectTo]); // Display auth context errors if they exist useEffect(() => { if (authError) { setError(authError); } }, [authError]); const handleLogin = async (e: React.FormEvent) => { e.preventDefault(); if (!email || !password) { setError('Please enter both email and password'); return; } if (!supabase) { setError('Could not initialize authentication client'); return; } setLoading(true); setError(null); try { const { data, error } = await supabase.auth.signInWithPassword({ email, password, }); if (error) throw error; if (data && data.session) { // Update auth context signIn(data.session); // Add a small delay before redirecting to ensure auth context updates setTimeout(() => { console.log(`Redirecting to: ${redirectTo}`); router.push(redirectTo); router.refresh(); }, 500); } else { throw new Error('No session returned from login'); } } catch (err: unknown) { if (err instanceof Error) { console.error('Login error:', err); setError(err.message || 'An error occurred during login'); } else { console.error('An unexpected error occurred:', err); setError('An unexpected error occurred during login'); } } finally { setLoading(false); } }; return ( <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4"> <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8"> <h1 className="text-2xl font-bold text-center mb-6">Login to Lookbook</h1> {error && ( <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md"> {error} </div> )} <form onSubmit={handleLogin}> <div className="mb-4"> <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1"> Email </label> <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" required /> </div> <div className="mb-6"> <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1"> Password </label> <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" required /> </div> <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition" disabled={loading} > {loading ? 'Signing in...' : 'Sign In'} </button> </form> <div className="mt-6 text-center"> <p className="text-sm text-gray-600"> Don&apos;t have an account?{' '} <Link href="/signup" className="text-blue-600 hover:text-blue-800"> Sign up </Link> </p> </div> </div> </div> ); } export default function Login() { return ( <Suspense fallback={ <div className="min-h-screen flex items-center justify-center"> <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div> </div> }> <LoginContent /> </Suspense> ); } 
+'use client';
+
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+
+// Add export const dynamic to prevent prerendering during build
+export const dynamic = 'force-dynamic';
+
+// Modified Supabase client creation with error handling
+const getSupabaseClient = () => {
+  try {
+    return createClientComponentClient();
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+    // Return a dummy client during static build
+    if (typeof window === 'undefined') {
+      return {
+        auth: {
+          signInWithPassword: () => ({ data: null, error: null })
+        }
+      } as any;
+    }
+    throw error; // Re-throw if we're in the browser
+  }
+};
+
+function LoginContent() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirectTo') || '/gallery';
+  const supabase = getSupabaseClient();
+  const { signIn, user, error: authError } = useAuth();
+
+  // If already logged in, redirect to the gallery
+  useEffect(() => {
+    if (user) {
+      console.log('User already logged in, redirecting to', redirectTo);
+      router.push(redirectTo);
+    }
+  }, [user, router, redirectTo]);
+
+  // Display auth context errors if they exist
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+    }
+  }, [authError]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      setError('Please enter both email and password');
+      return;
+    }
+    
+    if (!supabase) {
+      setError('Could not initialize authentication client');
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data && data.session) {
+        // Update auth context
+        signIn(data.session);
+        
+        // Add a small delay before redirecting to ensure auth context updates
+        setTimeout(() => {
+          console.log(`Redirecting to: ${redirectTo}`);
+          router.push(redirectTo);
+          router.refresh();
+        }, 500);
+      } else {
+        throw new Error('No session returned from login');
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('Login error:', err);
+        setError(err.message || 'An error occurred during login');
+      } else {
+        console.error('An unexpected error occurred:', err);
+        setError('An unexpected error occurred during login');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
+        <h1 className="text-2xl font-bold text-center mb-6">Login to Lookbook</h1>
+        
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+            {error}
+          </div>
+        )}
+        
+        <form onSubmit={handleLogin}>
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          
+          <div className="mb-6">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            disabled={loading}
+          >
+            {loading ? 'Signing in...' : 'Sign In'}
+          </button>
+        </form>
+        
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            Don&apos;t have an account?{' '}
+            <Link href="/signup" className="text-blue-600 hover:text-blue-800">
+              Sign up
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Login() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
+  );
+} 

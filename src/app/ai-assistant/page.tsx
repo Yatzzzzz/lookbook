@@ -1,1 +1,313 @@
-'use client'; import React, { useState, useCallback, useEffect, useRef } from 'react'; import { QueryClientProvider, QueryClient } from '@tanstack/react-query'; import QueryCard from './QueryCard'; import ResponseDisplay from './ResponseDisplay'; import { useRouter, usePathname } from 'next/navigation'; const queryClient = new QueryClient(); export default function AIAssistantPage() { const router = useRouter(); const pathname = usePathname(); const [response, setResponse] = useState(''); const [isLoading, setIsLoading] = useState(false); const [error, setError] = useState<string | null>(null); const [isSpeaking, setIsSpeaking] = useState(false); const abortControllerRef = useRef<AbortController | null>(null); // Handle navigation events - stop AI responses when leaving the page useEffect(() => { // Function to clean up ongoing tasks const cleanupOngoingTasks = () => { // Stop any speech synthesis stopSpeaking(); // Cancel any ongoing fetch requests if (abortControllerRef.current) { abortControllerRef.current.abort(); abortControllerRef.current = null; } // Reset loading state setIsLoading(false); }; // Add listeners for navigation events const handleBeforeUnload = () => { cleanupOngoingTasks(); }; // Listen for tab/window close window.addEventListener('beforeunload', handleBeforeUnload); // Listen for navigation via links within the app const handleVisibilityChange = () => { if (document.visibilityState === 'hidden') { cleanupOngoingTasks(); } }; document.addEventListener('visibilitychange', handleVisibilityChange); return () => { // Clean up event listeners window.removeEventListener('beforeunload', handleBeforeUnload); document.removeEventListener('visibilitychange', handleVisibilityChange); cleanupOngoingTasks(); }; }, [pathname]); const handleSubmit = async (formData: Record<string, string>, basePrompt: string) => { try { // Cancel any ongoing requests if (abortControllerRef.current) { abortControllerRef.current.abort(); } // Create a new abort controller for this request abortControllerRef.current = new AbortController(); const signal = abortControllerRef.current.signal; setIsLoading(true); setError(null); // Build the prompt by filling in the variables from the form data let prompt = basePrompt; for (const [key, value] of Object.entries(formData)) { prompt = prompt.replace(`{${key}}`, value); } const apiEndpoint = '/api/ai-assistant'; const response = await fetch(apiEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', }, body: JSON.stringify({ question: prompt }), signal, // Pass the abort signal to the fetch request }); if (!response.ok) { throw new Error(`Error: ${response.status}`); } const data = await response.json(); setResponse(data.result || 'No response from the fashion AI'); } catch (err) { if (err.name === 'AbortError') { console.log('Request was cancelled'); } else { console.error('Error submitting query:', err); setError(err instanceof Error ? err.message : 'An unexpected error occurred'); } } finally { setIsLoading(false); } }; // Navigate to the Gemini chat page const navigateToGeminiChat = () => { // Stop any ongoing responses before navigating stopSpeaking(); if (abortControllerRef.current) { abortControllerRef.current.abort(); } router.push('/gemini'); }; const speakText = useCallback((text: string) => { if (!window.speechSynthesis) { console.error("Speech synthesis not supported"); return; } // Cancel any ongoing speech stopSpeaking(); const utterance = new SpeechSynthesisUtterance(text); utterance.rate = 1.0; utterance.pitch = 1.0; // Use a female voice if available const voices = window.speechSynthesis.getVoices(); const femaleVoice = voices.find(voice => voice.name.includes('female') || voice.name.includes('Female') ); if (femaleVoice) { utterance.voice = femaleVoice; } utterance.onstart = () => setIsSpeaking(true); utterance.onend = () => setIsSpeaking(false); utterance.onerror = () => setIsSpeaking(false); window.speechSynthesis.speak(utterance); }, []); const stopSpeaking = useCallback(() => { if (window.speechSynthesis) { window.speechSynthesis.cancel(); setIsSpeaking(false); } }, []); const queryCards = [ { title: 'Chat with AI', description: 'Experience our full-featured Gemini AI chat with camera, voice input, and image analysis. Ideal for complex fashion questions and real-time advice.', icon: '🤖', customAction: navigateToGeminiChat, isCustomCard: true, }, { title: 'Fashion Advice', description: 'Get personalized fashion advice for any situation', icon: '👗', initialPrompt: 'I need fashion advice for {occasion}. I am {age} years old and my style is {style}. What should I wear?', fields: [ { name: 'occasion', label: 'Occasion', placeholder: 'e.g., wedding, job interview, casual day out', }, { name: 'age', label: 'Age', placeholder: 'e.g., 25, 35, 50', }, { name: 'style', label: 'Your Style Preference', placeholder: 'e.g., casual, formal, bohemian, minimalist', }, ], }, { title: 'Outfit Recommendations', description: 'Get outfit ideas based on your wardrobe items', icon: '👔', initialPrompt: 'I have {items} in my wardrobe. Help me create {count} outfits for {season} season.', fields: [ { name: 'items', label: 'Wardrobe Items', placeholder: 'e.g., blue jeans, white t-shirt, black blazer, sneakers', type: 'textarea', }, { name: 'count', label: 'Number of Outfits', placeholder: 'e.g., 3, 5, 10', }, { name: 'season', label: 'Season', placeholder: 'e.g., summer, winter, fall, spring', }, ], }, { title: 'Trending Styles', description: 'Discover the latest fashion trends', icon: '🔥', initialPrompt: 'What are the current fashion trends for {gender} in {category}? I prefer {style} style.', fields: [ { name: 'gender', label: 'Gender', placeholder: 'e.g., men, women, unisex', }, { name: 'category', label: 'Category', placeholder: 'e.g., casual wear, formal attire, accessories', }, { name: 'style', label: 'Style Preference', placeholder: 'e.g., streetwear, business casual, vintage', }, ], }, { title: 'Weekly Outfit Planner', description: 'Plan your outfits for the entire week', icon: '📅', initialPrompt: 'I need a weekly outfit plan for {workplace}. My wardrobe includes {items}. The weather forecast is {weather}.', fields: [ { name: 'workplace', label: 'Workplace/Environment', placeholder: 'e.g., corporate office, creative agency, remote work', }, { name: 'items', label: 'Key Wardrobe Items', placeholder: 'e.g., navy suit, white shirts, black dress, casual jeans', type: 'textarea', }, { name: 'weather', label: 'Weather Forecast', placeholder: 'e.g., rainy all week, warm with chance of rain, cold mornings', }, ], }, ]; // Separate Chat with AI card from the rest const chatWithAICard = queryCards[0]; const featureCards = queryCards.slice(1); return ( <QueryClientProvider client={queryClient}> <div className="max-w-6xl mx-auto px-2 sm:px-4"> <div className="mb-3 sm:mb-6"> <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">AI Fashion Assistant</h1> <p className="text-sm sm:text-base text-gray-600 "> Get personalized fashion advice, outfit recommendations, and style guidance from our AI assistant. </p> </div> {/* Chat with AI - full width */} <div className="mb-3 sm:mb-4"> <QueryCard key={chatWithAICard.title} title={chatWithAICard.title} description={chatWithAICard.description} icon={chatWithAICard.icon} customAction={chatWithAICard.customAction} isCustomCard={chatWithAICard.isCustomCard} /> </div> {/* Feature cards in 2x2 grid */} <div className="grid grid-cols-2 gap-2 sm:gap-4 md:gap-6 mb-6 sm:mb-8"> {featureCards.map((card) => ( <QueryCard key={card.title} title={card.title} description={card.description} icon={card.icon} initialPrompt={card.initialPrompt || ''} fields={card.fields} onSubmit={(formData) => handleSubmit(formData, card.initialPrompt || '')} isLoading={isLoading} /> ))} </div> <ResponseDisplay isLoading={isLoading} response={response} error={error} isSpeaking={isSpeaking} onSpeak={speakText} onStopSpeaking={stopSpeaking} /> </div> </QueryClientProvider> ); } 
+'use client';
+
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
+import QueryCard from './QueryCard';
+import ResponseDisplay from './ResponseDisplay';
+import { useRouter, usePathname } from 'next/navigation';
+
+const queryClient = new QueryClient();
+
+export default function AIAssistantPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [response, setResponse] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Handle navigation events - stop AI responses when leaving the page
+  useEffect(() => {
+    // Function to clean up ongoing tasks
+    const cleanupOngoingTasks = () => {
+      // Stop any speech synthesis
+      stopSpeaking();
+      
+      // Cancel any ongoing fetch requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      
+      // Reset loading state
+      setIsLoading(false);
+    };
+
+    // Add listeners for navigation events
+    const handleBeforeUnload = () => {
+      cleanupOngoingTasks();
+    };
+
+    // Listen for tab/window close
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Listen for navigation via links within the app
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        cleanupOngoingTasks();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      // Clean up event listeners
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      cleanupOngoingTasks();
+    };
+  }, [pathname]);
+
+  const handleSubmit = async (formData: Record<string, string>, basePrompt: string) => {
+    try {
+      // Cancel any ongoing requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create a new abort controller for this request
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
+      setIsLoading(true);
+      setError(null);
+
+      // Build the prompt by filling in the variables from the form data
+      let prompt = basePrompt;
+      for (const [key, value] of Object.entries(formData)) {
+        prompt = prompt.replace(`{${key}}`, value);
+      }
+
+      const apiEndpoint = '/api/ai-assistant';
+      const response = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question: prompt }),
+        signal, // Pass the abort signal to the fetch request
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setResponse(data.result || 'No response from the fashion AI');
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        console.log('Request was cancelled');
+      } else {
+        console.error('Error submitting query:', err);
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Navigate to the Gemini chat page
+  const navigateToGeminiChat = () => {
+    // Stop any ongoing responses before navigating
+    stopSpeaking();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    router.push('/gemini');
+  };
+
+  const speakText = useCallback((text: string) => {
+    if (!window.speechSynthesis) {
+      console.error("Speech synthesis not supported");
+      return;
+    }
+
+    // Cancel any ongoing speech
+    stopSpeaking();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    // Use a female voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const femaleVoice = voices.find(voice => 
+      voice.name.includes('female') || voice.name.includes('Female')
+    );
+    
+    if (femaleVoice) {
+      utterance.voice = femaleVoice;
+    }
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
+  }, []);
+
+  const stopSpeaking = useCallback(() => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  }, []);
+
+  const queryCards = [
+    {
+      title: 'Chat with AI',
+      description: 'Experience our full-featured Gemini AI chat with camera, voice input, and image analysis. Ideal for complex fashion questions and real-time advice.',
+      icon: '🤖',
+      customAction: navigateToGeminiChat,
+      isCustomCard: true,
+    },
+    {
+      title: 'Fashion Advice',
+      description: 'Get personalized fashion advice for any situation',
+      icon: '👗',
+      initialPrompt: 'I need fashion advice for {occasion}. I am {age} years old and my style is {style}. What should I wear?',
+      fields: [
+        {
+          name: 'occasion',
+          label: 'Occasion',
+          placeholder: 'e.g., wedding, job interview, casual day out',
+        },
+        {
+          name: 'age',
+          label: 'Age',
+          placeholder: 'e.g., 25, 35, 50',
+        },
+        {
+          name: 'style',
+          label: 'Your Style Preference',
+          placeholder: 'e.g., casual, formal, bohemian, minimalist',
+        },
+      ],
+    },
+    {
+      title: 'Outfit Recommendations',
+      description: 'Get outfit ideas based on your wardrobe items',
+      icon: '👔',
+      initialPrompt: 'I have {items} in my wardrobe. Help me create {count} outfits for {season} season.',
+      fields: [
+        {
+          name: 'items',
+          label: 'Wardrobe Items',
+          placeholder: 'e.g., blue jeans, white t-shirt, black blazer, sneakers',
+          type: 'textarea',
+        },
+        {
+          name: 'count',
+          label: 'Number of Outfits',
+          placeholder: 'e.g., 3, 5, 10',
+        },
+        {
+          name: 'season',
+          label: 'Season',
+          placeholder: 'e.g., summer, winter, fall, spring',
+        },
+      ],
+    },
+    {
+      title: 'Trending Styles',
+      description: 'Discover the latest fashion trends',
+      icon: '🔥',
+      initialPrompt: 'What are the current fashion trends for {gender} in {category}? I prefer {style} style.',
+      fields: [
+        {
+          name: 'gender',
+          label: 'Gender',
+          placeholder: 'e.g., men, women, unisex',
+        },
+        {
+          name: 'category',
+          label: 'Category',
+          placeholder: 'e.g., casual wear, formal attire, accessories',
+        },
+        {
+          name: 'style',
+          label: 'Style Preference',
+          placeholder: 'e.g., streetwear, business casual, vintage',
+        },
+      ],
+    },
+    {
+      title: 'Weekly Outfit Planner',
+      description: 'Plan your outfits for the entire week',
+      icon: '📅',
+      initialPrompt: 'I need a weekly outfit plan for {workplace}. My wardrobe includes {items}. The weather forecast is {weather}.',
+      fields: [
+        {
+          name: 'workplace',
+          label: 'Workplace/Environment',
+          placeholder: 'e.g., corporate office, creative agency, remote work',
+        },
+        {
+          name: 'items',
+          label: 'Key Wardrobe Items',
+          placeholder: 'e.g., navy suit, white shirts, black dress, casual jeans',
+          type: 'textarea',
+        },
+        {
+          name: 'weather',
+          label: 'Weather Forecast',
+          placeholder: 'e.g., rainy all week, warm with chance of rain, cold mornings',
+        },
+      ],
+    },
+  ];
+
+  // Separate Chat with AI card from the rest
+  const chatWithAICard = queryCards[0];
+  const featureCards = queryCards.slice(1);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <div className="max-w-6xl mx-auto px-2 sm:px-4">
+        <div className="mb-3 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">AI Fashion Assistant</h1>
+          <p className="text-sm sm:text-base text-gray-600">
+            Get personalized fashion advice, outfit recommendations, and style guidance from our AI assistant.
+          </p>
+        </div>
+
+        {/* Chat with AI - full width */}
+        <div className="mb-3 sm:mb-4">
+          <QueryCard
+            key={chatWithAICard.title}
+            title={chatWithAICard.title}
+            description={chatWithAICard.description}
+            icon={chatWithAICard.icon}
+            customAction={chatWithAICard.customAction}
+            isCustomCard={chatWithAICard.isCustomCard}
+          />
+        </div>
+
+        {/* Feature cards in 2x2 grid */}
+        <div className="grid grid-cols-2 gap-2 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
+          {featureCards.map((card) => (
+            <QueryCard
+              key={card.title}
+              title={card.title}
+              description={card.description}
+              icon={card.icon}
+              initialPrompt={card.initialPrompt || ''}
+              fields={card.fields}
+              onSubmit={(formData) => handleSubmit(formData, card.initialPrompt || '')}
+              isLoading={isLoading}
+            />
+          ))}
+        </div>
+
+        <ResponseDisplay
+          isLoading={isLoading}
+          response={response}
+          error={error}
+          isSpeaking={isSpeaking}
+          onSpeak={speakText}
+          onStopSpeaking={stopSpeaking}
+        />
+      </div>
+    </QueryClientProvider>
+  );
+} 

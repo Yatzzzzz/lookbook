@@ -1,1 +1,9 @@
-import { redirect } from 'next/navigation'; // Force dynamic rendering to prevent static prerendering issues with Supabase export const dynamic = 'force-dynamic'; export default function Home() { // Redirect to gallery page redirect('/gallery'); } 
+import { redirect } from 'next/navigation';
+
+// Force dynamic rendering to prevent static prerendering issues with Supabase
+export const dynamic = 'force-dynamic';
+
+export default function Home() {
+  // Redirect to gallery page
+  redirect('/gallery');
+} 

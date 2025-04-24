@@ -1,1 +1,125 @@
-'use client'; import React, { useState } from 'react'; import { ThumbsUp, ThumbsDown } from 'lucide-react'; import { cn } from '@/lib/utils'; import { Button } from '@/components/ui/button'; interface YayOrNayItem { look_id: string; image_url: string; caption: string; username: string; avatar_url?: string; } interface YayOrNayGridProps { items: YayOrNayItem[]; onVote?: (lookId: string, vote: 'yay' | 'nay') => void; } const YayOrNayGrid: React.FC<YayOrNayGridProps> = ({ items, onVote }) => { const [currentIndex, setCurrentIndex] = useState(0); const [votes, setVotes] = useState<Record<string, 'yay' | 'nay'>>({}); const [animation, setAnimation] = useState<'swipe-left' | 'swipe-right' | null>(null); const currentItem = items[currentIndex]; const handleVote = (type: 'yay' | 'nay') => { if (!currentItem) return; setVotes(prev => ({ ...prev, [currentItem.look_id]: type })); // Call onVote callback if provided if (onVote) { onVote(currentItem.look_id, type); } setAnimation(type === 'yay' ? 'swipe-right' : 'swipe-left'); // Move to next item after animation completes setTimeout(() => { setAnimation(null); if (currentIndex < items.length - 1) { setCurrentIndex(currentIndex + 1); } }, 500); }; // If there are no items at all if (items.length === 0) { return ( <div className="text-center p-8"> <p className="text-lg font-medium mb-2">No yay or nay looks available</p> <p className="text-muted-foreground">Looks marked as yay or nay will appear here</p> </div> ); } // When all items have been viewed if (!currentItem) { return ( <div className="flex flex-col items-center justify-center h-[60vh]"> <h3 className="text-xl font-semibold mb-2">You've seen all looks!</h3> <p className="text-muted-foreground mb-4">Check back later for more fashion to rate</p> <Button onClick={() => setCurrentIndex(0)}>Start Over</Button> </div> ); } return ( <div className="flex flex-col items-center pt-6"> <div className="w-full max-w-md mx-auto"> <div className={cn( "relative rounded-lg overflow-hidden transition-transform duration-500 transform", animation === 'swipe-left' && "translate-x-[-100%] rotate-[-10deg] opacity-0", animation === 'swipe-right' && "translate-x-[100%] rotate-[10deg] opacity-0" )} > <img src={currentItem.image_url} alt={currentItem.caption} className="w-full aspect-[3/5] object-cover" /> <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4"> <div className="flex items-center gap-2 mb-2"> <img src={currentItem.avatar_url || "https://i.pravatar.cc/150"} alt={currentItem.username} className="w-8 h-8 rounded-full object-cover" /> <span className="text-white font-medium">{currentItem.username}</span> </div> <p className="text-white">{currentItem.caption}</p> </div> </div> <div className="flex justify-center gap-6 mt-6"> <Button size="lg" variant="outline" className="rounded-full w-16 h-16 p-0 border-2 hover:bg-red-100 hover:text-red-600 hover:border-red-600" onClick={() => handleVote('nay')} > <ThumbsDown className="h-6 w-6" /> </Button> <Button size="lg" variant="outline" className="rounded-full w-16 h-16 p-0 border-2 hover:bg-green-100 hover:text-green-600 hover:border-green-600" onClick={() => handleVote('yay')} > <ThumbsUp className="h-6 w-6" /> </Button> </div> <div className="mt-6 text-center text-sm text-muted-foreground"> {currentIndex + 1} of {items.length} </div> </div> </div> ); }; export default YayOrNayGrid; 
+'use client';
+
+import React, { useState } from 'react';
+import { ThumbsUp, ThumbsDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+
+interface YayOrNayItem {
+  look_id: string;
+  image_url: string;
+  caption: string;
+  username: string;
+  avatar_url?: string;
+}
+
+interface YayOrNayGridProps {
+  items: YayOrNayItem[];
+  onVote?: (lookId: string, vote: 'yay' | 'nay') => void;
+}
+
+const YayOrNayGrid: React.FC<YayOrNayGridProps> = ({ items, onVote }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [votes, setVotes] = useState<Record<string, 'yay' | 'nay'>>({});
+  const [animation, setAnimation] = useState<'swipe-left' | 'swipe-right' | null>(null);
+  
+  const currentItem = items[currentIndex];
+  
+  const handleVote = (type: 'yay' | 'nay') => {
+    if (!currentItem) return;
+    
+    setVotes(prev => ({ ...prev, [currentItem.look_id]: type }));
+    
+    // Call onVote callback if provided
+    if (onVote) {
+      onVote(currentItem.look_id, type);
+    }
+    
+    setAnimation(type === 'yay' ? 'swipe-right' : 'swipe-left');
+    
+    // Move to next item after animation completes
+    setTimeout(() => {
+      setAnimation(null);
+      if (currentIndex < items.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+      }
+    }, 500);
+  };
+  
+  // If there are no items at all
+  if (items.length === 0) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-lg font-medium mb-2">No yay or nay looks available</p>
+        <p className="text-muted-foreground">Looks marked as yay or nay will appear here</p>
+      </div>
+    );
+  }
+  
+  // When all items have been viewed
+  if (!currentItem) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh]">
+        <h3 className="text-xl font-semibold mb-2">You've seen all looks!</h3>
+        <p className="text-muted-foreground mb-4">Check back later for more fashion to rate</p>
+        <Button onClick={() => setCurrentIndex(0)}>Start Over</Button>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="flex flex-col items-center pt-6">
+      <div className="w-full max-w-md mx-auto">
+        <div
+          className={cn(
+            "relative rounded-lg overflow-hidden transition-transform duration-500 transform",
+            animation === 'swipe-left' && "translate-x-[-100%] rotate-[-10deg] opacity-0",
+            animation === 'swipe-right' && "translate-x-[100%] rotate-[10deg] opacity-0"
+          )}
+        >
+          <img 
+            src={currentItem.image_url} 
+            alt={currentItem.caption} 
+            className="w-full aspect-[3/5] object-cover" 
+          />
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <img 
+                src={currentItem.avatar_url || "https://i.pravatar.cc/150"} 
+                alt={currentItem.username} 
+                className="w-8 h-8 rounded-full object-cover" 
+              />
+              <span className="text-white font-medium">{currentItem.username}</span>
+            </div>
+            <p className="text-white">{currentItem.caption}</p>
+          </div>
+        </div>
+        
+        <div className="flex justify-center gap-6 mt-6">
+          <Button 
+            size="lg" 
+            variant="outline" 
+            className="rounded-full w-16 h-16 p-0 border-2 hover:bg-red-100 hover:text-red-600 hover:border-red-600" 
+            onClick={() => handleVote('nay')}
+          >
+            <ThumbsDown className="h-6 w-6" />
+          </Button>
+          <Button 
+            size="lg" 
+            variant="outline" 
+            className="rounded-full w-16 h-16 p-0 border-2 hover:bg-green-100 hover:text-green-600 hover:border-green-600" 
+            onClick={() => handleVote('yay')}
+          >
+            <ThumbsUp className="h-6 w-6" />
+          </Button>
+        </div>
+        
+        <div className="mt-6 text-center text-sm text-muted-foreground">
+          {currentIndex + 1} of {items.length}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default YayOrNayGrid; 

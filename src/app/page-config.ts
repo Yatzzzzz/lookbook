@@ -1,1 +1,30 @@
-// This file contains configuration for pages to exclude from static generation // List of page paths that should be dynamically rendered and excluded from static generation export const DYNAMIC_PAGES = [ '/_not-found', '/test-signup-api', '/test-connection', '/upload-test', '/test-user-session', '/test-home', '/lookbook', '/lookbook/my-looks', '/upload', '/look', '/ai', '/auth/signup', '/auth/login', '/auth/welcome', '/signup', '/login', '/api/test-supabase', '/api/test-user', '/api/test-user-session', '/api/user-record' ]; // Helper function to check if a page should be dynamic export function shouldSkipStaticGeneration(pagePath: string): boolean { return DYNAMIC_PAGES.some(path => pagePath.startsWith(path)); } 
+// This file contains configuration for pages to exclude from static generation
+
+// List of page paths that should be dynamically rendered and excluded from static generation
+export const DYNAMIC_PAGES = [
+    '/_not-found',
+    '/test-signup-api',
+    '/test-connection',
+    '/upload-test',
+    '/test-user-session',
+    '/test-home',
+    '/lookbook',
+    '/lookbook/my-looks',
+    '/upload',
+    '/look',
+    '/ai',
+    '/auth/signup',
+    '/auth/login',
+    '/auth/welcome',
+    '/signup',
+    '/login',
+    '/api/test-supabase',
+    '/api/test-user',
+    '/api/test-user-session',
+    '/api/user-record'
+  ];
+  
+  // Helper function to check if a page should be dynamic
+  export function shouldSkipStaticGeneration(pagePath: string): boolean {
+    return DYNAMIC_PAGES.some(path => pagePath.startsWith(path));
+  } 

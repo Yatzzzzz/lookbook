@@ -1,1 +1,215 @@
-'use client'; import { useState } from 'react'; import Image from 'next/image'; import { Heart, MessageCircle, Bookmark, Share2 } from 'lucide-react'; import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'; import { useAuth } from '@/contexts/AuthContext'; import LookRating from './LookRating'; interface LookProps { id: string; imageUrl: string; description?: string; username: string; avatarUrl?: string; likes?: number; commentsCount?: number; ratingCount?: number; avgRating?: number; initialUserRating?: number; tags?: string[]; onLike?: () => void; onComment?: () => void; onShare?: () => void; onSave?: () => void; } export default function Look({ id, imageUrl, description, username, avatarUrl, likes = 0, commentsCount = 0, ratingCount = 0, avgRating = 0, initialUserRating = 0, tags = [], onLike, onComment, onShare, onSave }: LookProps) { const { user } = useAuth(); const [isLiked, setIsLiked] = useState(false); // This should come from db const [likesCount, setLikesCount] = useState(likes); const [isSaved, setIsSaved] = useState(false); // This should come from db const supabase = createClientComponentClient(); const handleLike = async () => { if (!user) { alert('Please sign in to like looks'); return; } // Toggle like state locally setIsLiked(!isLiked); setLikesCount(prev => isLiked ? prev - 1 : prev + 1); // Call parent handler if provided if (onLike) { onLike(); } }; const handleSave = async () => { if (!user) { alert('Please sign in to save looks'); return; } // Toggle saved state locally setIsSaved(!isSaved); // Call parent handler if provided if (onSave) { onSave(); } }; const handleRatingChange = (newRating: number) => { // This will be called after the rating is successfully submitted console.log(`Look ${id} rated: ${newRating}`); }; return ( <div className="bg-white rounded-lg overflow-hidden shadow-md border border-gray-200"> <div className="relative"> {/* Image */} <div className="aspect-square relative overflow-hidden"> <Image src={imageUrl} alt={description || `Fashion look by ${username}`} layout="fill" objectFit="cover" className="transition-transform duration-300 hover:scale-105" /> {/* Rating badge if rated */} {avgRating > 0 && ( <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full flex items-center"> <span className="mr-1">★</span> <span>{avgRating.toFixed(1)}</span> <span className="ml-1 text-xs">({ratingCount})</span> </div> )} </div> {/* Actions overlay */} <div className="absolute bottom-2 right-2 flex space-x-2"> <button onClick={handleSave} className={`p-2 rounded-full bg-white/80 backdrop-blur-sm ${isSaved ? 'text-blue-500' : 'text-gray-700'}`} aria-label="Save look" > <Bookmark size={18} className={isSaved ? 'fill-current' : ''} /> </button> <button onClick={onShare} className="p-2 rounded-full bg-white/80 backdrop-blur-sm text-gray-700" aria-label="Share look" > <Share2 size={18} /> </button> </div> </div> {/* Content */} <div className="p-3"> {/* User info */} <div className="flex items-center mb-2"> {avatarUrl ? ( <div className="w-6 h-6 rounded-full overflow-hidden mr-2"> <Image src={avatarUrl} alt={username} width={24} height={24} className="object-cover" /> </div> ) : ( <div className="w-6 h-6 rounded-full bg-gray-200 mr-2" /> )} <span className="text-sm font-medium">@{username}</span> </div> {/* Description */} {description && ( <p className="text-sm text-gray-600 mb-3 line-clamp-2"> {description} </p> )} {/* Rating component */} <div className="mb-3"> <div className="flex justify-between items-center mb-1"> <span className="text-xs text-gray-500">Rate this look:</span> {avgRating > 0 && ( <span className="text-xs text-gray-500"> Avg: {avgRating.toFixed(1)} ({ratingCount}) </span> )} </div> <LookRating lookId={id} initialRating={initialUserRating} size="sm" onRatingChange={handleRatingChange} /> </div> {/* Tags */} {tags.length > 0 && ( <div className="flex flex-wrap gap-1 mb-3"> {tags.map((tag, i) => ( <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full" > #{tag} </span> ))} </div> )} {/* Interactions */} <div className="flex items-center justify-between pt-3 border-t border-gray-100"> <div className="flex items-center space-x-4"> <button onClick={handleLike} className="flex items-center text-gray-500 hover:text-red-500 transition-colors" aria-label={isLiked ? "Unlike" : "Like"} > <Heart size={16} className={isLiked ? 'fill-red-500 text-red-500' : ''} /> <span className="ml-1 text-xs">{likesCount}</span> </button> <button onClick={onComment} className="flex items-center text-gray-500 hover:text-blue-500 transition-colors" aria-label="Comment" > <MessageCircle size={16} /> <span className="ml-1 text-xs">{commentsCount}</span> </button> </div> </div> </div> </div> ); } 
+'use client';
+
+import { useState } from 'react';
+import Image from 'next/image';
+import { Heart, MessageCircle, Bookmark, Share2 } from 'lucide-react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useAuth } from '@/contexts/AuthContext';
+import LookRating from './LookRating';
+
+interface LookProps {
+  id: string;
+  imageUrl: string;
+  description?: string;
+  username: string;
+  avatarUrl?: string;
+  likes?: number;
+  commentsCount?: number;
+  ratingCount?: number;
+  avgRating?: number;
+  initialUserRating?: number;
+  tags?: string[];
+  onLike?: () => void;
+  onComment?: () => void;
+  onShare?: () => void;
+  onSave?: () => void;
+}
+
+export default function Look({
+  id,
+  imageUrl,
+  description,
+  username,
+  avatarUrl,
+  likes = 0,
+  commentsCount = 0,
+  ratingCount = 0,
+  avgRating = 0,
+  initialUserRating = 0,
+  tags = [],
+  onLike,
+  onComment,
+  onShare,
+  onSave
+}: LookProps) {
+  const { user } = useAuth();
+  const [isLiked, setIsLiked] = useState(false); // This should come from db
+  const [likesCount, setLikesCount] = useState(likes);
+  const [isSaved, setIsSaved] = useState(false); // This should come from db
+  const supabase = createClientComponentClient();
+
+  const handleLike = async () => {
+    if (!user) {
+      alert('Please sign in to like looks');
+      return;
+    }
+
+    // Toggle like state locally
+    setIsLiked(!isLiked);
+    setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
+
+    // Call parent handler if provided
+    if (onLike) {
+      onLike();
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user) {
+      alert('Please sign in to save looks');
+      return;
+    }
+
+    // Toggle saved state locally
+    setIsSaved(!isSaved);
+
+    // Call parent handler if provided
+    if (onSave) {
+      onSave();
+    }
+  };
+
+  const handleRatingChange = (newRating: number) => {
+    // This will be called after the rating is successfully submitted
+    console.log(`Look ${id} rated: ${newRating}`);
+  };
+
+  return (
+    <div className="bg-white rounded-lg overflow-hidden shadow-md border border-gray-200">
+      <div className="relative">
+        {/* Image */}
+        <div className="aspect-square relative overflow-hidden">
+          <Image
+            src={imageUrl}
+            alt={description || `Fashion look by ${username}`}
+            layout="fill"
+            objectFit="cover"
+            className="transition-transform duration-300 hover:scale-105"
+          />
+          
+          {/* Rating badge if rated */}
+          {avgRating > 0 && (
+            <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full flex items-center">
+              <span className="mr-1">★</span> 
+              <span>{avgRating.toFixed(1)}</span>
+              <span className="ml-1 text-xs">({ratingCount})</span>
+            </div>
+          )}
+        </div>
+
+        {/* Actions overlay */}
+        <div className="absolute bottom-2 right-2 flex space-x-2">
+          <button 
+            onClick={handleSave}
+            className={`p-2 rounded-full bg-white/80 backdrop-blur-sm ${isSaved ? 'text-blue-500' : 'text-gray-700'}`}
+            aria-label="Save look"
+          >
+            <Bookmark size={18} className={isSaved ? 'fill-current' : ''} />
+          </button>
+          <button 
+            onClick={onShare}
+            className="p-2 rounded-full bg-white/80 backdrop-blur-sm text-gray-700"
+            aria-label="Share look"
+          >
+            <Share2 size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-3">
+        {/* User info */}
+        <div className="flex items-center mb-2">
+          {avatarUrl ? (
+            <div className="w-6 h-6 rounded-full overflow-hidden mr-2">
+              <Image
+                src={avatarUrl}
+                alt={username}
+                width={24}
+                height={24}
+                className="object-cover"
+              />
+            </div>
+          ) : (
+            <div className="w-6 h-6 rounded-full bg-gray-200 mr-2" />
+          )}
+          <span className="text-sm font-medium">@{username}</span>
+        </div>
+
+        {/* Description */}
+        {description && (
+          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+            {description}
+          </p>
+        )}
+
+        {/* Rating component */}
+        <div className="mb-3">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-xs text-gray-500">Rate this look:</span>
+            {avgRating > 0 && (
+              <span className="text-xs text-gray-500">
+                Avg: {avgRating.toFixed(1)} ({ratingCount})
+              </span>
+            )}
+          </div>
+          <LookRating 
+            lookId={id} 
+            initialRating={initialUserRating}
+            size="sm"
+            onRatingChange={handleRatingChange} 
+          />
+        </div>
+
+        {/* Tags */}
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {tags.map((tag, i) => (
+              <span 
+                key={i} 
+                className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Interactions */}
+        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+          <div className="flex items-center space-x-4">
+            <button 
+              onClick={handleLike}
+              className="flex items-center text-gray-500 hover:text-red-500 transition-colors"
+              aria-label={isLiked ? "Unlike" : "Like"}
+            >
+              <Heart 
+                size={16} 
+                className={isLiked ? 'fill-red-500 text-red-500' : ''} 
+              />
+              <span className="ml-1 text-xs">{likesCount}</span>
+            </button>
+            <button 
+              onClick={onComment}
+              className="flex items-center text-gray-500 hover:text-blue-500 transition-colors"
+              aria-label="Comment"
+            >
+              <MessageCircle size={16} />
+              <span className="ml-1 text-xs">{commentsCount}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} 
