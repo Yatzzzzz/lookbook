@@ -16,7 +16,7 @@ export default function Wardrobe() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const { wardrobeItems, removeItem, isLoading, error, refreshSession } = useWardrobe();
+  const { wardrobeItems, removeItem, isLoading, error, refreshSession, refreshWardrobeItems } = useWardrobe();
   const { user, loading: authLoading, error: authError } = useAuth();
   const router = useRouter();
 
@@ -28,6 +28,18 @@ export default function Wardrobe() {
       setAuthChecked(true);
     }
   }, [user, authLoading, router]);
+
+  // Refresh wardrobe items when page loads
+  useEffect(() => {
+    if (user && !authLoading) {
+      // Use a ref to ensure this only runs once
+      const refreshOnce = () => {
+        console.log('Refreshing wardrobe items once on page load');
+        refreshWardrobeItems();
+      };
+      refreshOnce();
+    }
+  }, []);  // Empty dependency array means this only runs once on mount
 
   // Listen for edit events from the WardrobeCategories component
   useEffect(() => {

@@ -3,24 +3,18 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
+import Image from 'next/image';
 import CameraUpload from '../components/camera-upload';
 import AudienceSelector, { AudienceType } from '../components/audience-selector';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useToast } from '@/hooks/use-toast';
 
-interface Person {
+export interface Person {
   id: string;
   name: string;
   avatar: string;
 }
-
-interface OpinionData {
-  imageUrl: string;
-  topic: string;
-  audience: AudienceType;
-  excludedPeople: Person[];
-}
-
+  
 // Common topic suggestions
 const topicSuggestions = [
   "Style advice",
@@ -43,8 +37,6 @@ export default function OpinionsPage() {
   const [file, setFile] = useState<File | null>(null);
   const [imageData, setImageData] = useState<string | null>(null);
   const [topic, setTopic] = useState<string>('');
-  const [audience, setAudience] = useState<AudienceType>('everyone');
-  const [excludedPeople, setExcludedPeople] = useState<Person[]>([]);
   const [uploading, setUploading] = useState(false);
 
   // Handle image capture from camera or file upload
@@ -62,10 +54,8 @@ export default function OpinionsPage() {
   };
 
   // Handle audience selection complete
-  const handleAudienceComplete = async (selectedAudience: AudienceType, selectedExcludedPeople: Person[]) => {
-    setAudience(selectedAudience);
-    setExcludedPeople(selectedExcludedPeople);
-    
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleAudienceComplete = async (selectedAudience: AudienceType, excludedPeople: Person[]) => {
     if (!file || !imageData) {
       toast({
         title: "Error",
@@ -79,7 +69,11 @@ export default function OpinionsPage() {
       setUploading(true);
       
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        throw new Error(`Authentication error: ${userError.message}`);
+      }
       
       if (!user) {
         toast({
@@ -91,39 +85,69 @@ export default function OpinionsPage() {
       }
       
       // Get username for storage path
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profileError } = await supabase
         .from('users')
         .select('username')
         .eq('id', user.id)
         .single();
+      
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error fetching profile:', profileError);
+        // Continue with user.id as fallback
+      }
         
       const username = profiles?.username || user.id;
       
-      // Generate a unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${username}/${Date.now()}.${fileExt}`;
+      // Ensure file extension is included and normalized to lowercase
+      const fileExtMatch = file.name.match(/\.([^.]+)$/);
+      const fileExt = fileExtMatch ? fileExtMatch[1].toLowerCase() : 'jpg';
+      const uniqueId = Date.now().toString();
       
-      // Upload the file to Supabase Storage (opinions bucket)
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // Construct a cleaner path - ensure username is safe for paths
+      const safeUsername = username.replace(/[^a-zA-Z0-9_-]/g, '_');
+      
+      // Create a more reliable filename structure
+      const fileName = `${safeUsername}/${uniqueId}.${fileExt}`;
+      
+      // Upload with optimized approach
+      const { error: uploadError } = await supabase.storage
         .from('opinions')
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
       
       if (uploadError) {
-        console.error('Error uploading file:', uploadError);
-        throw uploadError;
+        // Try one more time with upsert if first attempt failed
+        if (uploadError.message.includes('duplicate')) {
+          const { error: retryError } = await supabase.storage
+            .from('opinions')
+            .upload(fileName, file, {
+              cacheControl: '3600',
+              upsert: true
+            });
+            
+          if (retryError) {
+            throw new Error(`Upload retry failed: ${retryError.message}`);
+          }
+        } else {
+          throw new Error(`Upload failed: ${uploadError.message}`);
+        }
       }
       
-      // Get the public URL for the uploaded image
+      // Generate public URL for the uploaded file
       const { data: publicUrlData } = supabase.storage
         .from('opinions')
         .getPublicUrl(fileName);
       
-      const publicUrl = publicUrlData.publicUrl;
+      if (!publicUrlData?.publicUrl) {
+        throw new Error('Failed to generate a public URL for the image');
+      }
       
       // Insert record into looks table
       const lookData = {
         user_id: user.id,
-        image_url: publicUrl,
+        image_url: publicUrlData.publicUrl,
         description: topic.trim(),
         upload_type: 'opinions',
         feature_in: ['opinions'],
@@ -137,8 +161,7 @@ export default function OpinionsPage() {
         .insert(lookData);
         
       if (insertError) {
-        console.error('Error inserting look:', insertError);
-        throw insertError;
+        throw new Error(`Database error: ${insertError.message}`);
       }
       
       toast({
@@ -151,9 +174,23 @@ export default function OpinionsPage() {
     } catch (err: any) {
       console.error('Error saving opinions request:', err);
       
+      let errorMessage = 'There was a problem uploading your image';
+      
+      if (err.message.includes('permission')) {
+        errorMessage = 'You do not have permission to upload to this location. Please log in again.';
+      } else if (err.message.includes('limit')) {
+        errorMessage = 'The file size exceeds the maximum allowed limit.';
+      } else if (err.message.includes('format')) {
+        errorMessage = 'The file format is not supported.';
+      } else if (err.message.includes('auth') || err.message.includes('session')) {
+        errorMessage = 'Authentication error. Please log in again.';
+        // Refresh auth session
+        await supabase.auth.refreshSession();
+      }
+      
       toast({
         title: "Upload Failed",
-        description: err.message || "There was a problem uploading your image",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -206,10 +243,13 @@ export default function OpinionsPage() {
             {/* Image preview */}
             <div>
               <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
-                <img 
+                <Image 
                   src={imageData} 
                   alt="Your outfit" 
-                  className="w-full h-full object-cover"
+                  className="object-cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  priority
                 />
               </div>
             </div>
@@ -228,6 +268,8 @@ export default function OpinionsPage() {
                   onChange={(e) => setTopic(e.target.value)}
                   placeholder="Example: Does this color match my shoes? Is this formal enough?"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500 min-h-[100px]"
+                  id="opinion-topic"
+                  name="opinion-topic"
                 />
               </div>
               
@@ -282,7 +324,7 @@ export default function OpinionsPage() {
           
           <AudienceSelector 
             onComplete={handleAudienceComplete}
-            isLoading={uploading} 
+            loading={uploading} 
           />
         </div>
       )}

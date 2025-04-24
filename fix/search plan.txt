@@ -1,0 +1,612 @@
+# Lookbook Search Functionality Implementation Plan
+
+## Revised Search Approach: Contextual Integrated Search
+
+### Core Principles
+- Users should see actual content related to their search query, not just categories
+- Results should show visually rich information (images, profiles, looks, wardrobe items)
+- No subcategory tabs - search should be unified with context-aware grouping
+- Search should return related items across the entire application context
+
+### Example Use Case
+When a user searches for "Adidas":
+- They should see actual Adidas items in wardrobes
+- Looks containing Adidas items with images
+- Users who mention Adidas in their profiles
+- Related genres, moods, or styles that include Adidas items
+
+### Revised API Implementation
+```typescript
+// src/app/api/search/route.ts - Revised approach
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(request: NextRequest) {
+  try {
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    // Parse search parameters
+    const searchParams = request.nextUrl.searchParams;
+    const searchQuery = searchParams.get('q') || '';
+    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20;
+    const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : 0;
+    
+    // Return early if no search query
+    if (!searchQuery.trim()) {
+      return NextResponse.json({ 
+        success: true,
+        data: {
+          results: [],
+          total: 0
+        }
+      });
+    }
+
+    // Initialize result container - now with context awareness
+    const results = [];
+    
+    // 1. Search for users by username
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id, username, avatar_url')
+      .ilike('username', `%${searchQuery}%`)
+      .limit(limit);
+      
+    if (!usersError && users && users.length > 0) {
+      // Add users with context
+      users.forEach(user => {
+        results.push({
+          id: user.id,
+          type: 'user',
+          primary_text: user.username,
+          image_url: user.avatar_url,
+          context: 'User Profile',
+          url: `/profile/${user.id}`
+        });
+      });
+    }
+    
+    // 2. Search for looks containing the search term in title, description or tags
+    const { data: looks, error: looksError } = await supabase
+      .from('looks')
+      .select('look_id, user_id, username, image_url, title, description, tags')
+      .or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+      .limit(limit);
+      
+    if (!looksError && looks && looks.length > 0) {
+      // Add looks with context
+      looks.forEach(look => {
+        results.push({
+          id: look.look_id,
+          type: 'look',
+          primary_text: look.title || 'Fashion Look',
+          secondary_text: look.username ? `by @${look.username}` : '',
+          description: look.description || '',
+          image_url: look.image_url,
+          context: 'Fashion Look',
+          url: `/look/${look.look_id}`
+        });
+      });
+    }
+    
+    // 3. Search looks by tags (for brands, styles, etc.)
+    const { data: taggedLooks, error: taggedLooksError } = await supabase
+      .from('looks')
+      .select('look_id, user_id, username, image_url, title, description, tags')
+      .contains('tags', [searchQuery])
+      .limit(limit);
+      
+    if (!taggedLooksError && taggedLooks && taggedLooks.length > 0) {
+      // Add looks with tag context
+      taggedLooks.forEach(look => {
+        // Only add if not already included from title/description search
+        if (!results.some(r => r.type === 'look' && r.id === look.look_id)) {
+          results.push({
+            id: look.look_id,
+            type: 'look',
+            primary_text: look.title || 'Fashion Look',
+            secondary_text: look.username ? `by @${look.username}` : '',
+            description: look.description || '',
+            image_url: look.image_url,
+            context: `Tagged with "${searchQuery}"`,
+            url: `/look/${look.look_id}`
+          });
+        }
+      });
+    }
+    
+    // 4. Search for wardrobe items
+    const { data: wardrobeItems, error: wardrobeError } = await supabase
+      .from('wardrobe')
+      .select('item_id, user_id, image_url, title, description, category, tags')
+      .or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,category.ilike.%${searchQuery}%`)
+      .limit(limit);
+      
+    if (!wardrobeError && wardrobeItems && wardrobeItems.length > 0) {
+      // Add wardrobe items with context
+      wardrobeItems.forEach(item => {
+        results.push({
+          id: item.item_id,
+          type: 'wardrobe',
+          primary_text: item.title || item.category || 'Wardrobe Item',
+          secondary_text: item.category || '',
+          image_url: item.image_url,
+          context: 'Wardrobe Item',
+          url: `/wardrobe/${item.item_id}`
+        });
+      });
+    }
+    
+    // 5. Search for common fashion genres, moods, and styles
+    // This creates contextual relevance for fashion terms
+    const fashionTerms = [
+      'Casual', 'Formal', 'Streetwear', 'Bohemian', 'Classic', 'Vintage', 'Minimalist',
+      'Grunge', 'Preppy', 'Sporty', 'Athleisure', 'Artsy', 'Punk', 'Goth', 'Business Casual'
+    ];
+    
+    const matchingTerms = fashionTerms.filter(term => 
+      term.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      searchQuery.toLowerCase().includes(term.toLowerCase())
+    );
+    
+    if (matchingTerms.length > 0) {
+      matchingTerms.forEach(term => {
+        results.push({
+          id: `style-${term}`,
+          type: 'style',
+          primary_text: term,
+          context: 'Fashion Style',
+          url: `/search?q=${encodeURIComponent(term)}`
+        });
+      });
+    }
+    
+    // Sort results by relevance (can be improved with scoring)
+    // Currently prioritizing exact matches in primary text
+    results.sort((a, b) => {
+      const aExactMatch = a.primary_text.toLowerCase() === searchQuery.toLowerCase();
+      const bExactMatch = b.primary_text.toLowerCase() === searchQuery.toLowerCase();
+      
+      if (aExactMatch && !bExactMatch) return -1;
+      if (!aExactMatch && bExactMatch) return 1;
+      return 0;
+    });
+    
+    return NextResponse.json({ 
+      success: true,
+      data: {
+        results,
+        total: results.length
+      }
+    });
+    
+  } catch (error) {
+    console.error('Search API error:', error);
+    return NextResponse.json({ error: 'An error occurred during search' }, { status: 500 });
+  }
+}
+```
+
+### Revised UI Implementation
+```typescript
+// Unified, contextual results display
+const renderContextualResults = () => {
+  if (isLoading) {
+    return <LoadingDisplay />;
+  }
+  
+  if (error) {
+    return <ErrorDisplay message={error} />;
+  }
+  
+  if (!searchResults.results || searchResults.results.length === 0) {
+    return <EmptyResultsDisplay query={searchQuery} />;
+  }
+  
+  // Group results by context for better organization
+  const groupedResults = {};
+  searchResults.results.forEach(result => {
+    if (!groupedResults[result.context]) {
+      groupedResults[result.context] = [];
+    }
+    groupedResults[result.context].push(result);
+  });
+  
+  return (
+    <div className="space-y-8">
+      {Object.entries(groupedResults).map(([context, items]) => (
+        <section key={context} className="bg-white rounded-lg p-4 shadow">
+          <h2 className="text-lg font-semibold mb-3">{context}</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {items.map(item => (
+              <Link href={item.url} key={item.id}>
+                <div className="relative group">
+                  {/* Show image if available */}
+                  {item.image_url ? (
+                    <div className="aspect-square relative rounded-lg overflow-hidden bg-gray-100">
+                      <Image 
+                        src={item.image_url} 
+                        alt={item.primary_text} 
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform"
+                      />
+                    </div>
+                  ) : (
+                    <div className="aspect-square flex items-center justify-center bg-gray-100 rounded-lg">
+                      {item.type === 'user' && <UserIcon size={24} />}
+                      {item.type === 'style' && <TagIcon size={24} />}
+                      {(item.type !== 'user' && item.type !== 'style') && 
+                        <span className="text-2xl font-light">{item.primary_text.charAt(0)}</span>
+                      }
+                    </div>
+                  )}
+                  
+                  {/* Item information */}
+                  <div className="mt-2">
+                    <h3 className="text-sm font-medium truncate">{item.primary_text}</h3>
+                    {item.secondary_text && (
+                      <p className="text-xs text-gray-500 truncate">{item.secondary_text}</p>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+};
+```
+
+## 1. Search API Endpoint Implementation
+
+### Create a Search API Route
+- Create file: `src/app/api/search/route.ts`
+- Implement endpoint that accepts query parameters for search terms, filters, and pagination
+- Structure to support searching users, looks, tags, styles, and brands
+
+### Search API Logic
+```typescript
+// src/app/api/search/route.ts
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(request: NextRequest) {
+  try {
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    // Parse search parameters
+    const searchParams = request.nextUrl.searchParams;
+    const searchQuery = searchParams.get('q') || '';
+    const category = searchParams.get('category') || 'all'; // all, users, looks, styles, brands
+    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')) : 20;
+    const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')) : 0;
+    
+    // Return early if no search query
+    if (!searchQuery.trim()) {
+      return NextResponse.json({ 
+        success: true,
+        data: {
+          users: [],
+          looks: [],
+          tags: [],
+          styles: [],
+          brands: [],
+          total: 0
+        }
+      });
+    }
+
+    // Results container
+    const results = {
+      users: [],
+      looks: [],
+      tags: [],
+      styles: [],
+      brands: []
+    };
+    
+    // Search users if category is 'all' or 'users'
+    if (category === 'all' || category === 'users') {
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, username, avatar_url')
+        .ilike('username', `%${searchQuery}%`)
+        .range(offset, offset + limit - 1);
+        
+      if (!usersError && users) {
+        results.users = users;
+      }
+    }
+    
+    // Search looks if category is 'all' or 'looks'
+    if (category === 'all' || category === 'looks') {
+      // First search by title or description
+      const { data: looksByText, error: looksTextError } = await supabase
+        .from('looks')
+        .select('look_id, user_id, username, image_url, title, description, tags')
+        .or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+        .range(offset, offset + limit - 1);
+        
+      if (!looksTextError && looksByText) {
+        results.looks = [...looksByText];
+      }
+      
+      // Then search by tags (array containment)
+      // This requires tags to be stored as an array of strings
+      const { data: looksByTags, error: looksTagsError } = await supabase
+        .from('looks')
+        .select('look_id, user_id, username, image_url, title, description, tags')
+        .contains('tags', [searchQuery])
+        .range(offset, offset + limit - 1);
+        
+      if (!looksTagsError && looksByTags) {
+        // Merge results, avoiding duplicates
+        const existingIds = results.looks.map(look => look.look_id);
+        const newTagLooks = looksByTags.filter(look => !existingIds.includes(look.look_id));
+        results.looks = [...results.looks, ...newTagLooks];
+      }
+    }
+    
+    // Search for tags, styles, and brands
+    // This depends on your database structure
+    // Example for tags table if you have one
+    if (category === 'all' || category === 'tags') {
+      const { data: tags, error: tagsError } = await supabase
+        .from('tags')
+        .select('*')
+        .ilike('name', `%${searchQuery}%`)
+        .range(offset, offset + limit - 1);
+        
+      if (!tagsError && tags) {
+        results.tags = tags;
+      }
+    }
+    
+    // Calculate total results across categories
+    const total = results.users.length + results.looks.length + 
+                 results.tags.length + results.styles.length + results.brands.length;
+    
+    return NextResponse.json({ 
+      success: true,
+      data: {
+        ...results,
+        total
+      }
+    });
+    
+  } catch (error) {
+    console.error('Search API error:', error);
+    return NextResponse.json({ error: 'An error occurred during search' }, { status: 500 });
+  }
+}
+```
+
+## 2. Search Page Enhancement
+
+### Update Search Component
+- Modify the existing search page (`src/app/search/page.tsx`) to connect with API
+- Implement state for search results and loading state
+- Add error handling and empty state displays
+
+### Enhanced Search UI Implementation
+```typescript
+// Required state updates for src/app/search/page.tsx
+const [searchQuery, setSearchQuery] = useState('');
+const [activeTab, setActiveTab] = useState('all');
+const [searchResults, setSearchResults] = useState<SearchResults>({
+  users: [],
+  looks: [],
+  tags: [],
+  styles: [],
+  brands: [],
+  total: 0
+});
+const [isLoading, setIsLoading] = useState(false);
+const [error, setError] = useState('');
+
+// Handle search function
+const handleSearch = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!searchQuery.trim()) return;
+  
+  setIsLoading(true);
+  setError('');
+  
+  try {
+    const response = await fetch(
+      `/api/search?q=${encodeURIComponent(searchQuery)}&category=${activeTab !== 'all' ? activeTab : ''}`,
+      { method: 'GET' }
+    );
+    
+    if (!response.ok) {
+      throw new Error('Search request failed');
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      setSearchResults(data.data);
+    } else {
+      setError(data.error || 'Failed to retrieve search results');
+    }
+  } catch (err) {
+    console.error('Search error:', err);
+    setError('An error occurred while searching');
+  } finally {
+    setIsLoading(false);
+  }
+};
+```
+
+### Create Results Display Components
+- Create components to display search results by category
+- Implement user result card, look result card, and tag/style/brand chips
+
+## 3. Real-Time Search Implementation
+
+### Add Debounced Search
+```typescript
+// Add to search page
+import { useDebounce } from '@/hooks/useDebounce';
+
+// In component
+const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+const debouncedQuery = useDebounce(debouncedSearchQuery, 500);
+
+// Create hook in hooks/useDebounce.ts
+import { useState, useEffect } from 'react';
+
+export function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+```
+
+## 4. AI Search Integration
+
+### Connect AI Search Tab to Gemini API
+- Implement specialized AI search in the AI tab section
+- Connect to existing Gemini API endpoint for natural language processing
+
+```typescript
+// AI Search function
+const handleAISearch = async (query: string) => {
+  setIsLoading(true);
+  try {
+    const response = await fetch('/api/ai-assistant', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: `Help me find fashion items related to: ${query}`,
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error('AI search failed');
+    }
+    
+    const data = await response.json();
+    
+    // Process AI response and update UI
+    // This depends on the AI API response format
+    if (data.result) {
+      setAIResults(data.result);
+    }
+  } catch (error) {
+    console.error('AI search error:', error);
+    setError('AI search failed to process your request');
+  } finally {
+    setIsLoading(false);
+  }
+};
+```
+
+## 5. Search Result Categorization & Pagination
+
+### Implement Categorized Results
+- Organize search results by type (users, looks, styles, etc.)
+- Create tabbed interface to navigate between result types
+
+### Add Pagination
+```typescript
+// Add to search page
+const [page, setPage] = useState(1);
+const itemsPerPage = 10;
+
+// Pagination component
+const Pagination = () => {
+  const totalPages = Math.ceil(searchResults.total / itemsPerPage);
+  
+  return (
+    <div className="flex justify-center mt-4 gap-2">
+      <button 
+        onClick={() => setPage(prev => Math.max(1, prev - 1))}
+        disabled={page === 1}
+        className="px-3 py-1 border rounded disabled:opacity-50"
+      >
+        Previous
+      </button>
+      
+      <span className="px-3 py-1">
+        Page {page} of {totalPages || 1}
+      </span>
+      
+      <button
+        onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+        disabled={page === totalPages || totalPages === 0}
+        className="px-3 py-1 border rounded disabled:opacity-50"
+      >
+        Next
+      </button>
+    </div>
+  );
+};
+
+// Update fetch function to use pagination
+const fetchSearchResults = async () => {
+  // Calculate offset based on page
+  const offset = (page - 1) * itemsPerPage;
+  
+  // Update API call to include pagination
+  const response = await fetch(
+    `/api/search?q=${encodeURIComponent(searchQuery)}&category=${activeTab}&limit=${itemsPerPage}&offset=${offset}`,
+    { method: 'GET' }
+  );
+  
+  // Process response as before
+};
+```
+
+## Implementation Timeline
+
+1. **Week 1: Backend Search API**
+   - Day 1-2: Create search API route and implement basic search
+   - Day 3-4: Test API with different search parameters
+   - Day 5: Document API and write tests
+
+2. **Week 2: Frontend Search UI**
+   - Day 1-2: Enhance search page with API integration
+   - Day 3-4: Create result display components
+   - Day 5: Add responsive design and polish UI
+
+3. **Week 3: Advanced Features**
+   - Day 1-2: Implement debounced search
+   - Day 3-4: Add AI search integration
+   - Day 5: Implement categorization and pagination
+
+4. **Week 4: Testing and Refinement**
+   - Day 1-2: Comprehensive testing
+   - Day 3-4: Fix bugs and optimize performance
+   - Day 5: Final review and documentation 

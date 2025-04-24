@@ -35,8 +35,12 @@ export default function WardrobeCategories() {
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
         await removeItem(itemId);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error deleting item:', err);
+        
+        // Show user-friendly error message
+        const errorMessage = err.message || 'Failed to delete item';
+        alert(`Error: ${errorMessage}. Please try again.`);
       }
     }
   };

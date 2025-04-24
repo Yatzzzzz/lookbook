@@ -1,0 +1,162 @@
+Design: Public Wardrobe Browsing System
+1. Wardrobe Privacy Settings
+Wardrobe Visibility Control:
+Add item-level privacy settings for wardrobe items (Public, Friends Only, Private)
+Add wardrobe-level default visibility setting
+User profile setting for making entire wardrobe public/private by default
+Database Changes:
+Add visibility column to wardrobe items table (enum: 'public', 'friends', 'private')
+Add default_wardrobe_visibility to user settings/preferences table
+2. User Profile Integration
+Profile Wardrobe Tab:
+Add a "Wardrobe" tab to user profiles
+Display only publicly shared items when viewing other users
+Show wardrobe statistics (e.g., "120 items, 35 public")
+Visual Interface:
+Grid layout similar to current wardrobe but with filter for public items
+Category filters at the top (Tops, Bottoms, Shoes, etc.)
+"Featured items" section at the top for items the user has highlighted
+3. Discover & Browse Features
+Public Wardrobe Feed:
+New "Discover Wardrobes" section in the app
+Algorithm to show popular/trending wardrobe items
+Filters for wardrobe items by brand, style, category
+Search Enhancement:
+Extend search to include other users' public wardrobe items
+Add "Wardrobes" filter in search results
+Show owner username with items in search results
+4. Social Features
+Follow Wardrobes:
+Allow users to follow specific users' wardrobes
+Notification when followed users add new public items
+"Wardrobe Following" section in user dashboard
+Wardrobe Sharing:
+Share button for individual wardrobe items (generates link)
+"Add to inspiration" button to save items from others' wardrobes
+Option to request item details from owner (brand, size, etc.)
+5. Security & Privacy Considerations
+Access Controls:
+Row-level security to enforce visibility settings
+Friends-only checks against friend/follower relationships
+Analytics tracking only on public items
+User Education:
+Clear explanations during onboarding about wardrobe sharing
+Prominent visibility indicators on items
+Batch edit tools to manage privacy settings easily
+User Experience Flow
+User visits another profile
+Clicks on "Wardrobe" tab
+Browses publicly shared items with category filters
+Can search within that user's wardrobe
+Can follow wardrobe or save specific items to inspiration board
+Receives notifications about new additions from followed wardrobes
+
+
+
+Deployment Plan: Public Wardrobe Browsing System
+Phase 1: Database & Backend Foundations (Week 1-2)
+Database Schema Updates:
+Add visibility enum column to wardrobe items table
+Add default_wardrobe_visibility to user preferences
+Create necessary database indexes for performance
+Update Supabase RLS policies to enforce visibility rules
+API Endpoint Development:
+Modify existing wardrobe endpoints to respect visibility settings
+Create new endpoints for public wardrobe browsing
+Add visibility parameter to search API
+Implement following/friends-only access controls
+Migration Plan:
+Default all existing wardrobe items to 'private'
+Schedule database migration during low-traffic hours
+Add data validation to ensure integrity during migration
+Phase 2: Core UI Components (Week 3-4)
+Visibility Controls:
+Develop visibility toggle UI for wardrobe items
+Create wardrobe settings page for default visibility options
+Add batch edit functionality for visibility settings
+Profile Integration:
+Add wardrobe tab to user profiles
+Design and implement public wardrobe grid view
+Create category filters for browsing others' wardrobes
+Testing:
+Unit tests for visibility logic
+Integration tests for privacy controls
+Performance testing for large wardrobe collections
+Phase 3: Discovery Features (Week 5-6)
+Discover Section:
+Design and implement "Discover Wardrobes" page
+Build recommendation algorithm for trending items
+Create filter UI for discovery page
+Enhanced Search:
+Update search functionality to include public wardrobe items
+Add attribution to search results (item owner)
+Implement relevance sorting considering user preferences
+Analytics:
+Add anonymous usage tracking for public items
+Implement popularity metrics
+Create admin dashboard for feature adoption metrics
+Phase 4: Social Features (Week 7-8)
+Follow System:
+Implement wardrobe following functionality
+Build notification system for wardrobe updates
+Create "Following" feed in user dashboard
+Sharing Features:
+Generate shareable links for wardrobe items
+Implement "Add to inspiration" functionality
+Create item detail request system
+Security Review:
+Conduct privacy audit of implementation
+Verify RLS policy effectiveness
+Test edge cases in access controls
+Phase 5: Testing & Gradual Rollout (Week 9-10)
+Beta Testing:
+Invite select users to beta test feature
+Collect and analyze feedback
+Address critical issues
+Performance Optimization:
+Optimize database queries for large wardrobes
+Implement caching for popular public wardrobes
+Add pagination for large wardrobe collections
+Rollout Strategy:
+Progressive feature flag enablement (10% → 25% → 50% → 100%)
+Monitor performance and errors during each stage
+Prepare support documentation and FAQs
+Phase 6: Launch & Monitoring (Week 11-12)
+Final Launch:
+Enable feature for all users
+Send announcement email/notification
+Highlight new feature in app onboarding
+Post-Launch:
+Monitor adoption metrics and engagement
+Collect user feedback through in-app surveys
+Plan iteration based on usage patterns
+Schedule review meeting 2 weeks post-launch
+Marketing:
+Update app store listings with new feature
+Create social media content showcasing feature
+Prepare community showcase of interesting public wardrobes
+Resource Requirements
+Development Team:
+2 Backend developers
+2 Frontend developers
+1 Designer
+1 QA engineer
+Infrastructure:
+Additional storage for increased image views
+Expanded database capacity for social connections
+Potential CDN optimization for popular public wardrobes
+Testing Environment:
+Staging environment with user test accounts
+Performance testing suite for load testing
+Mobile device testing lab for UI verification
+Risk Management
+Potential Risks:
+Privacy concerns from users
+Performance issues with large wardrobes
+Low adoption rate of public sharing
+Abuse of visibility settings
+Mitigation Strategies:
+Clear user education about visibility
+Paginated loading and optimized queries
+Incentives for public sharing (visibility in Discover feed)
+Reporting system for inappropriate content

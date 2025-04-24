@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
-import { X, Plus, Check } from 'lucide-react';
+import { X, Plus, Check, Loader2 } from 'lucide-react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export type AudienceType = 'everyone' | 'followers' | 'friends' | 'individuals';
 
@@ -27,21 +28,58 @@ export default function AudienceSelector({
   initialExcludedPeople = [], 
   loading = false 
 }: AudienceSelectorProps) {
+  const supabase = createClientComponentClient();
   const [selectedAudience, setSelectedAudience] = useState<AudienceType>(initialAudience);
   const [excludedPeople, setExcludedPeople] = useState<Person[]>(initialExcludedPeople);
   const [searchQuery, setSearchQuery] = useState('');
+  const [people, setPeople] = useState<Person[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Mock data for people suggestions
-  const mockPeople: Person[] = [
-    { id: '1', name: 'Alex Johnson', avatar: 'https://i.pravatar.cc/150?u=alex' },
-    { id: '2', name: 'Jamie Smith', avatar: 'https://i.pravatar.cc/150?u=jamie' },
-    { id: '3', name: 'Casey Williams', avatar: 'https://i.pravatar.cc/150?u=casey' },
-    { id: '4', name: 'Taylor Brown', avatar: 'https://i.pravatar.cc/150?u=taylor' },
-    { id: '5', name: 'Jordan Davis', avatar: 'https://i.pravatar.cc/150?u=jordan' },
-  ];
+  // Fetch people from Supabase
+  useEffect(() => {
+    const fetchPeople = async () => {
+      setIsLoading(true);
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          console.error('User not authenticated');
+          setIsLoading(false);
+          return;
+        }
+        
+        // Fetch profiles instead of users directly
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .neq('id', user.id)
+          .limit(20);
+        
+        if (error) {
+          console.error('Error fetching people:', error);
+          return;
+        }
+        
+        const formattedPeople: Person[] = data.map(profile => ({
+          id: profile.id,
+          name: profile.username || 'Unknown User',
+          avatar: profile.avatar_url || `https://i.pravatar.cc/150?u=${profile.id}`
+        }));
+        
+        setPeople(formattedPeople);
+      } catch (error) {
+        console.error('Error fetching people:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchPeople();
+  }, [supabase]);
 
   // Filter people based on search query
-  const filteredPeople = mockPeople.filter(
+  const filteredPeople = people.filter(
     (person) => 
       !excludedPeople.some(excludedPerson => excludedPerson.id === person.id) &&
       person.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -123,26 +161,35 @@ export default function AudienceSelector({
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search people..."
             className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            id="people-search"
+            name="people-search"
           />
           
-          {searchQuery && filteredPeople.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-300 dark:border-gray-700 max-h-60 overflow-auto">
-              {filteredPeople.map((person) => (
-                <div
-                  key={person.id}
-                  className="flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                  onClick={() => addExcludedPerson(person)}
-                >
-                  <img
-                    src={person.avatar}
-                    alt={person.name}
-                    className="w-8 h-8 rounded-full mr-2"
-                  />
-                  <span>{person.name}</span>
-                  <Plus className="ml-auto w-4 h-4" />
-                </div>
-              ))}
+          {isLoading ? (
+            <div className="mt-2 flex justify-center">
+              <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
             </div>
+          ) : (
+            searchQuery && filteredPeople.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-300 dark:border-gray-700 max-h-60 overflow-auto">
+                {filteredPeople.map((person) => (
+                  <div
+                    key={person.id}
+                    className="flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                    onClick={() => addExcludedPerson(person)}
+                  >
+                    <img
+                      src={person.avatar}
+                      alt={person.name}
+                      className="w-8 h-8 rounded-full mr-2"
+                    />
+                    <span>{person.name}</span>
+                    <Plus className="ml-auto w-4 h-4" />
+                  </div>
+                ))
+                }
+              </div>
+            )
           )}
         </div>
         

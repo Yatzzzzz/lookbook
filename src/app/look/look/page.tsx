@@ -1,11 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Tag, X, ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { Tag, X, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import CameraUpload from '../components/camera-upload';
 import AudienceSelector, { AudienceType } from '../components/audience-selector';
-import SupabaseImage from '@/components/ui/supabase-image';
 
 interface Person {
   id: string;
@@ -13,12 +13,6 @@ interface Person {
   avatar: string;
 }
 
-interface LookData {
-  imageData: string;
-  tags: string[];
-  audience: AudienceType;
-  excludedPeople: Person[];
-}
 
 export default function LookPage() {
   const router = useRouter();
@@ -122,23 +116,57 @@ export default function LookPage() {
       const base64Data = imageData!.split(',')[1];
       const byteArray = Buffer.from(base64Data, 'base64');
       
-      // Generate a unique file name
-      const fileName = `look_${Date.now()}.jpg`;
-      
-      // Upload to Supabase storage
-      const { data: storageData, error: storageError } = await fetch('/api/upload', {
-        method: 'POST',
+      // Get current user information including username
+      const { data: userData, error: userError } = await fetch('/api/user/me', {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          fileName,
-          fileData: imageData,
-        }),
       }).then(res => res.json());
       
-      if (storageError) {
-        throw new Error(`Storage error: ${storageError.message}`);
+      if (userError) {
+        console.error("Error fetching user data:", userError);
+        throw new Error("Failed to get user information");
+      }
+      
+      if (!userData || !userData.id) {
+        throw new Error("User data or ID is missing");
+      }
+      
+      // Generate a unique filename with username directory
+      const username = userData.username || 'anonymous';
+      const uniqueId = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      const fileName = `${username}/${uniqueId}.jpg`;
+      
+      console.log('Attempting to upload file:', fileName);
+      
+      // Convert base64 to Blob for uploading
+      const base64Response = await fetch(imageData!);
+      const imageBlob = await base64Response.blob();
+      
+      // Create a File object from the Blob
+      const imageFile = new File([imageBlob], `${uniqueId}.jpg`, { type: 'image/jpeg' });
+      
+      // Create FormData object for multipart/form-data upload
+      const formData = new FormData();
+      formData.append('file', imageFile);
+      formData.append('filename', fileName);
+      
+      // Upload to Supabase storage using FormData
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(`Storage error: ${errorData.error || uploadResponse.statusText}`);
+      }
+      
+      const storageData = await uploadResponse.json();
+      
+      if (!storageData || !storageData.path) {
+        throw new Error('Failed to upload image: No storage path returned');
       }
       
       // Now save the look data to the database
@@ -152,41 +180,33 @@ export default function LookPage() {
         }),
       }).then(res => res.json());
       
-      // Get current user information including username
-      const { data: userData, error: userError } = await fetch('/api/user/me', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }).then(res => res.json());
-      
-      if (userError) {
-        console.error("Error fetching user data:", userError);
-      }
-      
-      // Save look metadata to the database
+      // Save look metadata to the database with both user_id and username
       const lookData = {
+        user_id: userData.id,        // Include user_id from the user data
+        username: userData.username, // Include username for easier access
         image_url: publicUrl,
         tags: tags,
         audience: selectedAudience,
         // Store the file name separately to make it retrievable by the details page
         file_name: fileName,
         feature_in: ['gallery'], // Explicitly mark this look to appear in the gallery
-        // Include username directly with the look if available
-        username: userData?.username || null,
+        storage_path: storageData.path // Include storage path for future reference
       };
       
-      const { data: dbData, error: dbError } = await fetch('/api/looks', {
+      const response = await fetch('/api/looks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(lookData),
-      }).then(res => res.json());
+      });
       
-      if (dbError) {
-        throw new Error(`Database error: ${dbError.message}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Database error: ${errorData.error || response.statusText}`);
       }
+      
+      const dbData = await response.json();
       
       console.log('Look data saved successfully:', dbData);
       
@@ -237,7 +257,7 @@ export default function LookPage() {
             
             {imageData && (
               <div className="relative mb-4 h-64 md:h-96 rounded-lg overflow-hidden">
-                <img src={imageData} alt="Your look" className="object-cover h-full w-full" />
+                <img src={imageData} alt="Your look" className="object-contain h-full w-full" />
               </div>
             )}
             
@@ -311,7 +331,7 @@ export default function LookPage() {
             
             {imageData && (
               <div className="relative mb-4 h-48 md:h-64 rounded-lg overflow-hidden">
-                <img src={imageData} alt="Your look" className="object-cover h-full w-full" />
+                <img src={imageData} alt="Your look" className="object-contain h-full w-full" />
               </div>
             )}
             

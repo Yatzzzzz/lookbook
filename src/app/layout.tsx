@@ -8,6 +8,7 @@ import { WardrobeProvider } from './context/WardrobeContext';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import DbInitializer from '@/components/DbInitializer';
 import { Toaster } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,12 +32,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="h-full high-contrast light">
+    <html
+      lang="en"
+      suppressHydrationWarning={true}
+      className={cn(
+        'light h-full',
+        geistSans.variable,
+        geistMono.variable,
+        'antialiased bg-white text-black min-h-screen font-normal'
+      )}
+    >
       <head>
         {/* Remove masonry.css link */}
         <meta name="color-scheme" content="light" />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-black min-h-screen font-normal`}>
+      <body className="bg-white dark:bg-gray-950" suppressHydrationWarning={true}>
         <ThemeProvider>
           <AuthProvider>
             <WardrobeProvider>

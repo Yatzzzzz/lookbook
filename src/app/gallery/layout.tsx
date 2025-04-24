@@ -43,7 +43,7 @@ export default function GalleryLayout({
 
   return (
     <GalleryContext.Provider value={{ activeSubTab, setActiveSubTab }}>
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen" suppressHydrationWarning>
         {/* Main tabs (Red square area) */}
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <Tabs 

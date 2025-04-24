@@ -51,6 +51,7 @@ interface WardrobeContextType {
   uploadImage: (file: File) => Promise<string>;
   refreshSession: () => Promise<any>;
   refreshRanking: () => Promise<void>;
+  refreshWardrobeItems: () => Promise<void>;
 }
 
 const WardrobeContext = createContext<WardrobeContextType | undefined>(undefined);
@@ -77,50 +78,51 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
+  // Extract the fetch wardrobe items functionality into a reusable function
+  const fetchWardrobeItems = async () => {
+    if (!user) {
+      setWardrobeItems([]);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!supabase) {
+      setError("Supabase client is not initialized");
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      console.log('Fetching wardrobe items for user:', user.id);
+      
+      const { data, error } = await supabase
+        .from('wardrobe')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      console.log(`Found ${data?.length || 0} wardrobe items`);
+      setWardrobeItems(data || []);
+      
+      // Also fetch ranking data
+      await fetchWardrobeRanking();
+    } catch (err: any) {
+      console.error('Error fetching wardrobe items:', err);
+      setError(err.message || 'Failed to fetch wardrobe items');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   // Fetch items from Supabase on mount and when user changes
   useEffect(() => {
-    const fetchWardrobeItems = async () => {
-      if (!user) {
-        setWardrobeItems([]);
-        setIsLoading(false);
-        return;
-      }
-
-      if (!supabase) {
-        setError("Supabase client is not initialized");
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        console.log('Fetching wardrobe items for user:', user.id);
-        
-        const { data, error } = await supabase
-          .from('wardrobe')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          throw error;
-        }
-
-        console.log(`Found ${data?.length || 0} wardrobe items`);
-        setWardrobeItems(data || []);
-        
-        // Also fetch ranking data
-        await fetchWardrobeRanking();
-      } catch (err: any) {
-        console.error('Error fetching wardrobe items:', err);
-        setError(err.message || 'Failed to fetch wardrobe items');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchWardrobeItems();
   }, [user, supabase]);
   
@@ -151,6 +153,11 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
   // Function to refresh ranking - called after operations that might affect it
   const refreshRanking = async () => {
     await fetchWardrobeRanking();
+  };
+  
+  // Function to refresh wardrobe items - to be called when we need to sync with database
+  const refreshWardrobeItems = async () => {
+    await fetchWardrobeItems();
   };
   
   // Function to upload image
@@ -270,10 +277,13 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
         }
         
         if (data && data.length > 0) {
+          // Just update local state directly without re-fetching
           setWardrobeItems(prev => [...prev, data[0]]);
           
-          // Refresh the ranking after adding an item
-          setTimeout(() => refreshRanking(), 1000);
+          // Update ranking after a short delay
+          setTimeout(() => {
+            refreshRanking();
+          }, 500);
           return;
         } else {
           console.log('No data returned, trying API route');
@@ -309,10 +319,13 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
       }
       
       const apiData = await response.json();
+      // Update local state directly without re-fetching
       setWardrobeItems(prev => [...prev, apiData]);
       
-      // Refresh the ranking after adding an item via API
-      setTimeout(() => refreshRanking(), 1000);
+      // Update ranking after a short delay
+      setTimeout(() => {
+        refreshRanking();
+      }, 500);
     } catch (apiError: any) {
       console.error('API insert failed:', apiError);
       throw new Error(`Failed to add item: ${apiError.message}`);
@@ -330,34 +343,84 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
     }
     
     try {
-      const { error } = await supabase
-        .from('wardrobe')
-        .delete()
-        .eq('item_id', itemId)
-        .eq('user_id', user.id);
-        
-      if (error) {
-        if (error.message.includes('row-level security')) {
-          throw new Error('Permission denied. You can only delete your own items.');
+      // First, try to refresh the session to ensure we have valid auth
+      try {
+        await refreshSession();
+      } catch (sessionError) {
+        console.error('Session refresh error:', sessionError);
+        // Continue with potentially expired token - API might still work
+      }
+      
+      // Try client-side deletion first
+      try {
+        const { error } = await supabase
+          .from('wardrobe')
+          .delete()
+          .eq('item_id', itemId)
+          .eq('user_id', user.id);
+          
+        if (error) {
+          console.error('Supabase delete error:', error);
+          
+          if (error.message.includes('row-level security') || 
+              error.message.includes('permission denied') ||
+              error.message.includes('auth') || 
+              error.message.includes('JWT')) {
+            // Fall back to API route for permission issues
+            return await deleteViaAPI(itemId);
+          }
+          throw error;
         }
-        throw error;
+        
+        // Also remove the image if it exists
+        const itemToRemove = wardrobeItems.find(item => item.item_id === itemId);
+        if (itemToRemove?.image_path) {
+          const imagePath = itemToRemove.image_path.split('/').slice(-2).join('/');
+          await supabase.storage.from('wardrobe').remove([imagePath]);
+        }
+        
+        // Update local state
+        setWardrobeItems(prev => prev.filter(item => item.item_id !== itemId));
+        
+        // Update ranking
+        setTimeout(() => {
+          refreshRanking();
+        }, 500);
+      } catch (clientError) {
+        console.error('Client deletion error:', clientError);
+        return await deleteViaAPI(itemId);
       }
-      
-      // Also remove the image if it exists
-      const itemToRemove = wardrobeItems.find(item => item.item_id === itemId);
-      if (itemToRemove?.image_path) {
-        const imagePath = itemToRemove.image_path.split('/').slice(-2).join('/');
-        await supabase.storage.from('wardrobe').remove([imagePath]);
-      }
-      
-      setWardrobeItems(prev => prev.filter(item => item.item_id !== itemId));
-      
-      // Refresh the ranking after removing an item
-      setTimeout(() => refreshRanking(), 1000);
     } catch (err: any) {
       console.error('Error removing wardrobe item:', err);
       setError(err.message || 'Failed to remove wardrobe item');
       throw err;
+    }
+  };
+  
+  // Helper function to delete via API route
+  const deleteViaAPI = async (itemId: string) => {
+    console.log('Using API route for deletion due to permission issues');
+    
+    try {
+      const response = await fetch(`/api/wardrobe/delete?id=${itemId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete item via API');
+      }
+      
+      // Update local state
+      setWardrobeItems(prev => prev.filter(item => item.item_id !== itemId));
+      
+      // Update ranking
+      setTimeout(() => {
+        refreshRanking();
+      }, 500);
+    } catch (apiError: any) {
+      console.error('API deletion failed:', apiError);
+      throw new Error(`Failed to delete item: ${apiError.message}`);
     }
   };
   
@@ -386,14 +449,15 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
       
+      // Update local state directly without re-fetching
       setWardrobeItems(prev => 
         prev.map(item => (item.item_id === itemId ? data[0] : item))
       );
       
-      // If category was changed, refresh the ranking
-      if (updates.category) {
-        setTimeout(() => refreshRanking(), 1000);
-      }
+      // Update ranking after a short delay
+      setTimeout(() => {
+        refreshRanking();
+      }, 500);
     } catch (err: any) {
       console.error('Error updating wardrobe item:', err);
       setError(err.message || 'Failed to update wardrobe item');
@@ -424,7 +488,8 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
         getTotalItems,
         uploadImage,
         refreshSession,
-        refreshRanking
+        refreshRanking,
+        refreshWardrobeItems
       }}
     >
       {children}

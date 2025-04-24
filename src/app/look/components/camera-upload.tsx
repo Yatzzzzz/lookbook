@@ -249,6 +249,8 @@ export default function CameraUpload({ onImageCapture, aspectRatio = '3/4' }: Ca
                 accept="image/*"
                 className="hidden"
                 onChange={handleFileUpload}
+                id="photo-upload"
+                name="photo-upload"
               />
             </label>
           </div>

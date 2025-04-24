@@ -229,12 +229,15 @@ const VideoInput: React.FC<VideoInputProps> = ({
                             {cameraInitializing ? (
                                 <div className="w-10 h-10 rounded-full border-4 border-gray-300 border-t-blue-600 animate-spin"></div>
                             ) : (
-                                <Image 
-                                    src="/start-camera.svg" 
-                                    alt="Start Camera" 
-                                    width={40} 
-                                    height={40} 
-                                />
+                                <div className="flex items-center justify-center w-10 h-10">
+                                    <Image 
+                                        src="/svg icons/start camera.svg" 
+                                        alt="Start Camera" 
+                                        width={36} 
+                                        height={36} 
+                                        className="object-contain"
+                                    />
+                                </div>
                             )}
                         </button>
                     )}
@@ -249,12 +252,15 @@ const VideoInput: React.FC<VideoInputProps> = ({
                             className="p-2 rounded-full transition-colors"
                             aria-label={isCapturing ? "Auto-Capture is On" : "Start Auto-Capture"}
                         >
-                            <Image 
-                                src={isCapturing ? "/capture-is-on.svg" : "/start-camera-capture.svg"} 
-                                alt={isCapturing ? "Auto-Capture is On" : "Start Auto-Capture"} 
-                                width={32} 
-                                height={32} 
-                            />
+                            <div className="flex items-center justify-center w-8 h-8">
+                                <Image 
+                                    src={isCapturing ? "/svg icons/capture is on.svg" : "/svg icons/start video camera capture.svg"} 
+                                    alt={isCapturing ? "Auto-Capture is On" : "Start Auto-Capture"} 
+                                    width={28} 
+                                    height={28} 
+                                    className="object-contain"
+                                />
+                            </div>
                         </button>
                         
                         {/* Stop camera button */}
@@ -263,12 +269,15 @@ const VideoInput: React.FC<VideoInputProps> = ({
                             className="p-2 rounded-full transition-colors"
                             aria-label="Stop Camera"
                         >
-                            <Image 
-                                src="/stop-camera.svg" 
-                                alt="Stop Camera" 
-                                width={32} 
-                                height={32} 
-                            />
+                            <div className="flex items-center justify-center w-8 h-8">
+                                <Image 
+                                    src="/svg icons/stop camera.svg" 
+                                    alt="Stop Camera" 
+                                    width={28} 
+                                    height={28} 
+                                    className="object-contain"
+                                />
+                            </div>
                         </button>
                     </div>
                 )}
