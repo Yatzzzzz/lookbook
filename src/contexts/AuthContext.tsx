@@ -40,9 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Call the user-record API endpoint to create a record if it doesn't exist
       const response = await fetch('/api/user-record', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
       });
       
       if (!response.ok) {
@@ -61,14 +59,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshSession = async (): Promise<Session | null> => {
     try {
       setError(null);
-      
       if (!supabase) {
         setError("Supabase client is not initialized");
         return null;
       }
       
       const { data, error } = await supabase.auth.refreshSession();
-      
       if (error) {
         console.error('Error refreshing session:', error);
         setError(error.message);
@@ -140,7 +136,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         (event, session) => {
           console.log('Auth state changed:', event, session?.user?.id);
-          
           if (session?.user) {
             setUser(session.user);
             // Ensure user record exists on auth state change
@@ -148,11 +143,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else {
             setUser(null);
           }
-          
           setLoading(false);
         }
       );
-  
+
       return () => {
         subscription.unsubscribe();
       };
@@ -170,6 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       const { error } = await supabase.auth.signOut();
+      
       if (error) {
         console.error('Error signing out:', error);
         setError(error.message);
@@ -209,9 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Update user metadata with the new avatar URL
       const { data, error: updateError } = await supabase.auth.updateUser({
-        data: {
-          avatar_url: avatarUrl,
-        }
+        data: { avatar_url: avatarUrl }
       });
       
       if (updateError) {
@@ -230,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(errorMessage);
     }
   };
-  
+
   // Update user metadata
   const updateUserMetadata = async (metadata: Record<string, any>) => {
     try {
@@ -273,16 +266,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      loading, 
-      error, 
-      signOut, 
-      signIn, 
-      refreshSession,
-      updateUserAvatar,
-      updateUserMetadata 
-    }}>
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        loading, 
+        error, 
+        signOut, 
+        signIn, 
+        refreshSession, 
+        updateUserAvatar, 
+        updateUserMetadata 
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,0 +1,210 @@
+47 results - 29 files
+
+src\app\globals.css:
+   77  .bg-gray-800 span, .bg-gray-800 p, .bg-gray-900 span, .bg-gray-900 p,
+   78: .bg-black span, .bg-black p {
+   79    color: white;
+
+  181  /* Override any dark elements with light versions */
+  182: .bg-black,
+  183  .bg-gray-900,
+
+  189  
+  190: .bg-black *,
+  191  .bg-gray-900 *,
+
+src\app\ai-assistant\QueryCard.tsx:
+  107            <Dialog.Portal>
+  108:             <Dialog.Overlay className="fixed inset-0 bg-black/50 data-[state=open]:animate-overlayShow" />
+  109              <Dialog.Content className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-lg bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-lg focus:outline-none data-[state=open]:animate-contentShow overflow-y-auto">
+
+src\app\components\add-wardrobe-item-modal.tsx:
+  157        <Dialog.Portal>
+  158:         <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
+  159          <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl z-50 p-6 max-h-[90vh] overflow-y-auto">
+
+src\app\components\create-look-modal.tsx:
+  51        <Dialog.Portal>
+  52:         <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
+  53          <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-xl z-50 p-6">
+
+src\app\components\edit-wardrobe-item-modal.tsx:
+  144        <Dialog.Portal>
+  145:         <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
+  146          <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl z-50 p-6 max-h-[90vh] overflow-y-auto">
+
+src\app\components\look-dialog.tsx:
+  26        <Dialog.Portal>
+  27:         <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
+  28          <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl bg-white dark:bg-gray-800 rounded-lg shadow-xl z-50 p-6">
+
+src\app\gallery\page.tsx.backup:
+  235              {hoverIndex === index && (
+  236:               <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 p-2 z-10">
+  237                  <div className="h-8 rounded-full bg-gray-200 relative cursor-pointer">
+
+src\app\gallery\battle\page.tsx:
+  489                        )}
+  490:                       <div className="absolute bottom-0 left-0 bg-black/60 text-white text-xs px-2 py-1">
+  491                          Option 1
+
+  514                        )}
+  515:                       <div className="absolute bottom-0 left-0 bg-black/60 text-white text-xs px-2 py-1">
+  516                          Option 2
+
+  535                        )}
+  536:                       <div className="absolute bottom-0 left-0 bg-black/60 text-white text-xs px-2 py-1">
+  537                          Main Look
+
+  592                        )}
+  593:                       <div className="absolute bottom-0 left-0 bg-black/60 text-white text-xs px-2 py-1">
+  594                          Option 1
+
+  613                        )}
+  614:                       <div className="absolute bottom-0 left-0 bg-black/60 text-white text-xs px-2 py-1">
+  615                          Main Look
+
+  638                        )}
+  639:                       <div className="absolute bottom-0 left-0 bg-black/60 text-white text-xs px-2 py-1">
+  640                          Option 2
+
+src\app\gallery\look\[name]\page.tsx:
+  447            {selectedProduct && (
+  448:             <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+  449                <div className="bg-white dark:bg-gray-800 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+
+  522              <div className="md:w-3/5">
+  523:               <div className="relative pb-[100%] overflow-hidden bg-black rounded-lg">
+  524                  {imageUrl ? (
+
+src\app\look\battle\page.tsx:
+  402              <div className="p-6">
+  403:               <div className="relative rounded-lg overflow-hidden bg-black aspect-[3/4] max-w-md mx-auto mb-4">
+  404                  <video
+
+  412                    onClick={closeCamera}
+  413:                   className="absolute top-2 right-2 p-2 bg-black/50 rounded-full text-white"
+  414                    aria-label="Close camera"
+
+src\app\look\components\camera-upload.tsx:
+  165          <div className="space-y-4">
+  166:           <div className={`relative w-full bg-black rounded-md overflow-hidden aspect-[${aspectRatio}]`}>
+  167              {showImagePreview && capturedImage ? (
+
+src\app\look_backup\camera\page.tsx:
+  168          ) : (
+  169:           <div className="relative aspect-[3/4] w-full bg-black">
+  170              <video
+
+src\app\look_backup\yay-or-nay\page.tsx:
+  241            {/* Info footer */}
+  242:           <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-4">
+  243              <div className="flex items-center space-x-3 mb-2">
+
+src\app\lookbook\page.tsx:
+  404                    )}
+  405:                   <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+  406                      <Camera className="w-6 h-6 text-white" />
+
+  816          <Dialog.Portal>
+  817:           <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70" />
+  818            <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-5/6 max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+
+  898          <Dialog.Portal>
+  899:           <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70" />
+  900            <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-5/6 max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+
+src\app\lookbook\wallet\page.tsx:
+  398        {showAddFundsModal && (
+  399:         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+  400            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+
+src\app\simple-upload\page.tsx:
+  135            <h2 className="text-lg font-semibold mb-2">Upload Logs</h2>
+  136:           <div className="bg-black text-green-400 p-3 rounded-md overflow-x-auto">
+  137              {logs.map((log, index) => (
+
+src\app\test-connection\page.tsx:
+  159          <p className="mb-2">Copy this code to your browser console to test directly:</p>
+  160:         <pre className="bg-black text-green-400 p-3 rounded text-sm overflow-x-auto">
+  161  {`import { createClient } from '@supabase/supabase-js';
+
+src\app\testpages\ai-assistant\QueryCard.tsx:
+  83            <Dialog.Portal>
+  84:             <Dialog.Overlay className="fixed inset-0 bg-black/50 data-[state=open]:animate-overlayShow" />
+  85              <Dialog.Content className="fixed left-[50%] top-[50%] max-h-[85vh] w-[90vw] max-w-[600px] translate-x-[-50%] translate-y-[-50%] rounded-lg bg-white dark:bg-gray-800 p-6 shadow-lg focus:outline-none data-[state=open]:animate-contentShow overflow-y-auto">
+
+src\app\testpages\battle\page.tsx:
+  231              <div className="p-6">
+  232:               <div className="relative rounded-lg overflow-hidden bg-black aspect-[3/4] max-w-md mx-auto mb-4">
+  233                  <video
+
+  241                    onClick={closeCamera}
+  242:                   className="absolute top-2 right-2 p-2 bg-black/50 rounded-full text-white"
+  243                    aria-label="Close camera"
+
+src\app\testpages\look\page.tsx:
+  41    return (
+  42:     <div className="min-h-screen bg-black text-white p-6">
+  43        <h1 className="text-3xl font-bold text-center mb-8">Create New Look</h1>
+
+src\app\testpages\look\battle\page.tsx:
+  231              <div className="p-6">
+  232:               <div className="relative rounded-lg overflow-hidden bg-black aspect-[3/4] max-w-md mx-auto mb-4">
+  233                  <video
+
+  241                    onClick={closeCamera}
+  242:                   className="absolute top-2 right-2 p-2 bg-black/50 rounded-full text-white"
+  243                    aria-label="Close camera"
+
+src\app\testpages\look\components\camera-upload.tsx:
+  153          <div className="space-y-4">
+  154:           <div className={`relative w-full bg-black rounded-md overflow-hidden aspect-[${aspectRatio}]`}>
+  155              {showImagePreview && capturedImage ? (
+
+src\app\testpages\lookbook\page.tsx:
+  340                  <div className="absolute top-2 right-2 flex space-x-1">
+  341:                   <button className="p-1.5 bg-black/30 rounded-full text-white hover:bg-black/50">
+  342                      <BookmarkPlus size={16} />
+
+src\app\testpages\rating-showcase\page.tsx:
+  508                        />
+  509:                       <div className="absolute top-2 right-2 flex items-center bg-black/70 text-white text-xs px-2 py-1 rounded">
+  510                          <StarRating rating={look.rating || 0} />
+
+src\app\testpages\upload\page.tsx:
+  249              <div className="space-y-4">
+  250:               <div className="relative w-full h-[300px] bg-black rounded-md overflow-hidden">
+  251                  {showImagePreview && capturedImage ? (
+
+src\app\upload-test\page.tsx:
+  146            <h2 className="text-lg font-medium mb-2">Upload Logs</h2>
+  147:           <div className="bg-black text-green-400 p-3 rounded-md h-64 overflow-y-auto">
+  148              {logs.map((log, index) => (
+
+src\components\AnalyticsPopup.tsx:
+  128    return (
+  129:     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+  130        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
+
+src\components\ChatInterface.tsx:
+  767              {showMicNotification && (
+  768:                 <div className="fixed top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-75 text-white px-4 py-2 rounded-lg z-50 shadow-lg">
+  769                      <div className="flex items-center space-x-2">
+
+src\components\VideoInput.tsx:
+  202          <div className="relative w-full">
+  203:             {error && <p className="text-red-500 text-sm absolute top-2 left-2 right-2 z-10 bg-black bg-opacity-50 p-1 rounded">{error}</p>}
+  204              <div className="relative w-full" style={{ minHeight: '160px' }}>
+
+  209                      muted // Mute to avoid feedback loops
+  210:                     className={`w-full h-auto ${!isCameraOn ? 'bg-black' : ''}`}
+  211                      style={{ 
+
+  286                  {showCaptureFeedback && (
+  287:                     <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white p-2 rounded-lg shadow-lg animate-pulse transition-opacity">
+  288                          <div className="flex flex-col">
+
+  296                  {isCapturing && (
+  297:                     <div className="absolute bottom-4 right-4 bg-black bg-opacity-70 text-white px-3 py-1 rounded-full shadow-lg">
+  298                          <div className="flex items-center gap-2">

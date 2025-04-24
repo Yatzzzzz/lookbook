@@ -1,14 +1,1 @@
-import VirtualTryOn from '../components/VirtualTryOn';
-
-export const metadata = {
-  title: 'Virtual Try-On | Fashion Social Network',
-  description: 'Try on clothes virtually before buying or sharing with the fashion community',
-};
-
-export default function TryOnPage() {
-  return (
-    <main className="container mx-auto py-8">
-      <VirtualTryOn />
-    </main>
-  );
-} 
+import VirtualTryOn from '../components/VirtualTryOn'; export const metadata = { title: 'Virtual Try-On | Fashion Social Network', description: 'Try on clothes virtually before buying or sharing with the fashion community', }; export default function TryOnPage() { return ( <main className="container mx-auto py-8"> <VirtualTryOn /> </main> ); } 

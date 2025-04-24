@@ -32,18 +32,19 @@ export default function RatingsAdminPage() {
   const checkAuth = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (!session) {
         setAuthorized(false);
         setError('You must be logged in to access this page');
         return;
       }
-
+      
       const { data, error } = await supabase
         .from('users')
         .select('role')
         .eq('id', session.user.id)
         .single();
-
+        
       if (error || !data || data.role !== 'admin') {
         setAuthorized(false);
         setError('You do not have permission to access this page');
@@ -60,16 +61,14 @@ export default function RatingsAdminPage() {
     try {
       const response = await fetch('/api/admin/update-ratings', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
       });
-
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch rating stats');
       }
-
+      
       const data = await response.json();
       if (data.success) {
         setStats(data.stats);
@@ -94,17 +93,15 @@ export default function RatingsAdminPage() {
     try {
       const response = await fetch('/api/admin/update-ratings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'sync_ratings' })
       });
-
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to sync ratings');
       }
-
+      
       const data = await response.json();
       if (data.success) {
         toast({
@@ -134,17 +131,15 @@ export default function RatingsAdminPage() {
     try {
       const response = await fetch('/api/admin/update-ratings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'recreate_triggers' })
       });
-
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to recreate triggers');
       }
-
+      
       const data = await response.json();
       if (data.success) {
         toast({
@@ -173,8 +168,7 @@ export default function RatingsAdminPage() {
         <Card className="max-w-md mx-auto">
           <CardHeader>
             <CardTitle className="text-red-600 flex items-center">
-              <AlertTriangle className="w-5 h-5 mr-2" />
-              Access Denied
+              <AlertTriangle className="w-5 h-5 mr-2" /> Access Denied
             </CardTitle>
             <CardDescription>
               You don't have permission to access this page
@@ -209,36 +203,36 @@ export default function RatingsAdminPage() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : error ? (
-              <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-md text-red-600 dark:text-red-400">
+              <div className="bg-red-50 p-4 rounded-md text-red-600">
                 {error}
               </div>
             ) : stats ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-md">
-                    <p className="text-sm text-blue-600 dark:text-blue-400">Total Looks</p>
+                  <div className="bg-blue-50 p-4 rounded-md">
+                    <p className="text-sm text-blue-600">Total Looks</p>
                     <p className="text-2xl font-bold">{stats.total_looks.toLocaleString()}</p>
                   </div>
-                  <div className="bg-green-50 dark:bg-green-900/10 p-4 rounded-md">
-                    <p className="text-sm text-green-600 dark:text-green-400">Rated Looks</p>
+                  <div className="bg-green-50 p-4 rounded-md">
+                    <p className="text-sm text-green-600">Rated Looks</p>
                     <p className="text-2xl font-bold">{stats.rated_looks.toLocaleString()}</p>
-                    <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">
+                    <p className="text-xs text-green-600/70 mt-1">
                       {Math.round((stats.rated_looks / stats.total_looks) * 100) || 0}% of total
                     </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-md">
-                    <p className="text-sm text-purple-600 dark:text-purple-400">Average Ratings</p>
+                  <div className="bg-purple-50 p-4 rounded-md">
+                    <p className="text-sm text-purple-600">Average Ratings</p>
                     <p className="text-2xl font-bold">{stats.avg_ratings_per_look}</p>
-                    <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">
+                    <p className="text-xs text-purple-600/70 mt-1">
                       Per rated look
                     </p>
                   </div>
-                  <div className="bg-yellow-50 dark:bg-yellow-900/10 p-4 rounded-md">
-                    <p className="text-sm text-yellow-600 dark:text-yellow-400">Top Rated</p>
+                  <div className="bg-yellow-50 p-4 rounded-md">
+                    <p className="text-sm text-yellow-600">Top Rated</p>
                     <p className="text-2xl font-bold">{stats.top_rated_count}</p>
-                    <p className="text-xs text-yellow-600/70 dark:text-yellow-400/70 mt-1">
+                    <p className="text-xs text-yellow-600/70 mt-1">
                       In featured section
                     </p>
                   </div>
@@ -252,7 +246,7 @@ export default function RatingsAdminPage() {
             <Button 
               variant="outline" 
               onClick={fetchStats} 
-              disabled={loading}
+              disabled={loading} 
               className="flex items-center"
             >
               {loading ? (
@@ -264,7 +258,7 @@ export default function RatingsAdminPage() {
             </Button>
           </CardFooter>
         </Card>
-
+        
         <Card>
           <CardHeader>
             <CardTitle>System Maintenance</CardTitle>
@@ -272,15 +266,15 @@ export default function RatingsAdminPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-md">
+              <div className="bg-blue-50 p-4 rounded-md">
                 <h3 className="font-medium mb-2">Synchronize Ratings</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <p className="text-sm text-gray-600 mb-4">
                   This will update all look rating counts and averages based on individual user ratings.
                   Use this if ratings appear out of sync on the Trends page.
                 </p>
                 <Button 
                   onClick={syncRatings} 
-                  disabled={syncLoading}
+                  disabled={syncLoading} 
                   className="flex items-center"
                 >
                   {syncLoading ? (
@@ -291,17 +285,17 @@ export default function RatingsAdminPage() {
                   Synchronize All Ratings
                 </Button>
               </div>
-
-              <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-md">
+              
+              <div className="bg-amber-50 p-4 rounded-md">
                 <h3 className="font-medium mb-2">Recreate Database Triggers</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <p className="text-sm text-gray-600 mb-4">
                   This will recreate the database triggers that keep ratings in sync.
                   Only use if automatic rating updates are not working.
                 </p>
                 <Button 
-                  variant="outline"
+                  variant="outline" 
                   onClick={recreateTriggers} 
-                  disabled={triggerLoading}
+                  disabled={triggerLoading} 
                   className="flex items-center"
                 >
                   {triggerLoading ? (
