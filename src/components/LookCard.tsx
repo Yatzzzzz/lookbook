@@ -10,6 +10,7 @@ interface LookCardProps {
     image_url: string;
     title?: string;
     username?: string;
+    display_name?: string;
     created_at: string;
   };
   index: number;
@@ -47,6 +48,11 @@ export default function LookCard({ look, index }: LookCardProps) {
     setImageLoading(false);
     setImageError(true);
   };
+
+  // Get the display name or fallback to username
+  const displayName = look.display_name || look.username || "Anonymous";
+  // Get the first letter for the avatar
+  const avatarLetter = displayName.charAt(0).toUpperCase();
 
   return (
     <div className="bg-white rounded-lg overflow-hidden shadow-lg">
@@ -101,9 +107,14 @@ export default function LookCard({ look, index }: LookCardProps) {
       <div className="p-4">
         <div className="flex items-center mb-2">
           <div className="w-8 h-8 rounded-full bg-gray-300 mr-2 flex items-center justify-center">
-            {look.username?.charAt(0).toUpperCase() || "A"}
+            {avatarLetter}
           </div>
-          <span className="font-medium text-sm">{look.username || "Anonymous"}</span>
+          <div className="flex flex-col">
+            <span className="font-medium text-sm">{displayName}</span>
+            {look.display_name && look.username && (
+              <span className="text-xs text-gray-500">@{look.username}</span>
+            )}
+          </div>
         </div>
         <h2 className="text-lg font-semibold mb-2 truncate">
           {look.title || `Look ${index + 1}`}

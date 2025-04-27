@@ -1,0 +1,119 @@
+Core Camera Component (CameraComponent.tsx)
+
+The component features:
+
+Mobile Camera Integration
+
+Uses the Web MediaDevices API to access the device camera
+Auto-detects and allows switching between front/back cameras
+Works on mobile and desktop devices
+
+Photo and Video Capabilities
+
+Takes high-quality photos with appropriate dimensions
+Records videos with configurable max duration
+Provides real-time video recording indicator
+
+Media Upload Support
+
+Integrates with the device gallery to select existing photos/videos
+Handles different file types appropriately
+
+Timer Functionality
+
+Supports 3, 5, and 10-second countdown timers as requested
+Visual countdown display for user feedback
+
+Media Approval/Rejection
+
+Preview interface for captured media
+Approve/deny buttons with appropriate UI
+Background removal/replacement capabilities using your existing background images
+
+AI Tagging Integration
+
+Mock implementation that can be connected to real AI services
+Context-aware tagging based on component usage (wardrobe, search, general)
+Tag display with appropriate styling
+
+
+Example Usage Scenarios
+
+
+I've also created examples showing how the component can be used in different contexts:
+
+Wardrobe Item Addition
+
+Captures items for your wardrobe
+Uses AI tagging to auto-populate form fields (category, style, season, etc.)
+Streamlined user flow for adding fashion items
+
+Visual Search
+
+Take photo of an item to find similar products
+Price filtering based on your specified price points ($99, $199, $299, $399)
+Results display with appropriate UI
+
+Social Posting
+
+Photo/video capture for social posts
+Background selection from your existing backgrounds
+Caption and hashtag suggestions based on AI tagging
+
+Technical Details
+
+Written in TypeScript with React 19
+Fully responsive using Tailwind CSS
+Uses modern browser APIs (MediaDevices, MediaRecorder)
+Handles device compatibility and fallbacks
+Includes proper resource cleanup to prevent memory leaks
+
+Design Considerations
+
+Mobile-first approach with touch-friendly controls
+Visual feedback for all operations (loading, capturing, processing)
+Clean, modern UI consistent with fashion application aesthetics
+Accessibility considerations (ARIA labels, keyboard navigation)
+The component is designed to be flexible, allowing you to integrate it with various parts of your application while maintaining consistent functionality. The AI tagging functionality is currently mocked but designed to be easily replaced with actual API calls to Google Vision or GPT-4o services as you specified.
+
+To integrate the camera component into your pages and customize it for different purposes, you can use the following approaches:
+
+Creating Pages with the Camera Component
+
+When you want me to add the component to pages or create new pages using it, be specific about:
+- The exact page path (e.g., "add this to src/app/wardrobe/add/page.tsx")
+- What functionality you need on that page (photos only, video, background removal, etc.)
+- Any specific layout requirements around the camera component
+
+Example request: "Create a new page at src/app/search/visual/page.tsx that uses the camera component to search for similar items and show price-filtered results."
+
+Customizing Forms and Fields
+
+To tell me about form structure and fields, specify:
+- What fields should be populated from AI tagging
+- Field types (text, select, number, etc.)
+- Validation requirements
+- Default values
+- How tags should map to specific fields
+
+Example request: "The wardrobe form should include a size field with XS/S/M/L/XL options as a dropdown, and the AI should map 'oversized' tags to size L."
+
+Integrating AI Services
+
+To request GPT-4o or Google Lens integration:
+- Specify which AI service to use
+- The API endpoint or service configuration
+- What data to send (image format, size requirements)
+- How to process the response
+- Error handling needs
+
+xample request: "Replace the mockAITagging function with a call to Google Vision API. The API key should be loaded from environment variables. The request should send the image as a base64 string, and we need to extract clothing categories from the labelDetection response."
+Implementation Details
+For implementation specifics:
+- Provide sample API requests/responses if you have them
+- Mention any authentication requirements
+- Specify rate limiting concerns
+- Note performance considerations (image compression, etc.)
+
+For example: "The Google Lens integration should compress images to max 1MB before sending and should cache results for 24 hours to avoid excessive API calls."
+Would you like me to implement any of these specific integrations now?

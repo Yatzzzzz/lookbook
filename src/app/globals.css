@@ -319,3 +319,13 @@ video {
   background-color: white !important;
   color: black !important;
 }
+
+/* Custom scrollbar hiding for overflow elements */
+.overflow-x-auto::-webkit-scrollbar {
+  display: none;
+}
+
+.overflow-x-auto {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}

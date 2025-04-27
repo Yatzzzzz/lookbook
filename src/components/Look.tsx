@@ -12,6 +12,7 @@ interface LookProps {
   imageUrl: string;
   description?: string;
   username: string;
+  displayName?: string;
   avatarUrl?: string;
   likes?: number;
   commentsCount?: number;
@@ -30,6 +31,7 @@ export default function Look({
   imageUrl,
   description,
   username,
+  displayName,
   avatarUrl,
   likes = 0,
   commentsCount = 0,
@@ -91,7 +93,7 @@ export default function Look({
         <div className="aspect-square relative overflow-hidden">
           <Image
             src={imageUrl}
-            alt={description || `Fashion look by ${username}`}
+            alt={description || `Fashion look by ${displayName || username}`}
             layout="fill"
             objectFit="cover"
             className="transition-transform duration-300 hover:scale-105"
@@ -134,7 +136,7 @@ export default function Look({
             <div className="w-6 h-6 rounded-full overflow-hidden mr-2">
               <Image
                 src={avatarUrl}
-                alt={username}
+                alt={displayName || username}
                 width={24}
                 height={24}
                 className="object-cover"
@@ -143,7 +145,12 @@ export default function Look({
           ) : (
             <div className="w-6 h-6 rounded-full bg-gray-200 mr-2" />
           )}
-          <span className="text-sm font-medium">@{username}</span>
+          <div className="flex flex-col">
+            {displayName && (
+              <span className="text-sm font-medium">{displayName}</span>
+            )}
+            <span className="text-xs text-gray-500">@{username}</span>
+          </div>
         </div>
 
         {/* Description */}

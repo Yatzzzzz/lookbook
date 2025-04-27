@@ -29,6 +29,7 @@ const getSupabaseClient = () => {
 type AuthContextType = {
   user: User | null;
   loading: boolean;
+  isLoading: boolean;
   error: string | null;
   signOut: () => Promise<void>;
   signIn: (session: Session) => void;
@@ -40,6 +41,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  isLoading: true,
   error: null,
   signOut: async () => {},
   signIn: () => {},
@@ -132,6 +134,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (session) {
           setUser(session.user);
+          // Ensure user record exists when session is retrieved
+          try {
+            await ensureUserRecord(session.user);
+          } catch (e) {
+            console.error('Failed to ensure user record during initialization:', e);
+          }
           setLoading(false);
           return;
         }
@@ -156,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up auth state change listener
     if (supabase) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        (event, session) => {
+        (event: 'SIGNED_IN' | 'SIGNED_OUT' | 'USER_UPDATED' | 'PASSWORD_RECOVERY' | 'TOKEN_REFRESHED', session: Session | null) => {
           console.log('Auth state changed:', event, session?.user?.id);
           if (session?.user) {
             setUser(session.user);
@@ -292,6 +300,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         loading,
+        isLoading: loading,
         error,
         signOut,
         signIn,

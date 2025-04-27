@@ -1,0 +1,53 @@
+Deployment info
+Name
+Azure AI Speech
+Deployment Type
+Universal Service
+Tasks
+Speech Recognition (Real-time, Fast, Batch Speech to Text)
+Text to Speech (Voice)
+Speech translation
+Language identification
+Pronunciation assessment
+Keyword spotting
+Keyword verification
+Speaker recognition
+Custom speech
+Custom voice
+Resource Name
+ai-itzikzabarsky2812ai950890111340
+Resource Type
+AIServices
+Date created
+Mar 26, 2025, 7:01:35 PM
+Modified by
+itzikzabarsky@hotmail.com
+Pricing Tier
+S0
+Billing
+See billing on Azure Portal
+Hosting Fee
+None
+Usage Fee
+Speech Service Pricing
+Key and endpoints
+Primary Key
+E497y1zy2iP2Px3ZJKnNQNVze3q0FsQDJYychjuB9kNxWChYPDOGJQQJ99BCACHYHv6XJ3w3AAAAACOGKl3t
+
+
+
+Region
+eastus2
+
+Resource endpoint
+https://ai-itzikzabarsky2812ai950890111340.cognitiveservices.azure.com/
+
+Speech to Text (Standard) endpoint
+https://eastus2.stt.speech.microsoft.com
+
+Text to Speech (Neural) endpoint
+https://eastus2.tts.speech.microsoft.com
+
+Learning references
+View sample code in GitHub 
+Documentation 

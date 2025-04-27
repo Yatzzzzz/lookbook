@@ -7,6 +7,7 @@ import BottomNav from '@/components/BottomNav';
 import { WardrobeProvider } from './context/WardrobeContext';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import DbInitializer from '@/components/DbInitializer';
+import ProfileCompletionReminder from '@/components/profile/profile-completion-reminder';
 import { Toaster } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -52,7 +53,10 @@ export default function RootLayout({
             <WardrobeProvider>
               <DbInitializer />
               <NavBar />
-              <main className="max-w-7xl mx-auto p-4 pb-28">{children}</main>
+              <main className="max-w-7xl mx-auto p-4 pb-28">
+                <ProfileCompletionReminder className="mx-auto max-w-3xl" />
+                {children}
+              </main>
               <BottomNav />
               <Toaster position="bottom-right" />
             </WardrobeProvider>

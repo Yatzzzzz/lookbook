@@ -31,7 +31,7 @@ export function UserCard({
 }: UserCardProps) {
   const content = (
     <div className={`flex items-center gap-3 p-3 ${className}`}>
-      <UserAvatar src={avatar} name={username} size="md" />
+      <UserAvatar src={avatar} name={displayName || username} size="md" />
       
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1">
@@ -39,7 +39,7 @@ export function UserCard({
             {displayName || username}
           </p>
           {displayName && (
-            <span className="text-gray-500 dark:text-gray-400 text-sm">
+            <span className="text-gray-500 dark:text-gray-400 text-xs">
               @{username}
             </span>
           )}

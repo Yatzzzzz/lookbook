@@ -1,0 +1,16 @@
+Name
+ai-itzikzabarsky2812ai950890111340
+
+api KEYS
+
+E497y1zy2iP2Px3ZJKnNQNVze3q0FsQDJYychjuB9kNxWChYPDOGJQQJ99BCACHYHv6XJ3w3AAAAACOGKl3t
+
+ceES8NYTFxG8z4uyt78IJWy47fzD2d6DKqzfvWPVHyQW2eu45mHfJQQJ99BCACHYHv6XJ3w3AAAAACOGkkFx
+
+Azure OpenAI Service endpoint
+https://ai-itzikzabarsky2812ai950890111340.cognitiveservices.azure.com/
+
+Subscription ID
+7d885bf5-0626-4691-812a-64bda2b2f7df
+
+SEE JSON.MD FILE FOR ALL THE Information

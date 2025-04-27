@@ -1,0 +1,149 @@
+Required Database Enhancements
+To support these features, we need to enhance the database structure:
+1. Wardrobe Items Table Enhancements
+
+
+-- Enhance wardrobe table with new fields
+ALTER TABLE wardrobe ADD COLUMN visibility VARCHAR(20) DEFAULT 'private';
+ALTER TABLE wardrobe ADD COLUMN brand_url TEXT; -- For affiliate links
+ALTER TABLE wardrobe ADD COLUMN wear_count INTEGER DEFAULT 0;
+ALTER TABLE wardrobe ADD COLUMN purchase_date DATE;
+ALTER TABLE wardrobe ADD COLUMN purchase_price DECIMAL(10,2);
+ALTER TABLE wardrobe ADD COLUMN size TEXT;
+ALTER TABLE wardrobe ADD COLUMN last_worn DATE;
+ALTER TABLE wardrobe ADD COLUMN material TEXT[];
+ALTER TABLE wardrobe ADD COLUMN season TEXT[];
+ALTER TABLE wardrobe ADD COLUMN occasion TEXT[];
+ALTER TABLE wardrobe ADD COLUMN featured BOOLEAN DEFAULT false;
+ALTER TABLE wardrobe ADD COLUMN affiliate_links JSONB;
+
+
+2. New Outfits Table
+
+-- Create outfits table
+CREATE TABLE outfits (
+  outfit_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  image_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  last_worn DATE,
+  wear_count INTEGER DEFAULT 0,
+  visibility VARCHAR(20) DEFAULT 'private',
+  season TEXT[],
+  occasion TEXT[],
+  weather_conditions TEXT[],
+  featured BOOLEAN DEFAULT false
+);
+
+-- Create junction table for outfits and items
+CREATE TABLE outfit_items (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  outfit_id UUID REFERENCES outfits(outfit_id) ON DELETE CASCADE,
+  item_id UUID REFERENCES wardrobe(item_id) ON DELETE CASCADE,
+  layer_order INTEGER, -- For layering visualization
+  position_data JSONB, -- For storing position in outfit builder
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(outfit_id, item_id)
+);
+
+3. Social & Following Tables
+
+-- Create wardrobe following table
+CREATE TABLE wardrobe_follows (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  follower_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  followed_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(follower_id, followed_id)
+);
+
+-- Create inspiration boards table
+CREATE TABLE inspiration_boards (
+  board_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  visibility VARCHAR(20) DEFAULT 'private',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create inspiration items junction table
+CREATE TABLE inspiration_items (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  board_id UUID REFERENCES inspiration_boards(board_id) ON DELETE CASCADE,
+  item_type VARCHAR(20) NOT NULL, -- 'wardrobe', 'outfit', 'look'
+  item_id UUID NOT NULL,
+  source_user_id UUID REFERENCES users(id), -- Who the item is from
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+4. Affiliate & Shopping Tables
+
+-- Create product table for affiliate links
+CREATE TABLE products (
+  product_id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name TEXT NOT NULL,
+  brand TEXT,
+  description TEXT,
+  image_url TEXT,
+  affiliate_url TEXT,
+  regular_price DECIMAL(10,2),
+  sale_price DECIMAL(10,2),
+  retailer TEXT,
+  category TEXT,
+  tags TEXT[],
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create wish list table
+CREATE TABLE wish_list (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES products(product_id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  price_alert DECIMAL(10,2), -- Alert when price drops below this
+  UNIQUE(user_id, product_id)
+);
+
+-- Create analytics table for monetization tracking
+CREATE TABLE click_tracking (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES users(id),
+  source_type VARCHAR(20), -- 'wardrobe', 'outfit', 'look', 'recommendation'
+  source_id UUID,
+  product_id UUID REFERENCES products(product_id),
+  creator_id UUID REFERENCES users(id), -- For revenue sharing
+  clicked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  converted BOOLEAN DEFAULT false,
+  conversion_value DECIMAL(10,2)
+);
+
+5. AI & Recommendation Tables
+
+-- Create style profile table
+CREATE TABLE style_profiles (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  dominant_styles TEXT[],
+  color_preferences JSONB,
+  avoid_materials TEXT[],
+  fit_preferences JSONB,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create recommendation history table
+CREATE TABLE recommendations (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  recommendation_type VARCHAR(50), -- 'outfit', 'product', 'style'
+  recommendation_data JSONB,
+  context TEXT[], -- 'weather', 'event', 'season'
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  user_feedback INTEGER -- Rating of recommendation quality
+);
+

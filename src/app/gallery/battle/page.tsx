@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import BottomNav from "@/components/BottomNav";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 
@@ -457,7 +457,7 @@ function BattlePageContent() {
                 <div className="flex items-center gap-2">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={battle.avatar_url || ''} alt={battle.username || 'User'} />
-                    <AvatarFallback>{(battle.username || 'U').charAt(0).toUpperCase()}</AvatarFallback>
+                    {battle.username ? <AvatarFallback>{battle.username.charAt(0).toUpperCase()}</AvatarFallback> : null}
                   </Avatar>
                   <div className="font-medium">{battle.username || 'Anonymous'}</div>
                 </div>

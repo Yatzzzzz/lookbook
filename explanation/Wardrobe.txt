@@ -1,0 +1,85 @@
+After a comprehensive search of the codebase, here's what I found regarding API endpoints for adding products:
+🤖 Based on my analysis of the codebase, there doesn't appear to be a dedicated API endpoint specifically for adding or managing products in the marketplace. Here's a summary of my findings:
+The application has a marketplace feature with product-related functionality implemented in src/app/context/WardrobeContext.tsx. This context provides methods for:
+Fetching product details
+Searching products
+Adding products to wishlists
+Tracking product clicks
+Getting product recommendations
+The database structure for products is defined in supabase/create-marketplace-tables.sql, which creates several tables:
+products table for storing product information
+wish_list table for saved products
+click_tracking for affiliate link tracking
+product_recommendations for suggested products
+price_history for tracking price changes
+There is no explicit API route like /api/products or /api/marketplace for product management. Unlike the wardrobe items which have /api/wardrobe/add endpoint, product management appears to be either:
+Handled directly through Supabase client operations in the WardrobeContext
+Possibly managed through an admin interface or tool that's not exposed in the codebase
+Potentially populated through a data import process rather than through the application itself
+The application has admin routes (in /src/app/admin/) but they appear to be focused on ratings management rather than product management.
+If you need to implement product management functionality, you would likely need to create a new API endpoint similar to the existing /api/wardrobe/add endpoint. This would involve creating a new route handler in a location like /src/app/api/marketplace/add/route.ts that would authenticate users, validate input, and insert records into the products table using the Supabase admin client.
+
+
+
+Product Management API:
+GET /api/marketplace/products - List all products with filtering options
+POST /api/marketplace/products - Add a new product (admin only)
+GET /api/marketplace/products/[productId] - Get product details
+PATCH /api/marketplace/products/[productId] - Update a product (admin only)
+DELETE /api/marketplace/products/[productId] - Delete a product (admin only)
+Product Matching API:
+GET /api/marketplace/product-matches/[itemId] - Get products matching a wardrobe item
+POST /api/marketplace/product-matches/[itemId] - Associate products with a wardrobe item (admin only)
+DELETE /api/marketplace/product-matches/[itemId] - Remove product associations (admin only)
+Wishlist API:
+GET /api/marketplace/wishlist - Get user's wishlist
+POST /api/marketplace/wishlist - Add item to wishlist
+GET /api/marketplace/wishlist/[id] - Get specific wishlist item
+PATCH /api/marketplace/wishlist/[id] - Update wishlist item
+DELETE /api/marketplace/wishlist/[id] - Remove item from wishlist
+Recommendation API:
+GET /api/marketplace/recommendations - Get personalized product recommendations with different types:
+personalized: Based on user's wardrobe categories
+trending: Popular products based on click data
+new: Recently added products
+gap: Products that fill gaps in the user's wardrobe
+These endpoints provide a complete API for the marketplace features planned for Phase 4 as outlined in the documentation. Each endpoint includes proper authentication, error handling, and appropriate business logic.
+The implementation follows these principles:
+Only admins can manage products (add, update, delete)
+Users can view products and manage their own wishlist
+Product recommendations are personalized based on the user's wardrobe
+Integration with the activity feed for social features
+
+
+Page Structure:
+The page is implemented as a client-side component in Next.js, located at src/app/marketplace/product/[productId]/page.tsx
+It uses dynamic routing with the [productId] parameter to display specific product details
+The UI is built using a combination of Radix UI and Tailwind CSS components
+Data Handling:
+The product data is fetched from Supabase through the WardrobeContext provider
+Key data points include product details, price history, and similar product recommendations
+The database schema uses several interconnected tables (products, price_history, wish_list, etc.)
+Key Features:
+Product Information Display
+Images, name, description, brand, and pricing information
+External link to the product source with click tracking
+Price History Tracking
+Displays historical price changes from the price_history table
+Includes a graph visualization using the LineChart component
+Each price record includes the price amount and recorded date
+Wishlist Functionality
+Users can add products to their wishlist with additional notes
+Target price setting for price drop notifications
+Price drop notifications toggle
+Similar Products Recommendations
+Displays products similar to the current one
+Similarity is based on matching to wardrobe items or by category
+Uses the similar_to_item_id field in the products table
+Loading States and Error Handling
+Comprehensive loading states with spinners for async operations
+Error handling for products not found or fetch failures
+Implementation Details:
+The database schema properly supports all features with appropriate foreign key relationships
+Row Level Security (RLS) policies ensure data privacy and access control
+Indexes are set up for performance optimization on frequently queried fields
+The price history functionality queries records ordered by date to show price trends over timec

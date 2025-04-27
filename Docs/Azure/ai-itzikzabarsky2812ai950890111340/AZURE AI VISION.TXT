@@ -1,0 +1,42 @@
+Deployment info
+Name
+Azure AI Vision
+Deployment Type
+Universal Service
+Tasks
+Extract text from images
+Search for photos
+Caption images
+Identify objects within images
+Tag images
+Detect faces within images
+Resource Name
+ai-itzikzabarsky2812ai950890111340
+Resource Type
+AIServices
+Date created
+Mar 26, 2025, 7:01:35 PM
+Modified by
+itzikzabarsky@hotmail.com
+Pricing Tier
+S0
+Billing
+See billing on Azure Portal
+Hosting Fee
+None
+Usage Fee
+Vision Service Pricing
+Key and endpoints
+Primary Key
+E497y1zy2iP2Px3ZJKnNQNVze3q0FsQDJYychjuB9kNxWChYPDOGJQQJ99BCACHYHv6XJ3w3AAAAACOGKl3t
+
+
+Region
+eastus2
+
+Computer Vision endpoint
+https://ai-itzikzabarsky2812ai950890111340.cognitiveservices.azure.com/
+
+Learning references
+View sample code in GitHub 
+Documentation 

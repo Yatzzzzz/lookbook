@@ -33,6 +33,20 @@ export function EditWardrobeItemModal({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // New state for enhanced fields
+  const [visibility, setVisibility] = useState('private');
+  const [brandUrl, setBrandUrl] = useState('');
+  const [size, setSize] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState('');
+  const [purchasePrice, setPurchasePrice] = useState('');
+  const [material, setMaterial] = useState('');
+  const [season, setSeason] = useState<string[]>([]);
+  const [occasion, setOccasion] = useState<string[]>([]);
+  const [featured, setFeatured] = useState(false);
+  const [wearCount, setWearCount] = useState(0);
+  const [lastWorn, setLastWorn] = useState('');
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get item data
@@ -48,6 +62,19 @@ export function EditWardrobeItemModal({
       setDescription(item.description || '');
       setImagePath(item.image_path || null);
       setImagePreview(item.image_path || null);
+      
+      // Set enhanced fields
+      setVisibility(item.visibility || 'private');
+      setBrandUrl(item.brand_url || '');
+      setSize(item.size || '');
+      setPurchaseDate(item.purchase_date || '');
+      setPurchasePrice(item.purchase_price ? item.purchase_price.toString() : '');
+      setMaterial(item.material ? item.material.join(', ') : '');
+      setSeason(item.season || []);
+      setOccasion(item.occasion || []);
+      setFeatured(item.featured || false);
+      setWearCount(item.wear_count || 0);
+      setLastWorn(item.last_worn || '');
     }
   }, [itemId, wardrobeItems, isOpen]);
 
@@ -94,30 +121,90 @@ export function EditWardrobeItemModal({
     setImagePath(null);
     setImagePreview(null);
     setError(null);
+    
+    // Reset enhanced fields
+    setVisibility('private');
+    setBrandUrl('');
+    setSize('');
+    setPurchaseDate('');
+    setPurchasePrice('');
+    setMaterial('');
+    setSeason([]);
+    setOccasion([]);
+    setFeatured(false);
+    setWearCount(0);
+    setLastWorn('');
+  };
+
+  // Helper function to handle season and occasion selection
+  const handleArrayFieldChange = (
+    field: 'season' | 'occasion',
+    value: string,
+    setter: React.Dispatch<React.SetStateAction<string[]>>
+  ) => {
+    setter(prev => {
+      if (prev.includes(value)) {
+        return prev.filter(item => item !== value);
+      } else {
+        return [...prev, value];
+      }
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setError(null);
+      
+      // Validate required fields
+      if (!name.trim()) {
+        setError('Item name is required');
+        return;
+      }
+      
+      if (!category) {
+        setError('Category is required');
+        return;
+      }
+      
       setIsUploading(true);
 
       let updatedImagePath = imagePath;
 
       // Upload new image if selected
       if (imageFile) {
-        updatedImagePath = await uploadImage(imageFile);
+        try {
+          updatedImagePath = await uploadImage(imageFile);
+        } catch (imageError: any) {
+          console.error('Error uploading image:', imageError);
+          setError(imageError.message || 'Failed to upload image');
+          setIsUploading(false);
+          return;
+        }
       }
 
-      // Update item in wardrobe
+      // Update item in wardrobe with enhanced fields
       await updateItem(itemId, {
-        name,
+        name: name.trim(),
         category,
-        color,
-        brand,
-        style,
-        description,
+        color: color || undefined,
+        brand: brand || undefined,
+        style: style || undefined,
+        description: description || undefined,
         image_path: updatedImagePath || undefined,
+        // Enhanced fields
+        visibility,
+        brand_url: brandUrl || undefined,
+        size: size || undefined,
+        purchase_date: purchaseDate || undefined,
+        purchase_price: purchasePrice ? parseFloat(purchasePrice) : undefined,
+        material: material ? material.split(',').map(m => m.trim()) : [],
+        season,
+        occasion,
+        featured,
+        // Preserve existing wear count
+        wear_count: wearCount,
+        last_worn: lastWorn || undefined
       });
 
       onClose();
@@ -330,6 +417,176 @@ export function EditWardrobeItemModal({
                 rows={3}
               />
             </div>
+
+            {/* Enhanced Fields */}
+            <div className="space-y-2">
+              <Label.Root
+                htmlFor="visibility"
+                className="text-sm font-medium text-gray-700"
+              >
+                Visibility
+              </Label.Root>
+              <select
+                id="visibility"
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="private">Private</option>
+                <option value="public">Public</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label.Root
+                htmlFor="brandUrl"
+                className="text-sm font-medium text-gray-700"
+              >
+                Brand URL
+              </Label.Root>
+              <input
+                id="brandUrl"
+                type="text"
+                value={brandUrl}
+                onChange={(e) => setBrandUrl(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label.Root
+                htmlFor="size"
+                className="text-sm font-medium text-gray-700"
+              >
+                Size
+              </Label.Root>
+              <input
+                id="size"
+                type="text"
+                value={size}
+                onChange={(e) => setSize(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label.Root
+                htmlFor="purchaseDate"
+                className="text-sm font-medium text-gray-700"
+              >
+                Purchase Date
+              </Label.Root>
+              <input
+                id="purchaseDate"
+                type="date"
+                value={purchaseDate}
+                onChange={(e) => setPurchaseDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label.Root
+                htmlFor="purchasePrice"
+                className="text-sm font-medium text-gray-700"
+              >
+                Purchase Price
+              </Label.Root>
+              <input
+                id="purchasePrice"
+                type="text"
+                value={purchasePrice}
+                onChange={(e) => setPurchasePrice(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label.Root
+                htmlFor="material"
+                className="text-sm font-medium text-gray-700"
+              >
+                Material
+              </Label.Root>
+              <input
+                id="material"
+                type="text"
+                value={material}
+                onChange={(e) => setMaterial(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label.Root
+                htmlFor="season"
+                className="text-sm font-medium text-gray-700"
+              >
+                Season
+              </Label.Root>
+              <select
+                id="season"
+                value={season.join(', ')}
+                onChange={(e) => handleArrayFieldChange('season', e.target.value, setSeason)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                multiple
+              >
+                <option value="spring">Spring</option>
+                <option value="summer">Summer</option>
+                <option value="fall">Fall</option>
+                <option value="winter">Winter</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label.Root
+                htmlFor="occasion"
+                className="text-sm font-medium text-gray-700"
+              >
+                Occasion
+              </Label.Root>
+              <select
+                id="occasion"
+                value={occasion.join(', ')}
+                onChange={(e) => handleArrayFieldChange('occasion', e.target.value, setOccasion)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                multiple
+              >
+                <option value="casual">Casual</option>
+                <option value="formal">Formal</option>
+                <option value="work">Work</option>
+                <option value="party">Party</option>
+                <option value="sport">Sport</option>
+                <option value="travel">Travel</option>
+              </select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                id="featured"
+                type="checkbox"
+                checked={featured}
+                onChange={(e) => setFeatured(e.target.checked)}
+                className="w-4 h-4 text-blue-500"
+              />
+              <Label.Root
+                htmlFor="featured"
+                className="text-sm font-medium text-gray-700"
+              >
+                Featured Item
+              </Label.Root>
+            </div>
+
+            {wearCount > 0 && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-md">
+                <p className="text-sm text-blue-700">
+                  This item has been worn {wearCount} times.
+                  {lastWorn && (
+                    <span> Last worn on {new Date(lastWorn).toLocaleDateString()}.</span>
+                  )}
+                </p>
+              </div>
+            )}
 
             <div className="flex justify-end space-x-2 pt-4">
               <button

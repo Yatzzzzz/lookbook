@@ -71,7 +71,7 @@ export function GallerySlider({ title = '', looks, loading = false, onSave, onSh
       
       <div 
         ref={sliderRef}
-        className="flex overflow-x-auto scrollbar-hide py-4 px-2 -mx-2 space-x-4 scroll-smooth"
+        className="flex overflow-x-auto py-4 px-2 -mx-2 space-x-4 scroll-smooth"
         onScroll={() => setScrollPosition(sliderRef.current?.scrollLeft || 0)}
       >
         {loading ? (
