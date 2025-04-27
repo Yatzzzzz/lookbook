@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - new-main
   workflow_dispatch:
 
 env:
@@ -29,11 +30,18 @@ jobs:
           echo "CI=true" >> .env.local
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env.local
           echo "NEXT_PUBLIC_SUPABASE_URL=https://wwjuohjstrcyvshfuadr.supabase.co" >> .env.local
-          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env.local
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" >> .env.local
           echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env.local
           echo "GOOGLE_APPLICATION_CREDENTIALS=./dummy-credentials.json" >> .env.local
           echo "NEXT_PUBLIC_WEBSOCKET_URL=wss://lookbook-nextjs-app.azurewebsites.net/api/gemini-live" >> .env.local
           echo "NEXT_TELEMETRY_DISABLED=1" >> .env.local
+          echo "KLINGAI_ACCESS_KEY=${{ secrets.KLINGAI_ACCESS_KEY }}" >> .env.local
+          echo "KLINGAI_SECRET_KEY=${{ secrets.KLINGAI_SECRET_KEY }}" >> .env.local
+          echo "AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }}" >> .env.local
+          echo "AZURE_OPENAI_ENDPOINT=https://ai-itzikzabarsky2812ai950890111340.openai.azure.com/" >> .env.local
+          echo "AZURE_OPENAI_MODEL=gpt-4o" >> .env.local
+          echo "AZURE_OPENAI_DEPLOYMENT=lookbookAIGPT4o" >> .env.local
+          echo "AZURE_OPENAI_API_VERSION=2024-04-01-preview" >> .env.local
           
           # Create dummy credentials
           echo "{}" > ./dummy-credentials.json
@@ -76,7 +84,7 @@ jobs:
           FALLBACK_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3anVvaGpzdHJjeXZzaGZ1YWRyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MzQ1NjMxNCwiZXhwIjoyMDU5MDMyMzE0fQ.8pL_0gkrX1gIBA-gXMUywcS8Nc7t-m1vh3vKCJEyhgk"
           
           # Use the secrets if available, otherwise use the fallbacks
-          SUPABASE_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+          SUPABASE_KEY="${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}"
           SERVICE_ROLE_KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
           
           if [ -z "$SUPABASE_KEY" ]; then
@@ -93,6 +101,13 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL=https://wwjuohjstrcyvshfuadr.supabase.co \
           NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_KEY \
           SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY \
+          KLINGAI_ACCESS_KEY=${{ secrets.KLINGAI_ACCESS_KEY }} \
+          KLINGAI_SECRET_KEY=${{ secrets.KLINGAI_SECRET_KEY }} \
+          AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
+          AZURE_OPENAI_ENDPOINT=https://ai-itzikzabarsky2812ai950890111340.openai.azure.com/ \
+          AZURE_OPENAI_MODEL=gpt-4o \
+          AZURE_OPENAI_DEPLOYMENT=lookbookAIGPT4o \
+          AZURE_OPENAI_API_VERSION=2024-04-01-preview \
           npx next build
         env:
           CI: true
@@ -100,10 +115,17 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=4096"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           NEXT_PUBLIC_SUPABASE_URL: "https://wwjuohjstrcyvshfuadr.supabase.co"
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           GOOGLE_APPLICATION_CREDENTIALS: "./dummy-credentials.json"
           NEXT_PUBLIC_WEBSOCKET_URL: "wss://lookbook-nextjs-app.azurewebsites.net/api/gemini-live"
+          KLINGAI_ACCESS_KEY: ${{ secrets.KLINGAI_ACCESS_KEY }}
+          KLINGAI_SECRET_KEY: ${{ secrets.KLINGAI_SECRET_KEY }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_ENDPOINT: "https://ai-itzikzabarsky2812ai950890111340.openai.azure.com/"
+          AZURE_OPENAI_MODEL: "gpt-4o"
+          AZURE_OPENAI_DEPLOYMENT: "lookbookAIGPT4o"
+          AZURE_OPENAI_API_VERSION: "2024-04-01-preview"
 
       - name: Create Server.js File
         run: |
@@ -180,4 +202,5 @@ jobs:
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: release.zip 
+          package: release.zip
+          slot-name: production 
